@@ -462,7 +462,7 @@ class BasePlayer(BotAI):
         self.last_action.extend(valid_actions)
 
     ################ obs to text
-    async def obs_to_text(self):
+    async def obs_to_text(self, log_prefix: str = ""):
         obs = {}
         obs["Round state"] = self.round_state_to_text()
         obs["Own units"] = await self.units_to_text(self.units)
@@ -476,9 +476,9 @@ class BasePlayer(BotAI):
         obs["Ability description"] = self.get_ability_desc(obs["Unit abilities"] + obs["Structure abilities"])
         obs_text = "\n\n".join([f"# {key}\n{value}" for key, value in obs.items()])
 
-        self.logging("obs", obs, save_trace=True, print_log=False)
+        self.logging(f"{log_prefix}obs", obs, save_trace=True, print_log=False)
         if self.enable_logging:
-            self.logging("obs_text", obs_text, save_file=True, print_log=False)
+            self.logging(f"{log_prefix}obs_text", obs_text, save_file=True, print_log=False)
         return obs_text
 
     def get_ability_desc(self, text: str):

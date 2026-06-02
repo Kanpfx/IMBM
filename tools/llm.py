@@ -40,17 +40,22 @@ class LLMClient:
         messages.append({"role": "user", "content": prompt})
 
         def call_thread():
+            request_kwargs = {
+                "model": model_name,
+                "messages": messages,
+                "max_tokens": max_tokens,
+                "n": n,
+                "temperature": temperature,
+                "timeout": timeout,
+            }
+            if top_p is not None:
+                request_kwargs["top_p"] = top_p
+
             completion = self.client.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                max_tokens=max_tokens,
-                n=n,
-                temperature=temperature,
-                top_p=top_p,
+                **request_kwargs,
                 # top_k=top_k,
                 # repetition_penalty=repetition_penalty,
                 # presence_penalty=presence_penalty,
-                timeout=timeout,
             )
 
             response = completion.choices[0].message.content.strip()
