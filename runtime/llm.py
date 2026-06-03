@@ -4,8 +4,7 @@ import os
 import json
 from openai import OpenAI
 
-from tools.format import extract_code
-from tools.common import pause_for_continue
+from runtime.format import extract_code
 
 class LLMClient:
     def __init__(self, base_url, api_key):

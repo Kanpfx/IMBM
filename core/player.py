@@ -2,13 +2,13 @@ import asyncio
 import time
 
 from agents import BmAgent, ImAgent
-from players.base_player import BasePlayer
-from players.llm_player import LLMPlayer
+from core.base_player import BasePlayer
+from core.economy import EconomyMixin
 from sc2.ids.unit_typeid import UnitTypeId
-from tools.directive import Directive, DirectiveStore
+from runtime.directive import Directive, DirectiveStore
 
 
-class ImBmPlayer(LLMPlayer):
+class ImBmPlayer(EconomyMixin, BasePlayer):
     def __init__(
         self,
         config,

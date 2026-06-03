@@ -1,6 +1,6 @@
-from agents.base_agent import BaseAgent
-from agents.plan_agent import construct_rules, strategy_prompt
-from tools.format import construct_ordered_list, extract_code
+from agents.base import BaseAgent
+from agents.prompts import construct_rules, strategy_prompt
+from runtime.format import construct_ordered_list, extract_code
 
 import json
 

@@ -12,9 +12,9 @@ import math
 import pandas as pd
 import random
 
-from tools.logger import setup_logger
-from tools.format import extract_code, extract_first_number
-from tools.ops import IterativeMean
+from runtime.logging import setup_logger
+from runtime.format import extract_code, extract_first_number
+from runtime.metrics import IterativeMean
 
 
 class TargetType:
@@ -151,6 +151,40 @@ class BasePlayer(BotAI):
         structures_amount = self.structures(unit_type).amount
         pending_amount = self.already_pending(unit_type)
         return unit_amount + structures_amount + pending_amount
+
+    def log_current_iteration(self, iteration: int):
+        print(f"================ iteration {iteration} ================")
+        self.logging("iteration", iteration, save_trace=True)
+        self.logging("time_seconds", int(self.time), save_trace=True)
+        self.logging("minerals", self.minerals, save_trace=True)
+        self.logging("vespene", self.vespene, save_trace=True)
+
+        unit_mineral_value, unit_vespene_value = 0, 0
+        for unit in self.units:
+            unit_value = self.calculate_unit_value(unit.type_id)
+            unit_mineral_value += unit_value.minerals
+            unit_vespene_value += unit_value.vespene
+        self.logging("unit_mineral_value", unit_mineral_value, save_trace=True)
+        self.logging("unit_vespene_value", unit_vespene_value, save_trace=True)
+
+        structure_mineral_value, structure_vespene_value = 0, 0
+        for structure in self.structures:
+            structure_value = self.calculate_unit_value(structure.type_id)
+            structure_mineral_value += structure_value.minerals
+            structure_vespene_value += structure_value.vespene
+        self.logging("structure_mineral_value", structure_mineral_value, save_trace=True)
+        self.logging("structure_vespene_value", structure_vespene_value, save_trace=True)
+
+        self.logging("supply_army", self.supply_army, save_trace=True)
+        self.logging("supply_workers", self.supply_workers, save_trace=True)
+        self.logging("supply_left", self.supply_left, save_trace=True)
+        self.logging("n_structures", len(self.structures), save_trace=True)
+        self.logging("n_visible_enemy_units", len(self.enemy_units), save_trace=True)
+        self.logging("n_visible_enemy_structures", len(self.enemy_structures), save_trace=True)
+        unit_types = set(unit.type_id for unit in self.units)
+        structure_types = set(unit.type_id for unit in self.structures)
+        self.logging("n_unit_types", len(unit_types), save_trace=True)
+        self.logging("n_structure_types", len(structure_types), save_trace=True)
 
     async def on_step(self, iteration: int):
         if len(self.units) == 0 or len(self.townhalls) == 0:

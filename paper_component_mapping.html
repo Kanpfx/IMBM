@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SC2Arena / StarEvolve 论文与本项目组件对照</title>
+  <style>
+    :root {
+      --bg: #f5f7f8;
+      --paper: #ffffff;
+      --ink: #172126;
+      --muted: #5d6970;
+      --line: #d9e0e4;
+      --blue: #255f99;
+      --green: #1f7a56;
+      --amber: #9a6817;
+      --red: #9a3a3a;
+      --soft-blue: #e7f0f8;
+      --soft-green: #e7f4ed;
+      --soft-amber: #f8efd9;
+      --soft-red: #f7e6e6;
+      --code-bg: #eef2f4;
+      --pre-bg: #12212a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+      line-height: 1.65;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 34px 24px 58px;
+    }
+
+    header {
+      padding-bottom: 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 32px;
+      line-height: 1.22;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 34px 0 14px;
+      font-size: 23px;
+      line-height: 1.28;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 24px 0 10px;
+      font-size: 18px;
+      line-height: 1.35;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 8px 0 12px;
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration: none;
+      border-bottom: 1px solid rgba(37, 95, 153, 0.28);
+    }
+
+    a:hover {
+      border-bottom-color: var(--blue);
+    }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 4px;
+      background: var(--code-bg);
+      font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+      font-size: 0.94em;
+    }
+
+    pre {
+      margin: 12px 0 0;
+      padding: 14px 16px;
+      overflow: auto;
+      border-radius: 8px;
+      background: var(--pre-bg);
+      color: #edf5f8;
+      font-family: Consolas, "SFMono-Regular", Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: var(--paper);
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+    }
+
+    th {
+      background: #e9eef1;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    ul {
+      margin: 8px 0 12px;
+      padding-left: 22px;
+    }
+
+    li {
+      margin: 4px 0;
+    }
+
+    .lede {
+      max-width: 980px;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      padding: 4px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--paper);
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .panel {
+      margin: 14px 0;
+      padding: 18px 20px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .step {
+      min-height: 126px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--paper);
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--green);
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .done {
+      color: var(--green);
+      background: var(--soft-green);
+    }
+
+    .adapted {
+      color: var(--blue);
+      background: var(--soft-blue);
+    }
+
+    .partial {
+      color: var(--amber);
+      background: var(--soft-amber);
+    }
+
+    .missing {
+      color: var(--red);
+      background: var(--soft-red);
+    }
+
+    .note {
+      border-left: 4px solid var(--blue);
+      background: #edf4fa;
+    }
+
+    .small {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        padding: 24px 16px 44px;
+      }
+
+      h1 {
+        font-size: 27px;
+      }
+
+      .grid,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      th {
+        white-space: normal;
+      }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>SC2Arena / StarEvolve 论文与本项目组件对照</h1>
+    <p class="lede">
+      本文档对照论文 <em>SC2Arena and StarEvolve: Benchmark and Self-Improvement Framework for LLMs in Complex Decision-Making Tasks</em>
+      梳理当前项目的代码部件。结论先说清楚：当前仓库不是完整论文复现，而是从 SunTzu / IMBM 分支中裁剪出的
+      Terran-only IM/BM 运行时。它保留了 SC2Arena 的文本观测、JSON 动作、动作校验、动作执行、日志指标等核心闭环，
+      并把 StarEvolve 的 Planner-Executor-Verifier 思路改造成了“BM 后台战略指导 + IM 即时动作执行 + 代码 verifier 自修正”的轻量结构。
+    </p>
+    <div class="meta">
+      <span class="pill">论文：arXiv:2508.10428</span>
+      <span class="pill">论文框架：SC2Arena + StarEvolve</span>
+      <span class="pill">当前项目：Terran IM/BM runtime</span>
+      <span class="pill">入口：main.py</span>
+    </div>
+  </header>
+
+  <section class="panel note">
+    <h2>阅读口径</h2>
+    <p>
+      论文介绍的 SC2Arena 是一个完整 StarCraft II LLM benchmark，强调全局游戏上下文、完整低层动作空间、三族支持、
+      agent-vs-agent 评估、文本观测优化和标准 JSON 接口。StarEvolve 则是在该 benchmark 上运行的层级式自改进框架，
+      由 Planner、Executor、Verifier、自修正以及高质量轨迹 SFT 组成。
+    </p>
+    <p>
+      当前项目只保留 IM/BM 流程：IM 负责同步决策并输出可执行 JSON action；BM 在后台异步生成高层 directive；
+      <code>DirectiveStore</code> 是两者之间唯一共享通道。训练数据筛选、SFT、Elo 批量评测和三族完整支持不在当前主流程内。
+    </p>
+  </section>
+
+  <section>
+    <h2>整体运行链路</h2>
+    <div class="flow">
+      <div class="step">
+        <strong>1. 启动配置</strong>
+        <code>main.py</code> 解析地图、难度、AI build、种族和 <code>-bm</code> 开关，并加载 IM/BM API 配置。
+      </div>
+      <div class="step">
+        <strong>2. 创建对局</strong>
+        <code>main.py</code> 使用 <code>python-sc2</code> 创建 <code>Bot(ImBmPlayer)</code> 对战内置 <code>Computer</code>。
+      </div>
+      <div class="step">
+        <strong>3. 文本观测</strong>
+        <code>BasePlayer.obs_to_text()</code> 把单位、建筑、能力、敌人、资源和动作历史转成 LLM 可读文本。
+      </div>
+      <div class="step">
+        <strong>4. IM 决策</strong>
+        <code>ImAgent</code> 读取当前观测和有效 directive，输出 JSON actions 与是否请求 BM 更新。
+      </div>
+      <div class="step">
+        <strong>5. 校验执行</strong>
+        <code>verify_actions()</code> 和 <code>check_action()</code> 做合法性检查，<code>run_actions()</code> 调用 SC2 ability。
+      </div>
+      <div class="step">
+        <strong>6. BM 后台</strong>
+        <code>BmAgent</code> 被冷启动、过期或 IM 请求触发，异步写入新 <code>Directive</code>。
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>论文组件到代码的映射</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>论文组件</th>
+          <th>当前代码</th>
+          <th>作用方式</th>
+          <th>状态</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>SC2Arena 环境封装</td>
+          <td><code>main.py</code>、<code>core/base_player.py</code></td>
+          <td>
+            <code>main.py</code> 负责把 SC2 地图、内置 AI、我方 bot 和 replay/log 路径装配起来。
+            <code>BasePlayer</code> 继承 <code>BotAI</code>，是所有观察、校验、执行、日志能力的承载点。
+          </td>
+          <td><span class="tag done">保留核心闭环</span></td>
+        </tr>
+        <tr>
+          <td>完整游戏上下文</td>
+          <td><code>BasePlayer.obs_to_text()</code></td>
+          <td>
+            每次决策前组装 <code>Round state</code>、<code>Own units</code>、<code>Unit abilities</code>、
+            <code>Own structures</code>、<code>Visible enemy units</code>、<code>Action history</code>、
+            <code>Map information</code> 和 <code>Ability description</code>。这让 LLM 不只看局部微操，而是看到经济、兵力、建筑、地图资源和历史行动。
+          </td>
+          <td><span class="tag done">已实现</span></td>
+        </tr>
+        <tr>
+          <td>低层动作空间与 JSON 接口</td>
+          <td><code>knowledge/TerranAbility.csv</code>、<code>agents/im.py</code>、<code>core/base_player.py</code></td>
+          <td>
+            动作空间来自 Terran ability 表和 SC2 game data。IM prompt 要求输出 JSON：
+            <code>action</code>、<code>units</code>、可选 <code>target_unit</code> 或 <code>target_position</code>。
+            执行层将短 ID 还原为真实 unit tag，再调用对应 ability。
+          </td>
+          <td><span class="tag adapted">Terran-only</span></td>
+        </tr>
+        <tr>
+          <td>三族支持</td>
+          <td><code>config/game.py</code>、<code>knowledge/TerranAbility.csv</code></td>
+          <td>
+            命令行参数仍保留 <code>Terran/Protoss/Zerg</code> 选项，但当前知识表和 action 校验实际只可靠支持 Terran。
+            这与论文完整三族 benchmark 不同，是当前裁剪版的明确边界。
+          </td>
+          <td><span class="tag partial">当前只做 Terran</span></td>
+        </tr>
+        <tr>
+          <td>空间推理优化：邻近排序</td>
+          <td><code>units_to_text()</code>、<code>structures_to_text()</code></td>
+          <td>
+            单位按相对出生点距离与名称排序；建筑使用从出生点出发的近邻顺序排序。
+            这种文本顺序把空间关系隐式编码进 observation，帮助 LLM 理解单位和建筑的相对位置。
+          </td>
+          <td><span class="tag done">已实现</span></td>
+        </tr>
+        <tr>
+          <td>信息过载优化：单位聚合</td>
+          <td><code>units_to_text()</code>、<code>abilities_to_text()</code></td>
+          <td>
+            正在自动采矿或自动攻击的 worker 会被合并成一组；拥有相同 ability 集合的单位会在 ability 文本中聚合。
+            这减少重复 token，让模型把注意力放在需要决策的单位和结构上。
+          </td>
+          <td><span class="tag done">已实现</span></td>
+        </tr>
+        <tr>
+          <td>动作合法性校验</td>
+          <td><code>verify_actions()</code>、<code>check_action()</code></td>
+          <td>
+            代码检查 JSON 类型、必需字段、action 是否存在、target 类型、unit 是否属于自己、ability 是否可用、资源/人口是否足够、建筑落点是否有效。
+            这是当前项目里最接近论文 Executor Verifier 的部分。
+          </td>
+          <td><span class="tag done">已实现</span></td>
+        </tr>
+        <tr>
+          <td>指标与日志</td>
+          <td><code>logging()</code>、<code>log_current_iteration()</code>、<code>on_end()</code>、<code>runtime/metrics.py</code></td>
+          <td>
+            运行中记录 minerals、vespene、supply、unit/structure value、可见敌人数量、IM/BM latency、actions、directive 等；
+            对局结束记录 result、SBR、time cost、RUR，并写入 <code>trace.json</code>。
+          </td>
+          <td><span class="tag done">保留部分论文指标</span></td>
+        </tr>
+        <tr>
+          <td>Agent-vs-agent Elo 评测</td>
+          <td><code>archive/run_elo_template.py</code>、<code>archive/run_benchmark.sh</code></td>
+          <td>
+            当前主流程只保留单局 bot-vs-built-in-AI 入口。旧批量评测脚本被归档，不参与当前 runtime。
+          </td>
+          <td><span class="tag missing">主流程未保留</span></td>
+        </tr>
+        <tr>
+          <td>StarEvolve Planner</td>
+          <td><code>agents/bm.py</code>、<code>core/player.py</code></td>
+          <td>
+            当前没有保留原 <code>PlanAgent</code>。BM 承担轻量 Planner 角色：基于冻结观测、指标、IM 已验证动作和触发原因，输出高层 <code>guidance</code>，
+            但不输出可执行 SC2 action。
+          </td>
+          <td><span class="tag adapted">改造成 BM</span></td>
+        </tr>
+        <tr>
+          <td>StarEvolve Executor</td>
+          <td><code>agents/im.py</code></td>
+          <td>
+            IM 是当前唯一动作生成模型。它接收 observation 与 BM directive，直接输出低层 JSON actions。
+            因此当前 IM 同时包含“战术执行器”和“动作生成器”的职责。
+          </td>
+          <td><span class="tag adapted">改造成 IM</span></td>
+        </tr>
+        <tr>
+          <td>Planner Verifier</td>
+          <td><code>agents/bm.py</code>、<code>runtime/directive.py</code></td>
+          <td>
+            当前 BM 输出只做宽松 JSON 解析，没有独立 LLM verifier 检查战略规则。
+            directive 有 TTL，过期后重新触发 BM，这是一种运行时新鲜度控制，不等同论文里的 Planner Verifier。
+          </td>
+          <td><span class="tag partial">轻量替代</span></td>
+        </tr>
+        <tr>
+          <td>Executor Verifier 与自修正</td>
+          <td><code>ImAgent.run()</code>、<code>_refine_schema_prompt()</code>、<code>_refine_actions_prompt()</code></td>
+          <td>
+            IM 先解析 JSON schema；解析失败时要求模型重新输出 schema；动作校验失败时把错误消息反馈给 IM 重试。
+            这保留了论文中“生成-校验-反馈-重生成”的自修正闭环，最多重试 3 次。
+          </td>
+          <td><span class="tag done">已实现</span></td>
+        </tr>
+        <tr>
+          <td>高质量轨迹筛选与 SFT</td>
+          <td><code>archive/scripts_legacy/</code>、运行日志</td>
+          <td>
+            当前 runtime 会记录 IM/BM prompt、actions、trace 和结果，为后续数据抽取提供原料；
+            但论文中的 20-step discounted scoring、阈值筛选、Planner/Executor/Verifier SFT 没有在当前主流程中实现。
+          </td>
+          <td><span class="tag missing">未在主流程实现</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>当前项目各文件的作用</h2>
+    <div class="grid">
+      <div class="panel">
+        <h3><code>main.py</code>：对局入口</h3>
+        <p>
+          负责命令行参数、环境变量校验、IM/BM client 创建、玩家创建、config 日志写入和 <code>run_game</code> 启动。
+          普通运行只需要 IM 配置；加 <code>-bm</code> 时额外要求 BM 配置。
+        </p>
+      </div>
+      <div class="panel">
+        <h3><code>config/</code>：静态配置</h3>
+        <p>
+          <code>game.py</code> 提供地图、难度、AI build、race choices。
+          <code>env.py</code> 负责 <code>.env</code> 加载、必填变量检查和 generation config。
+        </p>
+      </div>
+      <div class="panel">
+        <h3><code>core/player.py</code>：IM/BM 调度器</h3>
+        <p>
+          <code>ImBmPlayer.run()</code> 是每次 SC2 step 的核心。它控制决策间隔、矿量门槛、directive 读取、IM 调用、动作执行和 BM 触发。
+          BM 使用 <code>asyncio.create_task</code> 异步运行，避免阻塞下一轮 IM 行动。
+        </p>
+      </div>
+      <div class="panel">
+        <h3><code>core/base_player.py</code>：SC2 适配层</h3>
+        <p>
+          这个文件最大也最关键：它把 SC2 原生对象转成文本，把模型 JSON 转成 ability 调用，并负责日志、指标、ID 映射、能力表加载、
+          动作校验、建筑落点查找和动作历史维护。
+        </p>
+      </div>
+      <div class="panel">
+        <h3><code>core/economy.py</code>：自动经济</h3>
+        <p>
+          自动分配 SCV 与 MULE，优先补气矿、处理空闲工人、把多余 gas worker 释放到可用池，并在气矿仍缺工时从更远矿点补调 worker。
+          这降低了 IM 需要处理的低频经济噪声。
+        </p>
+      </div>
+      <div class="panel">
+        <h3><code>agents/im.py</code>：即时动作模型</h3>
+        <p>
+          生成 IM prompt，解析 JSON，维护多轮修正历史。它输出三样关键结果：<code>actions</code>、
+          <code>request_background</code> 和 <code>background_reason</code>。
+        </p>
+      </div>
+      <div class="panel">
+        <h3><code>agents/bm.py</code>：后台战略模型</h3>
+        <p>
+          冻结一份游戏状态和 IM 已验证动作，生成 <code>{"guidance": [...]}</code>。
+          它只给方向，不直接执行，避免慢速战略推理阻塞实时动作。
+        </p>
+      </div>
+      <div class="panel">
+        <h3><code>agents/prompts.py</code>：共享战略和规则</h3>
+        <p>
+          保存最终目标和 race-specific rules。当前虽然函数支持三族规则，但结合能力表看，主运行口径仍应按 Terran 理解。
+        </p>
+      </div>
+      <div class="panel">
+        <h3><code>runtime/directive.py</code>：BM/IM 通道</h3>
+        <p>
+          <code>Directive</code> 封装 guidance、发布时间、过期时间和来源；
+          <code>DirectiveStore</code> 用锁保护最新 directive，读操作返回副本，写操作采用 newer-wins。
+        </p>
+      </div>
+      <div class="panel">
+        <h3><code>runtime/llm.py</code>：模型调用</h3>
+        <p>
+          使用 OpenAI-compatible SDK，支持 base URL 和 API key。调用失败会重试；需要 JSON 时会预解析代码块内 JSON。
+        </p>
+      </div>
+      <div class="panel">
+        <h3><code>runtime/format.py</code>：文本解析工具</h3>
+        <p>
+          提供 <code>extract_code()</code> 从三反引号代码块取 JSON、<code>construct_ordered_list()</code> 生成规则列表、
+          <code>constrcut_openai_qa()</code> 构造多轮 OpenAI 消息历史。
+        </p>
+      </div>
+      <div class="panel">
+        <h3><code>knowledge/</code>：动作知识库</h3>
+        <p>
+          <code>TerranAbility.csv</code> 决定哪些 Terran action 可被模型看到和执行；<code>data.json</code> 提供 ability target 等原始游戏知识。
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>IM/BM 与论文 Planner-Executor-Verifier 的关系</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>论文角色</th>
+          <th>当前对应物</th>
+          <th>关键差异</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Planner：输出自然语言战略命令</td>
+          <td>BM：输出 JSON guidance 列表</td>
+          <td>
+            BM 是异步的，不每次决策都运行；它不直接把计划拆成可执行命令，而是把高层建议写入 directive，让 IM 自行吸收。
+          </td>
+        </tr>
+        <tr>
+          <td>Executor：把命令转成 JSON actions</td>
+          <td>IM：从 observation + directive 直接转成 JSON actions</td>
+          <td>
+            当前少了一层显式“plan list”。优点是流程短、延迟低；缺点是 IM 需要同时做局势理解和动作选择。
+          </td>
+        </tr>
+        <tr>
+          <td>Planner Verifier：检查战略计划</td>
+          <td>BM 解析 fallback + directive TTL</td>
+          <td>
+            当前没有 LLM 战略 verifier；BM 输出非法时降级为 baseline guidance，过期时重新生成。
+          </td>
+        </tr>
+        <tr>
+          <td>Executor Verifier：检查动作 JSON</td>
+          <td><code>verify_actions()</code> / <code>check_action()</code></td>
+          <td>
+            这一块非常接近论文：代码确定性校验动作语法、参数、资源和可执行性，并把错误反馈给模型修正。
+          </td>
+        </tr>
+        <tr>
+          <td>Self-improvement：轨迹评分 + SFT</td>
+          <td>运行日志和 trace，暂无训练闭环</td>
+          <td>
+            当前项目可以产生训练素材，但没有实现论文里的评分函数、样本筛选和微调脚本主流程。
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>关键数据结构</h2>
+    <div class="grid">
+      <div class="panel">
+        <h3>IM 动作 JSON</h3>
+        <pre><code>{
+  "actions": [
+    {
+      "action": "ATTACK_ATTACK",
+      "units": [1, 2, 3],
+      "target_unit": 9
+    },
+    {
+      "action": "MOVE_MOVE",
+      "units": [4],
+      "target_position": [50, 60]
+    }
+  ],
+  "request_background": true,
+  "background_reason": "Enemy tech has changed."
+}</code></pre>
+      </div>
+      <div class="panel">
+        <h3>BM directive</h3>
+        <pre><code>{
+  "data": {
+    "guidance": [
+      "Stabilize economy before attacking.",
+      "Build more Marines and Marauders.",
+      "Scout for enemy expansion."
+    ]
+  },
+  "issued_at_tick": 420,
+  "valid_until_tick": 780,
+  "source": "BM"
+}</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>运行时每轮决策如何发生</h2>
+    <ol>
+      <li><code>on_step()</code> 调用 <code>ImBmPlayer.run(iteration)</code>。</li>
+      <li><code>_auto_micro()</code> 先做 worker/MULE 分配和近身自动攻击。</li>
+      <li>如果不是决策 tick，只按间隔记录日志后返回。</li>
+      <li>如果矿量低于 <code>decision_minerals = 50</code>，跳过 LLM 决策，避免过早无效请求。</li>
+      <li>生成 <code>obs_text</code>，读取当前有效 directive。</li>
+      <li>调用 <code>ImAgent.run(obs_text, directive, verifier=self.verify_actions)</code>。</li>
+      <li>IM 输出 JSON；如果 schema 错或动作非法，IM 根据错误反馈最多重试 3 次。</li>
+      <li><code>run_actions(actions)</code> 执行动作并更新 action history。</li>
+      <li>如果 IM 请求 BM、没有 directive、或 directive 过期，则启动后台 BM 任务。</li>
+      <li>BM 完成后写入 <code>DirectiveStore</code>，下一轮 IM 决策读取。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>与论文完整实现的边界</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>边界</th>
+          <th>当前状态</th>
+          <th>影响</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>三族完整动作空间</td>
+          <td>当前只可靠支持 Terran。</td>
+          <td>可以用于 Terran IM/BM 实验，但不能声称完整复现 SC2Arena 三族 benchmark。</td>
+        </tr>
+        <tr>
+          <td>显式 Planner/Executor 双阶段</td>
+          <td>BM/IM 替代双阶段，但中间没有自然语言 plan list。</td>
+          <td>更适合实时运行与工程简化，但与论文 StarEvolve 结构不完全等价。</td>
+        </tr>
+        <tr>
+          <td>LLM Planner Verifier</td>
+          <td>当前没有独立战略 verifier。</td>
+          <td>BM guidance 质量主要靠模型本身和 TTL 刷新，而非规则化战略校验。</td>
+        </tr>
+        <tr>
+          <td>SFT 自改进</td>
+          <td>日志足够作为数据来源，但未实现评分筛选和训练闭环。</td>
+          <td>当前项目是 runtime，不是完整 self-improvement pipeline。</td>
+        </tr>
+        <tr>
+          <td>Elo 与批量评测</td>
+          <td>旧脚本归档。</td>
+          <td>单局运行可用；论文式系统评测需要额外恢复或重写 eval 模块。</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel">
+    <h2>如果后续要继续贴近论文，可以补哪些模块</h2>
+    <ul>
+      <li><strong><code>eval/</code></strong>：围绕当前 <code>main.py</code> 做批量 map/difficulty/model 评测，重新计算 WR、TCW、SBR、RUR、VAR、TPD 和 Elo。</li>
+      <li><strong><code>training/</code></strong>：从 <code>logs/</code> 抽取 IM/BM prompt-response、动作有效性和最终胜负，形成 SFT 数据。</li>
+      <li><strong><code>agents/verifier.py</code></strong>：在代码 verifier 外加一个可选 LLM strategic verifier，用于检查 BM guidance 或显式 plan。</li>
+      <li><strong><code>knowledge/ProtossAbility.csv</code> / <code>ZergAbility.csv</code></strong>：补齐三族动作表，才能向论文完整 SC2Arena 靠齐。</li>
+      <li><strong><code>runtime/clock.py</code></strong>：统一 <code>iteration</code>、<code>game_loop</code> 和 directive TTL 的时间语义，减少异步调度歧义。</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>参考来源</h2>
+    <p>
+      论文页面：<a href="https://arxiv.org/abs/2508.10428">arXiv:2508.10428</a>。
+      摘要和结构信息参考 arXiv 元数据、Hugging Face Papers 页面和 ChatPaper 的论文摘要页。
+      代码映射基于本仓库当前文件：<code>main.py</code>、<code>config/</code>、<code>core/</code>、<code>agents/</code>、<code>runtime/</code>、<code>knowledge/</code>。
+    </p>
+    <p class="small">
+      本文档的目标是解释“这个项目像论文里的哪些部件、各自怎么起作用、哪些部件没有保留”，不是宣称当前仓库完整复现论文。
+    </p>
+  </section>
+</main>
+</body>
+</html>
