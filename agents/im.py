@@ -1,8 +1,13 @@
 from agents.base import BaseAgent
-from agents.prompts import construct_rules, strategy_prompt
+from agents.prompts import strategy_prompt
 from runtime.format import extract_code, constrcut_openai_qa
 
 import json
+
+
+role_prompt = """
+You are a real-time StarCraft II controller. Based on the current game state and the background model's guidance, choose immediately executable actions that help us win the game.
+""".strip()
 
 
 action_format_prompt = """
@@ -24,16 +29,64 @@ action_format_prompt = """
 """.strip()
 
 
-rules = [
+action_example_prompt = """
+Example:
+```
+{
+  "actions": [
+    {
+      "action": "ATTACK_ATTACK",
+      "units": [1, 2, 3],
+      "target_unit": 9
+    },
+    {
+      "action": "MOVE_MOVE",
+      "units": [4, 5],
+      "target_position": [50, 60]
+    },
+    {
+      "action": "COMMANDCENTERTRAIN_SCV",
+      "units": [6]
+    }
+  ],
+  "request_background": true,
+  "background_reason": "We are under heavy attack and need updated background strategic guidance."
+}
+```
+""".strip()
 
 
-    
-    "Do not give any action that is irrelevant to the task.",
-    "Each of units can only be used in the whole response once at most.",
-    "If a unit is already performing an action as given task, you should ignore it, instead of giving a repeated action for it.",
-    "If one task cannot be finished, just ignore it.",
-    "If resource is not enough, just complete the most important part of the task.",
-]
+action_rules_prompt = """
+Action Rules:
+
+1. Overall Action Requirements
+- Only output actions that are valid, supported, executable, and relevant to the current task.
+- Ignore impossible tasks.
+- Do not assign the same unit more than once in the same response.
+- Avoid reassigning busy units unless the new command is clearly more urgent or useful.
+
+2. Resource Requirements
+- The total cost of all commands must not exceed available minerals and gas.
+- If resources are insufficient, keep only the highest-priority commands.
+- Do not manually send SCVs or MULEs to gather resources.
+- Do not overproduce SCVs beyond useful Command Center and Refinery capacity.
+
+3. Unit Production Requirements
+- Prioritize increasing useful combat strength.
+- Produce combat units that improve the current army within available resources and production capacity.
+- Do not enqueue units if the production queue already contains 5 items.
+
+4. Construction Requirements
+- Build only structures that are currently useful.
+- Avoid redundant structures.
+- Do not build extra Refineries unless existing Refineries are fully utilized.
+- Do not build Missile Turrets unless enemy air threats exist or are expected.
+- Build at most one Supply Depot, and only when unused supply is below 7.
+
+5. Background Strategy Requirements
+- Follow background strategic guidance only if it is valid and reasonable under the current game state.
+- When the situation requires long-term planning or strategic judgment, set request_background=true and provide a clear background_reason.
+""".strip()
 
 
 def create_im_prompt(race: str, obs_text: str, directive: dict | None):
@@ -42,15 +95,8 @@ def create_im_prompt(race: str, obs_text: str, directive: dict | None):
     else:
         directive_text = json.dumps(directive, indent=2, ensure_ascii=False)
 
-    im_rules = construct_rules(race)[1:] + rules + [
-        "Do not hesitate to request background strategic analysis when the strategic situation becomes more complex.",
-        "When requesting background strategic analysis, set request_background to true and provide a clear background_reason.",
-        "Try to satisfy the reasonable requirements in the background strategic analysis; if they conflict with the current game state or are unreasonable, discard them.",
-    ]
-    rules_prompt = "Rule checklist:\n" + "\n".join([f"{i+1}. {rule}" for i, rule in enumerate(im_rules)])
-
     return f"""
-As a top-tier StarCraft II strategist, your task is to give one or more commands based on the current game state and the background strategic analysis. A stronger BM can assist with background strategy. Only give commands which can be executed immediately, instead of waiting for certain events.
+{role_prompt}
 
 ### Aim
 {strategy_prompt}
@@ -62,34 +108,12 @@ As a top-tier StarCraft II strategist, your task is to give one or more commands
 {directive_text}
 
 ### Rules
-{rules_prompt}
+{action_rules_prompt}
 
 Give an action JSON in the following format wrapped with triple backticks:
 {action_format_prompt}
 
-Example:
-```
-{{
-  "actions": [
-    {{
-      "action": "ATTACK_ATTACK",
-      "units": [1, 2, 3],
-      "target_unit": 9
-    }},
-    {{
-      "action": "MOVE_MOVE",
-      "units": [4, 5],
-      "target_position": [50, 60]
-    }},
-    {{
-      "action": "COMMANDCENTERTRAIN_SCV",
-      "units": [6]
-    }}
-  ],
-  "request_background": true,
-  "background_reason": "We are under heavy attack and need updated background strategic guidance."
-}}
-```
+{action_example_prompt}
     """.strip()
 
 

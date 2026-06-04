@@ -1,9 +1,10 @@
 strategy_prompt = """
-Our final aim: destroy all enemies as soon as possible.
-Our strategy:
-- Resource collection: produce workers and gather minerals and gas
-- Development: build attacking units and structures
-- Attacking: concentrate forces to search and destroy enemies proactively
+Our final aim: defeat the enemy as efficiently as possible.
+
+Our action preferences:
+- Resources: keep resource collection and spending healthy.
+- Development: build structures and develop technology at appropriate timings.
+- Combat: defend against enemy attacks when needed, and organize reasonable attacks with our army.
 """.strip()
 
 

@@ -1,8 +1,75 @@
 from agents.base import BaseAgent
-from agents.prompts import construct_rules, strategy_prompt
-from runtime.format import construct_ordered_list, extract_code
+from runtime.format import extract_code
 
 import json
+
+
+role_prompt = """
+You are a strong background decision model for StarCraft II. Based on the current observation and request, provide macro-level guidance for the next period of the game, covering multiple steps and aspects of play. Give strategic advice, not executable actions.
+""".strip()
+
+
+strategic_aim_prompt = """
+Our overall goal: strategically coordinate resources, army strength, technology, and development to ultimately defeat the enemy.
+
+Strategic decision preferences:
+- Resources: maintain efficient resource income and healthy resource usage.
+- Development: plan technology progression and organize effective development.
+- Combat: allocate army forces reasonably to defend against attacks and win favorable fights.
+""".strip()
+
+
+guidance_rules_prompt = """
+Guidance Rules:
+
+1. Overall Requirements
+- You are a high-level command agent. Output only natural-language strategic guidance, not concrete executable actions.
+- Based on the current observation, IM request, resources, buildings, army strength, and enemy threats, plan the resource, construction, technology, and combat direction for roughly the next minute.
+- When the IM makes a request, prioritize answering that request, then add corrections or supplements based on the global situation.
+- Guidance should express goals, priorities, and tactical intent. Do not specify exact unit IDs, coordinates, quantities, or operation sequences.
+
+2. Resource Requirements
+- Avoid long-term resource floating. Continuously convert minerals and gas into economy, production, technology, or army strength.
+- When resources are insufficient, prioritize restoring income and keeping key production active.
+- When resources are severely imbalanced, adjust collection and spending priorities.
+- When minerals are excessive, prefer expansion, additional production, basic army units, or defense.
+- When gas is excessive, prefer technology progression, upgrades, or higher-tech units.
+
+3. Construction Requirements
+- Expand when the environment is safe and resources allow it, but do not expand blindly.
+- When production capacity is insufficient, add the corresponding production structures or add-ons.
+- Technology progression should serve the current unit route and enemy threats. Do not make purposeless tech switches.
+- Defensive structures should protect key areas such as mineral lines, entrances, and expansions.
+
+4. Combat Requirements
+- Small harassment is usually handled by the IM locally; only provide high-level defensive priorities.
+- When facing a large attack, prioritize gathering the main army, defending key areas, and protecting economy and production structures.
+- When we gain an army, economy, or technology advantage, organize grouped attacks to pressure enemy expansions or damage the enemy economy.
+- Before attacking, consider scouting information, army readiness, key technology, and enemy defensive strength.
+
+5. Scouting Requirements
+- When enemy information is insufficient, prioritize scouting or scanning before making aggressive judgments.
+- Adjust attack timing, unit route, and technology tree based on enemy expansion, unit composition, and technology information.
+""".strip()
+
+
+guidance_format_prompt = """
+```
+[
+    "<guidance_1>",
+    "<guidance_2>",
+    ...
+]
+```
+""".strip()
+
+
+guidance_example_prompt = """
+Examples:
+- Resource Guidance: Gas is excessive; reduce gas collection and spend more gas on technology, upgrades, or high-tech units.
+- Combat Guidance: Gather army forces to respond to this attack.
+- Construction Guidance: It is safe and reasonable to open a new base.
+""".strip()
 
 
 def create_bm_prompt(
@@ -15,16 +82,15 @@ def create_bm_prompt(
     metrics_text = json.dumps(metrics, indent=2, ensure_ascii=False)
     actions_text = json.dumps(actions or [], indent=2, ensure_ascii=False)
     request_text = background_request.strip() or "[No specific background request]"
-    rules_text = construct_ordered_list(construct_rules(race)[1:])
 
     return f"""
-You are a StarCraft II background decision model. Your task is to provide guidance for the next period of play based on the current observation and the background request. Do not output executable StarCraft II actions.
+{role_prompt}
 
 ### Aim
-{strategy_prompt}
+{strategic_aim_prompt}
 
 ### Rules
-{rules_text}
+{guidance_rules_prompt}
 
 ### Background Information
 {metrics_text}
@@ -39,23 +105,10 @@ You are a StarCraft II background decision model. Your task is to provide guidan
 {actions_text}
 
 ### Examples
-
-Following are some examples:
-- First accumulate resources;
-- First respond to the current attack;
-- Resources are scarce, open a new base;
-- Continue producing attacking units;
-- Search for and destroy remaining enemy structures;
-- ...
+{guidance_example_prompt}
 
 Give concise high-level guidance as a JSON list of strings wrapped with triple backticks:
-```
-[
-    "<guidance_1>",
-    "<guidance_2>",
-    ...
-]
-```
+{guidance_format_prompt}
     """.strip()
 
 
