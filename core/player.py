@@ -94,6 +94,26 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
         except Exception:
             return fallback
 
+    def _directive_to_im_text(self, directive: Directive | None) -> str | None:
+        if directive is None:
+            return None
+
+        fields = [
+            ("overall", "Overall"),
+            ("resource", "Resource"),
+            ("construction", "Construction"),
+            ("combat", "Combat"),
+        ]
+        lines = []
+        for key, label in fields:
+            value = directive.data.get(key)
+            if isinstance(value, str) and value.strip():
+                lines.append(f"- {label}: {value.strip()}")
+
+        if not lines:
+            return None
+        return "Current BM Directive:\n" + "\n".join(lines)
+
     async def _run_bm_background(
         self,
         obs_text: str,
@@ -114,7 +134,7 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
                     background_request=trigger_reason,
                 ),
             )
-            issued_at_tick = self._current_iteration(iteration)
+            issued_at_tick = iteration
             valid_until_tick = issued_at_tick + self.directive_ttl
             directive = Directive(
                 data=directive_data,
@@ -206,11 +226,12 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
 
         latest_directive = self.directive_store.latest()
         active_directive = self.directive_store.read(iteration)
-        directive_payload = active_directive.to_dict() if active_directive else None
+        directive_text = self._directive_to_im_text(active_directive)
         directive_age = active_directive.age(iteration) if active_directive else None
         self.logging("directive_age", directive_age, save_trace=True)
         if active_directive:
             self.logging("directive", active_directive.to_dict(), save_trace=True, print_log=False)
+            self.logging("directive_text", directive_text, save_trace=True, print_log=False)
 
         im_start_time = time.time()
         (
@@ -221,7 +242,7 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
             im_chat_history,
         ) = self.im_agent.run(
             obs_text,
-            directive=directive_payload,
+            directive_text=directive_text,
             verifier=self.verify_actions,
         )
         self.logging("im_latency", round(time.time() - im_start_time, 4), save_trace=True)

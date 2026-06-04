@@ -16,14 +16,12 @@ action_format_prompt = """
     "actions": [
         {
             "action": "<action_name>",
-            "units": [<unit_id>, <unit_id>, ...], # units you want to command
-            "target_unit" (optional): <unit_id>, # some existing unit
-            "target_position" (optional): [x, y]
-        },
-        // more actions ...
+            "units": [1, 2],
+            "target_unit": 3
+        }
     ],
-    "request_background": true/false, # whether a new background strategic analysis is needed
-    "background_reason": "<reason>" # short reason when request_background is true, otherwise empty string
+    "request_background": false,
+    "background_reason": ""
 }
 ```
 """.strip()
@@ -85,16 +83,13 @@ Action Rules:
 
 5. Background Strategy Requirements
 - Follow background strategic guidance only if it is valid and reasonable under the current game state.
+- Treat the Overall section of the background directive as the main plan, and use Resource, Construction, and Combat sections as optional strategic constraints.
 - When the situation requires long-term planning or strategic judgment, set request_background=true and provide a clear background_reason.
 """.strip()
 
 
-def create_im_prompt(race: str, obs_text: str, directive: dict | None):
-    if directive is None:
-        directive_text = "[No active directive]"
-    else:
-        directive_text = json.dumps(directive, indent=2, ensure_ascii=False)
-
+def create_im_prompt(race: str, obs_text: str, directive_text: str | None):
+    directive_text = directive_text or "[No active directive]"
     return f"""
 {role_prompt}
 
@@ -174,11 +169,11 @@ class ImAgent(BaseAgent):
             + action_format_prompt
         )
 
-    def run(self, obs_text: str, directive: dict | None = None, verifier=None):
+    def run(self, obs_text: str, directive_text: str | None = None, verifier=None):
         self.think = []
         self.chat_history = []
 
-        prompt = create_im_prompt(self.race, obs_text, directive)
+        prompt = create_im_prompt(self.race, obs_text, directive_text)
         response, messages = self.llm_client.call(
             prompt=prompt,
             **self.generation_config,

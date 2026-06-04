@@ -50,25 +50,36 @@ Guidance Rules:
 5. Scouting Requirements
 - When enemy information is insufficient, prioritize scouting or scanning before making aggressive judgments.
 - Adjust attack timing, unit route, and technology tree based on enemy expansion, unit composition, and technology information.
+
+6. Directive Format Requirements
+- Output a JSON object with overall, resource, construction, and combat fields.
+- overall is required; resource, construction, and combat are optional.
+- Each included field must be one concise sentence.
 """.strip()
 
 
 guidance_format_prompt = """
 ```
-[
-    "<guidance_1>",
-    "<guidance_2>",
-    ...
-]
+{
+    "overall": "<main strategic plan for the next period>",
+    "resource": "<optional economy, workers, expansion, or resource-spending guidance>",
+    "construction": "<optional buildings, production, add-ons, tech path, or upgrade guidance>",
+    "combat": "<optional defense, attack timing, scouting, army posture, or unit-composition guidance>"
+}
 ```
 """.strip()
 
 
 guidance_example_prompt = """
-Examples:
-- Resource Guidance: Gas is excessive; reduce gas collection and spend more gas on technology, upgrades, or high-tech units.
-- Combat Guidance: Gather army forces to respond to this attack.
-- Construction Guidance: It is safe and reasonable to open a new base.
+Example:
+```
+{
+  "overall": "Defend with Marines and Tank tech first, then expand once the front is stable.",
+  "resource": "Spend the mineral bank on worker production, army production, and a safe natural expansion.",
+  "construction": "Prioritize Factory Tech Lab and Siege Tanks before adding unrelated tech.",
+  "combat": "Hold near the bunker and wall until Tank support is ready, then look for a cautious pressure timing."
+}
+```
 """.strip()
 
 
@@ -107,7 +118,7 @@ def create_bm_prompt(
 ### Examples
 {guidance_example_prompt}
 
-Give concise high-level guidance as a JSON list of strings wrapped with triple backticks:
+Give concise high-level guidance as a JSON object wrapped with triple backticks:
 {guidance_format_prompt}
     """.strip()
 
@@ -120,29 +131,35 @@ class BmAgent(BaseAgent):
         self.chat_history = []
 
     def _safe_parse(self, response: str) -> dict:
+        allowed_fields = ["overall", "resource", "construction", "combat"]
         try:
             payload = json.loads(extract_code(response))
             if isinstance(payload, list):
-                guidance = [str(item) for item in payload]
+                directive = {"overall": " ".join(str(item).strip() for item in payload if str(item).strip())}
             elif isinstance(payload, dict):
+                directive = {
+                    field: payload[field].strip()
+                    for field in allowed_fields
+                    if isinstance(payload.get(field), str) and payload[field].strip()
+                }
                 raw_guidance = payload.get("guidance") or payload.get("directives") or payload.get("instructions")
                 if isinstance(raw_guidance, list):
-                    guidance = [str(item) for item in raw_guidance]
-                else:
-                    guidance = [str(value) for value in payload.values() if isinstance(value, str)]
+                    directive.setdefault(
+                        "overall",
+                        " ".join(str(item).strip() for item in raw_guidance if str(item).strip()),
+                    )
             elif isinstance(payload, str):
-                guidance = [payload]
+                directive = {"overall": payload.strip()}
             else:
-                raise ValueError("BM response must be a JSON list, object, or string")
+                raise ValueError("BM response must be a JSON object, list, or string")
         except Exception:
-            guidance = [
-                "Continue with a safe baseline: keep economy active, avoid invalid repeated actions, and attack only with a clear advantage."
-            ]
+            directive = {
+                "overall": "Continue with a safe baseline: keep economy active, avoid invalid repeated actions, and attack only with a clear advantage."
+            }
 
-        guidance = [item.strip() for item in guidance if item and item.strip()]
-        if not guidance:
-            guidance = ["No specific background guidance is available; follow the current game state and strategic aim."]
-        return {"guidance": guidance}
+        if not directive.get("overall"):
+            directive["overall"] = "No specific background guidance is available; follow the current game state and strategic aim."
+        return directive
 
     def run(
         self,
