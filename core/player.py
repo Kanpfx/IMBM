@@ -99,10 +99,10 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
             return None
 
         fields = [
-            ("overall", "Overall"),
-            ("resource", "Resource"),
-            ("construction", "Construction"),
-            ("combat", "Combat"),
+            ("overall", "Overall Guidance"),
+            ("resource", "Resource Guidance"),
+            ("construction", "Construction Guidance"),
+            ("combat", "Combat Guidance"),
         ]
         lines = []
         for key, label in fields:
@@ -112,7 +112,7 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
 
         if not lines:
             return None
-        return "Current BM Directive:\n" + "\n".join(lines)
+        return "Current Strategic Guidance:\n" + "\n".join(lines)
 
     async def _run_bm_background(
         self,

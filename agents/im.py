@@ -1,5 +1,4 @@
 from agents.base import BaseAgent
-from agents.prompts import strategy_prompt
 from runtime.format import extract_code, constrcut_openai_qa
 
 import json
@@ -7,6 +6,16 @@ import json
 
 role_prompt = """
 You are a real-time StarCraft II controller. Based on the current game state and the background model's guidance, choose immediately executable actions that help us win the game.
+""".strip()
+
+
+strategic_aim_prompt = """
+Our final aim: defeat the enemy as efficiently as possible.
+
+Our action preferences:
+- Economy: maintain healthy resource income and spending.
+- Infrastructure and tech: build structures and progress technology at appropriate timings.
+- Army and combat: defend against enemy attacks when needed, and organize reasonable attacks with our army.
 """.strip()
 
 
@@ -55,35 +64,36 @@ Example:
 
 
 action_rules_prompt = """
-Action Rules:
+Immediate Action Rules:
 
-1. Overall Action Requirements
+1. Action Selection Rules
 - Only output actions that are valid, supported, executable, and relevant to the current task.
 - Ignore impossible tasks.
 - Do not assign the same unit more than once in the same response.
 - Avoid reassigning busy units unless the new command is clearly more urgent or useful.
 
-2. Resource Requirements
+2. Resource Management Rules
 - The total cost of all commands must not exceed available minerals and gas.
 - If resources are insufficient, keep only the highest-priority commands.
-- Do not manually send SCVs or MULEs to gather resources.
+- Do not manually assign SCVs or MULEs to gather resources; economy management is handled automatically.
 - Do not overproduce SCVs beyond useful Command Center and Refinery capacity.
 
-3. Unit Production Requirements
+3. Unit Production Rules
 - Prioritize increasing useful combat strength.
 - Produce combat units that improve the current army within available resources and production capacity.
 - Do not enqueue units if the production queue already contains 5 items.
 
-4. Construction Requirements
-- Build only structures that are currently useful.
+4. Construction and Tech Rules
+- Build only structures, add-ons, and tech that are currently useful.
 - Avoid redundant structures.
 - Do not build extra Refineries unless existing Refineries are fully utilized.
 - Do not build Missile Turrets unless enemy air threats exist or are expected.
 - Build at most one Supply Depot, and only when unused supply is below 7.
 
-5. Background Strategy Requirements
-- Follow background strategic guidance only if it is valid and reasonable under the current game state.
-- Treat the Overall section of the background directive as the main plan, and use Resource, Construction, and Combat sections as optional strategic constraints.
+5. Strategic Guidance Usage Rules
+- Treat background guidance as strategic guidance, not executable commands.
+- Use Overall Guidance as the main plan, and use Resource Guidance, Construction Guidance, and Combat Guidance as optional strategic constraints.
+- Current game state, action validity, and urgent survival needs override outdated or impossible guidance.
 - When the situation requires long-term planning or strategic judgment, set request_background=true and provide a clear background_reason.
 """.strip()
 
@@ -93,21 +103,22 @@ def create_im_prompt(race: str, obs_text: str, directive_text: str | None):
     return f"""
 {role_prompt}
 
-### Aim
-{strategy_prompt}
+### Strategic Objective
+{strategic_aim_prompt}
 
 ### Current Game State
 {obs_text}
 
-### Background Strategic Analysis
+### Current Strategic Guidance
 {directive_text}
 
-### Rules
+### Immediate Action Rules
 {action_rules_prompt}
 
-Give an action JSON in the following format wrapped with triple backticks:
+### Required JSON Output
 {action_format_prompt}
 
+### Example JSON Output
 {action_example_prompt}
     """.strip()
 

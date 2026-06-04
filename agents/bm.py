@@ -10,48 +10,48 @@ You are a strong background decision model for StarCraft II. Based on the curren
 
 
 strategic_aim_prompt = """
-Our overall goal: strategically coordinate resources, army strength, technology, and development to ultimately defeat the enemy.
+Our overall goal: strategically coordinate economy, production infrastructure, technology, and army strength to ultimately defeat the enemy.
 
 Strategic decision preferences:
-- Resources: maintain efficient resource income and healthy resource usage.
-- Development: plan technology progression and organize effective development.
-- Combat: allocate army forces reasonably to defend against attacks and win favorable fights.
+- Economy: maintain efficient resource income and healthy resource spending.
+- Infrastructure and tech: plan production structures, add-ons, upgrades, and technology progression.
+- Army and combat: allocate army forces reasonably to defend against attacks and win favorable fights.
 """.strip()
 
 
 guidance_rules_prompt = """
-Guidance Rules:
+Strategic Guidance Rules:
 
-1. Overall Requirements
+1. Strategic Scope Rules
 - You are a high-level command agent. Output only natural-language strategic guidance, not concrete executable actions.
-- Based on the current observation, IM request, resources, buildings, army strength, and enemy threats, plan the resource, construction, technology, and combat direction for roughly the next minute.
+- Based on the current observation, request, economy, production infrastructure, army strength, and enemy threats, plan the strategic direction for roughly the next minute.
 - When the IM makes a request, prioritize answering that request, then add corrections or supplements based on the global situation.
 - Guidance should express goals, priorities, and tactical intent. Do not specify exact unit IDs, coordinates, quantities, or operation sequences.
 
-2. Resource Requirements
+2. Economy Guidance Rules
 - Avoid long-term resource floating. Continuously convert minerals and gas into economy, production, technology, or army strength.
 - When resources are insufficient, prioritize restoring income and keeping key production active.
-- When resources are severely imbalanced, adjust collection and spending priorities.
+- When resources are severely imbalanced, adjust resource spending and economy priorities.
 - When minerals are excessive, prefer expansion, additional production, basic army units, or defense.
 - When gas is excessive, prefer technology progression, upgrades, or higher-tech units.
 
-3. Construction Requirements
+3. Construction and Tech Guidance Rules
 - Expand when the environment is safe and resources allow it, but do not expand blindly.
 - When production capacity is insufficient, add the corresponding production structures or add-ons.
 - Technology progression should serve the current unit route and enemy threats. Do not make purposeless tech switches.
 - Defensive structures should protect key areas such as mineral lines, entrances, and expansions.
 
-4. Combat Requirements
+4. Army and Combat Guidance Rules
 - Small harassment is usually handled by the IM locally; only provide high-level defensive priorities.
 - When facing a large attack, prioritize gathering the main army, defending key areas, and protecting economy and production structures.
 - When we gain an army, economy, or technology advantage, organize grouped attacks to pressure enemy expansions or damage the enemy economy.
 - Before attacking, consider scouting information, army readiness, key technology, and enemy defensive strength.
 
-5. Scouting Requirements
+5. Scouting and Information Guidance Rules
 - When enemy information is insufficient, prioritize scouting or scanning before making aggressive judgments.
 - Adjust attack timing, unit route, and technology tree based on enemy expansion, unit composition, and technology information.
 
-6. Directive Format Requirements
+6. Directive Format Rules
 - Output a JSON object with overall, resource, construction, and combat fields.
 - overall is required; resource, construction, and combat are optional.
 - Each included field must be one concise sentence.
@@ -62,8 +62,8 @@ guidance_format_prompt = """
 ```
 {
     "overall": "<main strategic plan for the next period>",
-    "resource": "<optional economy, workers, expansion, or resource-spending guidance>",
-    "construction": "<optional buildings, production, add-ons, tech path, or upgrade guidance>",
+    "resource": "<optional economy, workers, expansion, resource income, or resource-spending guidance>",
+    "construction": "<optional buildings, production structures, add-ons, tech path, or upgrade guidance>",
     "combat": "<optional defense, attack timing, scouting, army posture, or unit-composition guidance>"
 }
 ```
@@ -97,28 +97,28 @@ def create_bm_prompt(
     return f"""
 {role_prompt}
 
-### Aim
+### Strategic Objective
 {strategic_aim_prompt}
 
-### Rules
+### Strategic Guidance Rules
 {guidance_rules_prompt}
 
-### Background Information
+### Runtime Metrics
 {metrics_text}
 
-### Background Request
+### Strategic Guidance Request
 {request_text}
 
-### Frozen Game State Before IM Actions
+### Game State Snapshot Before IM Actions
 {obs_text}
 
 ### IM Validated Actions
 {actions_text}
 
-### Examples
+### Example Directive JSON
 {guidance_example_prompt}
 
-Give concise high-level guidance as a JSON object wrapped with triple backticks:
+### Required Directive JSON
 {guidance_format_prompt}
     """.strip()
 
