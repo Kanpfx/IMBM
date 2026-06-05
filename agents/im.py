@@ -42,22 +42,17 @@ Example:
 {
   "actions": [
     {
-      "action": "ATTACK_ATTACK",
-      "units": [1, 2, 3],
-      "target_unit": 9
-    },
-    {
-      "action": "MOVE_MOVE",
-      "units": [4, 5],
-      "target_position": [50, 60]
+      "action": "TERRANBUILD_SUPPLYDEPOT",
+      "units": [1],
+      "target_position": [24, 30]
     },
     {
       "action": "COMMANDCENTERTRAIN_SCV",
-      "units": [6]
+      "units": [2]
     }
   ],
-  "request_background": true,
-  "background_reason": "We are under heavy attack and need updated background strategic guidance."
+  "request_background": false,
+  "background_reason": ""
 }
 ```
 """.strip()
@@ -66,36 +61,39 @@ Example:
 action_rules_prompt = """
 Immediate Action Rules:
 
-1. Action Selection Rules
-- Only output actions that are valid, supported, executable, and relevant to the current task.
-- Ignore impossible tasks.
-- Do not assign the same unit more than once in the same response.
-- Avoid reassigning busy units unless the new command is clearly more urgent or useful.
+1. Executability
+- Only output actions that are currently available in the observation's Unit abilities or Structure abilities.
+- Each unit or structure may receive at most one action in this response.
+- Prefer actions that are useful immediately; ignore strategic ideas that cannot be executed now.
 
-2. Resource Management Rules
-- The total cost of all commands must not exceed available minerals and gas.
-- If resources are insufficient, keep only the highest-priority commands.
-- Do not manually assign SCVs or MULEs to gather resources; economy management is handled automatically.
-- Do not overproduce SCVs beyond useful Command Center and Refinery capacity.
+2. Balanced Control
+- At every decision, consider survival, economy, supply, production, technology, scouting, and combat.
+- Choose the actions with the highest immediate value across these areas, not only the most obvious combat or production action.
+- Do not over-focus on one area while another critical area is clearly falling behind.
 
-3. Unit Production Rules
-- Prioritize increasing useful combat strength.
-- Produce combat units that improve the current army within available resources and production capacity.
-- Do not enqueue units if the production queue already contains 5 items.
+3. Economy And Spending
+- Keep worker production healthy while it improves mining efficiency, but avoid excessive worker queues or over-saturating bases.
+- Spend resources efficiently across workers, supply, production, tech, army, defenses, and expansions.
+- When resources are floating, prefer actions that increase long-term capacity or convert resources into useful army strength.
 
-4. Construction and Tech Rules
-- Build only structures, add-ons, and tech that are currently useful.
-- Avoid redundant structures.
-- In the early game, place new structures near the starting base; expand construction outward only after the position is secure.
-- Do not build extra Refineries unless existing Refineries are fully utilized.
-- Do not build Missile Turrets unless enemy air threats exist or are expected.
-- Build at most one Supply Depot, and only when unused supply is below 7.
+4. Production And Tech
+- Keep idle production structures active when resources and supply allow.
+- Build or upgrade infrastructure when current production capacity, tech access, or army composition is limiting future strength.
+- Do not repeatedly queue the same structure's production if its queue is already long; diversify spending when possible.
 
-5. Strategic Guidance Usage Rules
-- Treat background guidance as strategic guidance, not executable commands.
-- Use Overall Guidance as the main plan, and use Resource Guidance, Construction Guidance, and Combat Guidance as optional strategic constraints.
-- Current game state, action validity, and urgent survival needs override outdated or impossible guidance.
-- When the situation requires long-term planning or strategic judgment, set request_background=true and provide a clear background_reason.
+5. Supply And Expansion
+- Prevent supply blocks before they stop production.
+- Expand when the current economy is saturated or resource income limits the plan, unless there is an immediate threat that must be handled first.
+- Do not delay expansion forever because of vague uncertainty; use the current threat level and army readiness to decide.
+
+6. Combat And Information
+- Defend important economy and production assets when threatened.
+- Scout or move for information when enemy state is unknown and the cost is acceptable.
+- Attack when the army is grouped and the expected trade is favorable; avoid feeding small groups unless scouting, harassing, or finishing a weak target.
+
+7. Background Requests
+- Request background guidance only for strategic uncertainty: tech path, expansion timing, attack timing, enemy composition, or major plan changes.
+- Do not request background guidance for local execution issues such as insufficient resources, full queues, invalid actions, or obvious defensive responses.
 """.strip()
 
 

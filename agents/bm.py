@@ -22,39 +22,35 @@ Strategic decision preferences:
 guidance_rules_prompt = """
 Strategic Guidance Rules:
 
-1. Strategic Scope Rules
-- You are a high-level command agent. Output only natural-language strategic guidance, not concrete executable actions.
-- Based on the current observation, request, economy, production infrastructure, army strength, and enemy threats, plan the strategic direction for roughly the next minute.
-- When the IM makes a request, prioritize answering that request, then add corrections or supplements based on the global situation.
-- Guidance should express goals, priorities, and tactical intent. Do not specify exact unit IDs, coordinates, quantities, or operation sequences.
+1. Role
+- Provide strategic guidance for roughly the next minute of play.
+- Give priorities, tradeoffs, and trigger conditions, not exact unit IDs or low-level command sequences.
+- Guidance must respect the currently observed economy, army, tech, enemy information, and available action space.
 
-2. Economy Guidance Rules
-- Avoid long-term resource floating. Continuously convert minerals and gas into economy, production, technology, or army strength.
-- When resources are insufficient, prioritize restoring income and keeping key production active.
-- When resources are severely imbalanced, adjust resource spending and economy priorities.
-- When minerals are excessive, prefer expansion, additional production, basic army units, or defense.
-- When gas is excessive, prefer technology progression, upgrades, or higher-tech units.
+2. Strategic Balance
+- Evaluate economy, supply, production capacity, technology, scouting, defense, and attack potential.
+- Identify which area is currently the main bottleneck.
+- Do not optimize only one dimension; a good plan should keep the overall game state growing.
 
-3. Construction and Tech Guidance Rules
-- Expand when the environment is safe and resources allow it, but do not expand blindly.
-- When production capacity is insufficient, add the corresponding production structures or add-ons.
-- Technology progression should serve the current unit route and enemy threats. Do not make purposeless tech switches.
-- Defensive structures should protect key areas such as mineral lines, entrances, and expansions.
+3. Adaptation
+- If under threat, prioritize survival, defense, and preserving economy.
+- If safe and saturated, prioritize expansion or production growth.
+- If resources are imbalanced, guide spending toward the area that converts the surplus into useful strength.
+- If enemy information is poor, guide scouting before committing to a risky attack or tech switch.
 
-4. Army and Combat Guidance Rules
-- Small harassment is usually handled by the IM locally; only provide high-level defensive priorities.
-- When facing a large attack, prioritize gathering the main army, defending key areas, and protecting economy and production structures.
-- When we gain an army, economy, or technology advantage, organize grouped attacks to pressure enemy expansions or damage the enemy economy.
-- Before attacking, consider scouting information, army readiness, key technology, and enemy defensive strength.
+4. Tech And Composition
+- Recommend tech and unit composition based on our current infrastructure, resource balance, and enemy threats.
+- Avoid recommending actions that are not currently possible unless clearly stated as a future goal after prerequisites.
+- Prefer coherent army plans over scattered unit choices.
 
-5. Scouting and Information Guidance Rules
-- When enemy information is insufficient, prioritize scouting or scanning before making aggressive judgments.
-- Adjust attack timing, unit route, and technology tree based on enemy expansion, unit composition, and technology information.
+5. Combat Posture
+- Specify whether IM should defend, scout, regroup, contain, harass, or commit to an attack.
+- For attacks, state the readiness condition or timing logic.
+- For defense, state what must be protected and what kind of force posture is needed.
 
-6. Directive Format Rules
-- Output a JSON object with overall, resource, construction, and combat fields.
-- overall is required; resource, construction, and combat are optional.
-- Each included field must be one concise sentence.
+6. Directive Format
+- Output concise JSON with overall, priority, economy, construction, combat, and avoid fields.
+- Each field should be one short sentence.
 """.strip()
 
 
@@ -62,9 +58,11 @@ guidance_format_prompt = """
 ```
 {
     "overall": "<main strategic plan for the next period>",
-    "resource": "<optional economy, workers, expansion, resource income, or resource-spending guidance>",
-    "construction": "<optional buildings, production structures, add-ons, tech path, or upgrade guidance>",
-    "combat": "<optional defense, attack timing, scouting, army posture, or unit-composition guidance>"
+    "priority": "<the single most important bottleneck or objective now>",
+    "economy": "<worker, saturation, expansion, supply, or spending guidance>",
+    "construction": "<production, tech, add-ons, upgrades, or defense guidance>",
+    "combat": "<defend, scout, regroup, attack, or timing guidance>",
+    "avoid": "<one thing IM should not do in the next period>"
 }
 ```
 """.strip()
@@ -74,10 +72,12 @@ guidance_example_prompt = """
 Example:
 ```
 {
-  "overall": "Defend with Marines and Tank tech first, then expand once the front is stable.",
-  "resource": "Spend the mineral bank on worker production, army production, and a safe natural expansion.",
-  "construction": "Prioritize Factory Tech Lab and Siege Tanks before adding unrelated tech.",
-  "combat": "Hold near the bunker and wall until Tank support is ready, then look for a cautious pressure timing."
+  "overall": "Stabilize on Marine production, add Tank tech, and expand once the front is secure.",
+  "priority": "The current bottleneck is converting early economy into safe production and tech.",
+  "economy": "Keep worker and supply flow healthy, and prepare a natural expansion when the main is saturated and pressure is controlled.",
+  "construction": "Use Barracks production first, then add Factory Tech Lab for Siege Tanks before unrelated tech.",
+  "combat": "Hold defensively until Marines are grouped with Tank support, then look for a cautious timing attack.",
+  "avoid": "Do not send scattered Marines across the map before the army is grouped."
 }
 ```
 """.strip()
@@ -133,7 +133,7 @@ class BmAgent(BaseAgent):
         self.chat_history = []
 
     def _safe_parse(self, response: str) -> dict:
-        allowed_fields = ["overall", "resource", "construction", "combat"]
+        allowed_fields = ["overall", "priority", "economy", "construction", "combat", "avoid"]
         try:
             payload = json.loads(extract_code(response))
             if isinstance(payload, list):
@@ -144,6 +144,8 @@ class BmAgent(BaseAgent):
                     for field in allowed_fields
                     if isinstance(payload.get(field), str) and payload[field].strip()
                 }
+                if "economy" not in directive and isinstance(payload.get("resource"), str) and payload["resource"].strip():
+                    directive["economy"] = payload["resource"].strip()
                 raw_guidance = payload.get("guidance") or payload.get("directives") or payload.get("instructions")
                 if isinstance(raw_guidance, list):
                     directive.setdefault(

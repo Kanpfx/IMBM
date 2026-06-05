@@ -100,9 +100,12 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
 
         fields = [
             ("overall", "Overall Guidance"),
+            ("priority", "Priority Guidance"),
+            ("economy", "Economy Guidance"),
             ("resource", "Resource Guidance"),
             ("construction", "Construction Guidance"),
             ("combat", "Combat Guidance"),
+            ("avoid", "Avoid Guidance"),
         ]
         lines = []
         for key, label in fields:
