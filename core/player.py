@@ -128,7 +128,7 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
         start_time = time.time()
         try:
             loop = asyncio.get_running_loop()
-            directive_data, bm_think, bm_chat_history = await loop.run_in_executor(
+            bm_predicted_observation_30_ticks, directive_data, bm_think, bm_chat_history = await loop.run_in_executor(
                 None,
                 lambda: self.bm_agent.run(
                     obs_text=obs_text,
@@ -148,6 +148,7 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
             self.directive_store.write(directive)
             self.logging("bm_latency", round(time.time() - start_time, 4), save_trace=True)
             self.logging("bm_trigger_reason", trigger_reason, save_trace=True)
+            self.logging("bm_predicted_observation_30_ticks", bm_predicted_observation_30_ticks, save_trace=True, print_log=False)
             self.logging("bm_think", bm_think, save_trace=True, print_log=False)
             self.logging("bm_chat_history", bm_chat_history, save_trace=True, print_log=False)
             self.logging("directive", directive.to_dict(), save_trace=True)
@@ -238,6 +239,7 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
 
         im_start_time = time.time()
         (
+            predicted_observation_30_ticks,
             actions,
             request_background,
             background_reason,
@@ -249,6 +251,7 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
             verifier=self.verify_actions,
         )
         self.logging("im_latency", round(time.time() - im_start_time, 4), save_trace=True)
+        self.logging("predicted_observation_30_ticks", predicted_observation_30_ticks, save_trace=True, print_log=False)
         self.logging("request_background", request_background, save_trace=True)
         self.logging("background_reason", background_reason, save_trace=True)
         self.logging("actions", actions, save_trace=True)

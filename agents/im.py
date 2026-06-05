@@ -22,6 +22,7 @@ Our action preferences:
 action_format_prompt = """
 ```
 {
+    "predicted_observation_30_ticks": "<brief text prediction for about 30 ticks later; summarize Economy, Production/Construction, Combat/Enemy, and Risk without copying the raw observation format>",
     "actions": [
         {
             "action": "<action_name>",
@@ -40,6 +41,7 @@ action_example_prompt = """
 Example:
 ```
 {
+  "predicted_observation_30_ticks": "Economy: minerals decrease after the Depot and SCV actions while workers keep mining. Production/Construction: the Supply Depot starts near the base and the Command Center trains an SCV. Combat/Enemy: no visible enemy change is expected unless new units enter vision. Risk: supply remains tight until the Depot progresses.",
   "actions": [
     {
       "action": "TERRANBUILD_SUPPLYDEPOT",
@@ -65,6 +67,8 @@ Immediate Action Rules:
 - Only output actions that are currently available in the observation's Unit abilities or Structure abilities.
 - Each unit or structure may receive at most one action in this response.
 - Prefer actions that are useful immediately; ignore strategic ideas that cannot be executed now.
+- Before actions, predict the likely observation about 30 ticks later after your actions and automatic economy/micro have progressed.
+- Write the prediction as concise text with Economy, Production/Construction, Combat/Enemy, and Risk; do not copy the raw observation format or invent exact unit ids.
 
 2. Balanced Control
 - At every decision, consider survival, economy, supply, production, technology, scouting, and combat.
@@ -139,17 +143,30 @@ class ImAgent(BaseAgent):
                 raise ValueError("Response must contain a JSON code block wrapped with triple backticks.")
             payload = json.loads(code)
             if not isinstance(payload, dict):
-                raise ValueError("IM response must be a JSON object with actions, request_background, and background_reason.")
+                raise ValueError(
+                    "IM response must be a JSON object with predicted_observation_30_ticks, actions, request_background, and background_reason."
+                )
+            if "predicted_observation_30_ticks" not in payload:
+                raise ValueError("Missing required key: predicted_observation_30_ticks.")
+            predicted_observation = payload["predicted_observation_30_ticks"]
+            if isinstance(predicted_observation, (dict, list)):
+                predicted_observation = json.dumps(predicted_observation, ensure_ascii=False)
+            else:
+                predicted_observation = str(predicted_observation)
+            if not predicted_observation.strip():
+                raise ValueError("`predicted_observation_30_ticks` must be a non-empty prediction.")
             actions = payload.get("actions", [])
             if not isinstance(actions, list):
                 raise ValueError("`actions` must be a list.")
             return {
+                "predicted_observation_30_ticks": predicted_observation,
                 "actions": actions,
                 "request_background": bool(payload.get("request_background", False)),
                 "background_reason": str(payload.get("background_reason", "")),
             }, ""
         except Exception as exc:
             return {
+                "predicted_observation_30_ticks": "",
                 "actions": [],
                 "request_background": False,
                 "background_reason": "",
@@ -159,6 +176,7 @@ class ImAgent(BaseAgent):
         payload, error = self._parse_response(response)
         if error:
             return {
+                "predicted_observation_30_ticks": "",
                 "actions": [],
                 "request_background": True,
                 "background_reason": "IM response could not be parsed.",
@@ -246,6 +264,7 @@ class ImAgent(BaseAgent):
             payload["request_background"] = True
             payload["background_reason"] = payload["background_reason"] or requested_reason
         return (
+            payload["predicted_observation_30_ticks"],
             payload["actions"],
             payload["request_background"],
             payload["background_reason"],

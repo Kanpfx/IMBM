@@ -26,6 +26,8 @@ Strategic Guidance Rules:
 - Provide strategic guidance for roughly the next minute of play.
 - Give priorities, tradeoffs, and trigger conditions, not exact unit IDs or low-level command sequences.
 - Guidance must respect the currently observed economy, army, tech, enemy information, and available action space.
+- Before the directive fields, predict the likely observation about 30 ticks later after the IM actions and automatic economy/micro have progressed.
+- Write the prediction as concise text with Economy, Production/Construction, Combat/Enemy, and Risk; do not copy the raw observation format or invent exact unit ids.
 
 2. Strategic Balance
 - Evaluate economy, supply, production capacity, technology, scouting, defense, and attack potential.
@@ -48,7 +50,7 @@ Strategic Guidance Rules:
 - For defense, state what must be protected and what kind of force posture is needed.
 
 6. Directive Format
-- Output concise JSON with overall, priority, economy, construction, combat, and avoid fields.
+- Output concise JSON with predicted_observation_30_ticks, overall, priority, economy, construction, combat, and avoid fields.
 - Each field should be one short sentence.
 """.strip()
 
@@ -56,6 +58,7 @@ Strategic Guidance Rules:
 guidance_format_prompt = """
 ```
 {
+    "predicted_observation_30_ticks": "<brief text prediction for about 30 ticks later; summarize Economy, Production/Construction, Combat/Enemy, and Risk without copying the raw observation format>",
     "overall": "<main strategic plan for the next period>",
     "priority": "<the single most important bottleneck or objective now>",
     "economy": "<worker, saturation, expansion, supply, or spending guidance>",
@@ -71,6 +74,7 @@ guidance_example_prompt = """
 Example:
 ```
 {
+  "predicted_observation_30_ticks": "Economy: mining continues while current production spends minerals and gas. Production/Construction: Barracks production continues and Factory tech becomes the next likely bottleneck. Combat/Enemy: no immediate fight should change unless enemy pressure appears. Risk: pushing before the army is grouped would waste early units.",
   "overall": "Stabilize on Marine production, add Tank tech, and expand once the front is secure.",
   "priority": "The current bottleneck is converting early economy into safe production and tech.",
   "economy": "Keep worker and supply flow healthy, and prepare a natural expansion when the main is saturated and pressure is controlled.",
@@ -131,13 +135,20 @@ class BmAgent(BaseAgent):
         self.think = []
         self.chat_history = []
 
-    def _safe_parse(self, response: str) -> dict:
+    def _stringify_prediction(self, value) -> str:
+        if isinstance(value, (dict, list)):
+            return json.dumps(value, ensure_ascii=False)
+        return str(value or "")
+
+    def _safe_parse(self, response: str) -> tuple[str, dict]:
         allowed_fields = ["overall", "priority", "economy", "construction", "combat", "avoid"]
+        predicted_observation = ""
         try:
             payload = json.loads(extract_code(response))
             if isinstance(payload, list):
                 directive = {"overall": " ".join(str(item).strip() for item in payload if str(item).strip())}
             elif isinstance(payload, dict):
+                predicted_observation = self._stringify_prediction(payload.get("predicted_observation_30_ticks", ""))
                 directive = {
                     field: payload[field].strip()
                     for field in allowed_fields
@@ -162,7 +173,7 @@ class BmAgent(BaseAgent):
 
         if not directive.get("overall"):
             directive["overall"] = "No specific background guidance is available; follow the current game state and strategic aim."
-        return directive
+        return predicted_observation, directive
 
     def run(
         self,
@@ -189,5 +200,5 @@ class BmAgent(BaseAgent):
         self.think.append([response])
         self.chat_history.append(messages)
 
-        directive = self._safe_parse(response)
-        return directive, self.think, self.chat_history
+        predicted_observation, directive = self._safe_parse(response)
+        return predicted_observation, directive, self.think, self.chat_history
