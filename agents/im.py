@@ -29,8 +29,8 @@ action_format_prompt = """
             "target_unit": 3
         }
     ],
-    "request_background": false,
-    "background_reason": ""
+    "request_background": true,
+    "background_reason": "<reason why we request updated background strategic guidance>"
 }
 ```
 """.strip()
@@ -51,8 +51,8 @@ Example:
       "units": [2]
     }
   ],
-  "request_background": false,
-  "background_reason": ""
+  "request_background": true,
+  "background_reason": "We are under heavy attack and need updated guidance on how to handle the next step."
 }
 ```
 """.strip()
@@ -69,7 +69,7 @@ Immediate Action Rules:
 2. Balanced Control
 - At every decision, consider survival, economy, supply, production, technology, scouting, and combat.
 - Choose the actions with the highest immediate value across these areas, not only the most obvious combat or production action.
-- Do not over-focus on one area while another critical area is clearly falling behind.
+- Before finalizing actions, check whether any critical area has an urgent gap.
 
 3. Economy And Spending
 - Keep worker production healthy while it improves mining efficiency, but avoid excessive worker queues or over-saturating bases.
@@ -92,7 +92,7 @@ Immediate Action Rules:
 - Attack when the army is grouped and the expected trade is favorable; avoid feeding small groups unless scouting, harassing, or finishing a weak target.
 
 7. Background Requests
-- Request background guidance only for strategic uncertainty: tech path, expansion timing, attack timing, enemy composition, or major plan changes.
+- Request background guidance when there is strategic uncertainty: tech path, expansion timing, attack timing, enemy composition, or major plan changes.
 - Do not request background guidance for local execution issues such as insufficient resources, full queues, invalid actions, or obvious defensive responses.
 """.strip()
 

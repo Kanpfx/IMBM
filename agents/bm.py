@@ -40,7 +40,6 @@ Strategic Guidance Rules:
 
 4. Tech And Composition
 - Recommend tech and unit composition based on our current infrastructure, resource balance, and enemy threats.
-- Avoid recommending actions that are not currently possible unless clearly stated as a future goal after prerequisites.
 - Prefer coherent army plans over scattered unit choices.
 
 5. Combat Posture
