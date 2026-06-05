@@ -86,6 +86,7 @@ Immediate Action Rules:
 4. Construction and Tech Rules
 - Build only structures, add-ons, and tech that are currently useful.
 - Avoid redundant structures.
+- In the early game, place new structures near the starting base; expand construction outward only after the position is secure.
 - Do not build extra Refineries unless existing Refineries are fully utilized.
 - Do not build Missile Turrets unless enemy air threats exist or are expected.
 - Build at most one Supply Depot, and only when unused supply is below 7.
@@ -120,6 +121,8 @@ def create_im_prompt(race: str, obs_text: str, directive_text: str | None):
 
 ### Example JSON Output
 {action_example_prompt}
+
+Please output only the well-formed JSON object that you have decided on, wrapped with triple backticks, with no extra text.
     """.strip()
 
 

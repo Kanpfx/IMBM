@@ -120,6 +120,8 @@ def create_bm_prompt(
 
 ### Required Directive JSON
 {guidance_format_prompt}
+
+Please output only the well-formed JSON object that you have decided on, wrapped with triple backticks, with no extra text.
     """.strip()
 
 
