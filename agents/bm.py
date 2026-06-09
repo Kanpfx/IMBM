@@ -11,8 +11,6 @@ You are an expert StarCraft II strategic decision model responsible for maintain
 
 
 queue_responsibility_prompt = """
-Queue Responsibilities:
-
 - economy_build: Maintain healthy resource income and spending, avoid supply or worker bottlenecks, expand when appropriate, and construct useful economic or infrastructure buildings.
 - production_tech: Plan army production, add-ons, tech progression, upgrades, and unit composition so resources turn into coherent fighting strength.
 - combat: Plan defense, scouting, regrouping, harassment, attacks, retreats, and combat ability usage according to enemy threats and army readiness.
@@ -23,7 +21,7 @@ guidance_rules_prompt = """
 Strategic Guidance Rules:
 
 1. Overall Responsibility
-- Read the observation, metrics, existing queues, and blocked feedback before appending any task.
+- Read the observation, existing queues, and blocked feedback before appending any task.
 - Identify the most urgent short-term bottleneck: economy, supply, production, tech, defense, scouting, or attack timing.
 - Keep the game plan balanced; do not improve one area while leaving another critical area stalled.
 - If under pressure, prioritize survival, worker protection, base defense, and recovery.
@@ -49,9 +47,9 @@ Strategic Guidance Rules:
 
 5. Queue Requirements
 - Only append new tasks; never delete, move, reorder, or rewrite existing queue items.
-- Keep each queue compact, usually around 3 useful waiting tasks, and append nothing to queues that are already healthy.
+- Add only enough tasks to keep each queue compact, usually around 3 useful waiting tasks, and append nothing to queues that are already healthy.
 - Avoid repeating existing tasks or recently blocked tasks unless the replacement is more specific and more executable.
-- Each task must be one concise natural-language sentence, not a low-level ability name, unit id, or exact coordinate.
+- Each task must be one concise natural-language sentence, not an exact ability name, unit id, or exact coordinate.
 - If the queues already cover the next useful steps, output an empty append list.
 """.strip()
 
@@ -61,12 +59,13 @@ output_format_prompt = """
 {
   "append": [
     {
-      "queue": "economy_build/production_tech/combat",
-      "task": "The task to insert into the corresponding action queue."
+      "queue": "<one of: economy_build, production_tech, combat>",
+      "task": "<one concise natural-language task to insert into the selected queue>"
     }
   ]
 }
 ```
+Replace every angle-bracket placeholder with a concrete value. If no task should be added, return the same object with an empty append list.
 """.strip()
 
 
@@ -95,11 +94,9 @@ example_result = """
 def create_bm_prompt(
     race: str,
     obs_text: str,
-    metrics: dict,
     action_queues: dict,
     blocked_feedback: list | None = None,
 ):
-    metrics_text = json.dumps(metrics, indent=2, ensure_ascii=False)
     queues_text = json.dumps(action_queues, indent=2, ensure_ascii=False)
     feedback_text = json.dumps(blocked_feedback or [], indent=2, ensure_ascii=False)
 
@@ -175,7 +172,6 @@ class BmAgent(BaseAgent):
     def run(
         self,
         obs_text: str,
-        metrics: dict,
         action_queues: dict,
         blocked_feedback: list | None = None,
     ):
@@ -185,7 +181,6 @@ class BmAgent(BaseAgent):
         prompt = create_bm_prompt(
             race=self.race,
             obs_text=obs_text,
-            metrics=metrics,
             action_queues=action_queues,
             blocked_feedback=blocked_feedback,
         )

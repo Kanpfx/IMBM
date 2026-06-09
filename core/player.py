@@ -42,9 +42,10 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
             self.bm_agent = BmAgent(config.own_race, **bm_agent_config)
 
         self.action_queue_store = ActionQueueStore()
-        self.bm_interval = 60
         self.bm_minerals_threshold = 100
         self.queue_pressure_limit = 5
+        self.bm_resume_queue_limit = 2
+        self._bm_paused_by_queue_pressure = False
         self._bm_task = None
 
         self.scv_auto_attack_distance = 4
@@ -73,25 +74,10 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
                 if unit.type_id in [UnitTypeId.SCV] and self.time < self.scv_auto_attack_time and target_enemy:
                     unit.attack(target_enemy)
 
-    def _snapshot_metrics(self, iteration: int) -> dict:
-        return {
-            "iteration": iteration,
-            "time_seconds": int(self.time),
-            "minerals": self.minerals,
-            "vespene": self.vespene,
-            "supply_army": self.supply_army,
-            "supply_workers": self.supply_workers,
-            "supply_left": self.supply_left,
-            "n_structures": len(self.structures),
-            "n_visible_enemy_units": len(self.enemy_units),
-            "n_visible_enemy_structures": len(self.enemy_structures),
-        }
-
-    def _should_run_bm(self, iteration: int) -> bool:
+    def _should_run_bm(self) -> bool:
         return (
             self.enable_bm
             and self.bm_agent is not None
-            and iteration % self.bm_interval == 0
             and self.minerals > self.bm_minerals_threshold
         )
 
@@ -103,7 +89,6 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
                 None,
                 lambda: self.bm_agent.run(
                     obs_text=obs_text,
-                    metrics=self._snapshot_metrics(iteration),
                     action_queues=self.action_queue_store.snapshot(),
                     blocked_feedback=self.action_queue_store.feedback_snapshot(),
                 ),
@@ -122,21 +107,43 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
         if self._bm_task is not None and self._bm_task.done():
             self._bm_task = None
 
-    async def _schedule_bm_if_ready(self, iteration: int) -> None:
-        if not self._should_run_bm(iteration):
-            return
-
-        self._clear_finished_bm_task()
-        if self._bm_task is not None:
-            self.logging("bm_skip_reason", "Previous BM task is still running.", save_trace=True)
-            return
+    def _queue_pressure_allows_bm(self, iteration: int) -> bool:
+        if self._bm_paused_by_queue_pressure:
+            if self.action_queue_store.has_queue_pressure(self.bm_resume_queue_limit):
+                if iteration % 60 == 0:
+                    self.logging(
+                        "bm_skip_reason",
+                        f"BM paused until all action queues have at most {self.bm_resume_queue_limit} task.",
+                        save_trace=True,
+                    )
+                return False
+            self._bm_paused_by_queue_pressure = False
+            self.logging("bm_pressure_resumed", self.action_queue_store.snapshot(), save_trace=True)
 
         if self.action_queue_store.has_queue_pressure(self.queue_pressure_limit):
+            self._bm_paused_by_queue_pressure = True
             self.logging(
                 "bm_skip_reason",
-                f"Action queue length exceeded pressure limit {self.queue_pressure_limit}.",
+                (
+                    f"Action queue length exceeded pressure limit {self.queue_pressure_limit}; "
+                    f"BM will resume when every queue has at most {self.bm_resume_queue_limit} task."
+                ),
                 save_trace=True,
             )
+            return False
+
+        return True
+
+    async def _schedule_bm_if_ready(self, iteration: int) -> None:
+        self._clear_finished_bm_task()
+
+        if not self._should_run_bm():
+            return
+
+        if self._bm_task is not None:
+            return
+
+        if not self._queue_pressure_allows_bm(iteration):
             return
 
         obs_text = await self.obs_to_text(log_prefix="bm_")

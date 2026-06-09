@@ -138,7 +138,7 @@ def main():
     run_game(
         maps.get(args.map_name),
         [host_player, join_player],
-        realtime=False,
+        realtime=True,
         rgb_render_config=None,
         save_replay_as=ai_player.log_path + "/replay.SC2Replay",
     )

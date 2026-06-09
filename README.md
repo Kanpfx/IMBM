@@ -2,7 +2,7 @@
 
 This project is a trimmed StarCraft II battle flow built from SunTzu. It keeps only the current IM/BM queue decision pipeline:
 
-- **BM (Background Model)** runs as a blocking planner every 60 ticks when minerals are above 100, then appends high-level queue tasks.
+- **BM (Background Model)** runs as a blocking planner whenever the previous BM request has finished and minerals are above 100, then appends high-level queue tasks unless queue pressure pauses it.
 - **IM (Interaction Model)** runs one foreground executor per non-empty queue and turns the queue head into executable SC2 actions.
 - **ActionQueueStore** keeps three queues: economy_build, production_tech, and combat.
 - SunTzu observation, action validation, action execution, worker distribution, and logging are retained.
@@ -98,7 +98,7 @@ Current BM limitations:
 - BM tasks are natural-language sentences and do not yet include explicit execution boundaries such as priority, preconditions, success conditions, expiry, or expected queue outcome.
 - The BM output examples currently emphasize appending tasks and should include an explicit empty append example for cases where existing queues are sufficient.
 - BM can only append tasks. It cannot yet cancel obsolete tasks, reorder tasks, replace tasks, or mark tasks as stale when the game state changes.
-- BM scheduling is based on a fixed interval and mineral threshold. It is not yet event-triggered by empty queues, repeated blocked tasks, attacks, supply blocks, or other urgent state changes.
+- BM scheduling is based on completion of the previous BM request plus a mineral threshold. If any queue grows beyond 5 tasks, BM pauses until every queue falls back to at most 2 tasks. It is not yet event-triggered by empty queues, repeated blocked tasks, attacks, supply blocks, or other urgent state changes.
 - BM does not maintain an explicit long-term strategic state such as current game plan, tech route, army composition target, expansion plan, or attack timing.
 
 ## IM Design Notes

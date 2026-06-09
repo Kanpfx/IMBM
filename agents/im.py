@@ -6,7 +6,7 @@ import json
 
 
 role_prompt = """
-You are a StarCraft II decision executor. Based on the current observation and the given queue task, produce concrete executable actions for the agent.
+You are a StarCraft II action executor. Based on the current observation and the given task, produce concrete executable actions for the agent.
 """.strip()
 
 
@@ -19,20 +19,20 @@ queue_aims = {
 
 queue_templates = {
     "economy_build": """
-Queue Template: economy_build
-- Use only economy, worker, base, supply, building, and base-upgrade abilities shown in the filtered ability table.
+Focus: economy_build
+- Use only economy, worker, base, supply, building, and base-upgrade abilities shown in the current observation.
 - Choose valid builders, producers, targets, and building positions from the observation.
 - Prefer actions that improve income, supply capacity, bases, or infrastructure.
 """.strip(),
     "production_tech": """
-Queue Template: production_tech
-- Use only army production, research, upgrade, add-on, and tech morph abilities shown in the filtered ability table.
+Focus: production_tech
+- Use only army production, research, upgrade, add-on, and tech morph abilities shown in the current observation.
 - Choose idle or suitable production/tech structures from the observation.
 - Prefer actions that turn resources into useful army strength or unlock the next coherent tech step.
 """.strip(),
     "combat": """
-Queue Template: combat
-- Use only movement, attack, defense, scouting, combat abilities, and combat mode abilities shown in the filtered ability table.
+Focus: combat
+- Use only movement, attack, defense, scouting, combat abilities, and combat mode abilities shown in the current observation.
 - Choose combat units and visible enemy units or map positions from the observation.
 - Prefer useful immediate combat behavior: defend, regroup, scout, attack favorable targets, or use safe combat abilities.
 """.strip(),
@@ -41,11 +41,11 @@ Queue Template: combat
 
 action_rules_prompt = """
 Immediate Execution Rules:
-- Only output actions that are currently available in the filtered Unit abilities or Structure abilities.
+- Only output actions that use ability names currently listed in the Unit abilities or Structure abilities sections.
 - Each unit or structure may receive at most one action in this response.
-- If the task cannot be executed now, output an empty actions list.
+- If no listed ability can make useful progress on the task right now, return an empty actions list.
 - Do not invent unit ids, ability names, enemy ids, or coordinates outside the observation.
-- Return only low-level SC2 action JSON. Do not explain.
+- Return only executable action JSON. Do not explain.
 """.strip()
 
 
@@ -54,22 +54,23 @@ action_format_prompt = """
 {
   "actions": [
     {
-      "action": "<no_target_action_name>",
-      "units": [1]
+      "action": "<ability name from the current observation>",
+      "units": ["<own unit id from the current observation>"]
     },
     {
-      "action": "<unit_target_action_name>",
-      "units": [1],
-      "target_unit": 2
+      "action": "<ability name from the current observation>",
+      "units": ["<own unit id from the current observation>"],
+      "target_unit": "<target unit id from the current observation>"
     },
     {
-      "action": "<point_target_action_name>",
-      "units": [1],
-      "target_position": [40, 24]
+      "action": "<ability name from the current observation>",
+      "units": ["<own unit id from the current observation>"],
+      "target_position": ["<x coordinate from the current observation>", "<y coordinate from the current observation>"]
     }
   ]
 }
 ```
+Replace every angle-bracket placeholder with a concrete value from the current observation. Unit ids, target unit ids, and target positions must be integers in the final output.
 """.strip()
 
 
@@ -85,6 +86,7 @@ queue_example_results = {
   ]
 }
 ```
+The numeric ids in this example are placeholders; actual output must use integer ids from the current observation.
 """.strip(),
     "production_tech": """
 ```
@@ -97,6 +99,7 @@ queue_example_results = {
   ]
 }
 ```
+The numeric ids in this example are placeholders; actual output must use integer ids from the current observation.
 """.strip(),
     "combat": """
 ```
@@ -110,6 +113,7 @@ queue_example_results = {
   ]
 }
 ```
+The numeric ids and coordinates in this example are placeholders; actual output must use ids and coordinates from the current observation.
 """.strip(),
 }
 
