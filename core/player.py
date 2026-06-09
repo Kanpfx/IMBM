@@ -4,8 +4,8 @@ import time
 from agents import BmAgent, ImAgent
 from core.base_player import BasePlayer
 from core.economy import EconomyMixin
+from runtime.action_queue import ActionQueueStore, QUEUE_NAMES
 from sc2.ids.unit_typeid import UnitTypeId
-from runtime.directive import Directive, DirectiveStore
 
 
 class ImBmPlayer(EconomyMixin, BasePlayer):
@@ -26,7 +26,10 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
             "generation_config": self.generation_config,
             "llm_client": self.llm_client,
         }
-        self.im_agent = ImAgent(config.own_race, **im_agent_config)
+        self.im_agents = {
+            queue_name: ImAgent(config.own_race, **im_agent_config)
+            for queue_name in QUEUE_NAMES
+        }
 
         self.enable_bm = enable_bm
         self.bm_agent = None
@@ -38,12 +41,9 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
             }
             self.bm_agent = BmAgent(config.own_race, **bm_agent_config)
 
-        self.directive_store = DirectiveStore()
-        self.bm_task = None
-        self.bm_task_reason = ""
-        self.directive_ttl = 360
-        self.decision_interval = 30
-        self.decision_minerals = 50
+        self.action_queue_store = ActionQueueStore()
+        self.bm_interval = 60
+        self.bm_minerals_threshold = 100
 
         self.scv_auto_attack_distance = 4
         self.scv_auto_attack_time = 240
@@ -85,187 +85,124 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
             "n_visible_enemy_structures": len(self.enemy_structures),
         }
 
-    def _active_bm_task(self) -> bool:
-        return self.bm_task is not None and not self.bm_task.done()
-
-    def _current_iteration(self, fallback: int) -> int:
-        try:
-            return self.state.game_loop // 4
-        except Exception:
-            return fallback
-
-    def _directive_to_im_text(self, directive: Directive | None) -> str | None:
-        if directive is None:
-            return None
-
-        fields = [
-            ("overall", "Overall Guidance"),
-            ("priority", "Priority Guidance"),
-            ("economy", "Economy Guidance"),
-            ("resource", "Resource Guidance"),
-            ("construction", "Construction Guidance"),
-            ("combat", "Combat Guidance"),
-            ("avoid", "Avoid Guidance"),
-        ]
-        lines = []
-        for key, label in fields:
-            value = directive.data.get(key)
-            if isinstance(value, str) and value.strip():
-                lines.append(f"- {label}: {value.strip()}")
-
-        if not lines:
-            return None
-        return "Current Strategic Guidance:\n" + "\n".join(lines)
-
-    async def _run_bm_background(
-        self,
-        obs_text: str,
-        metrics: dict,
-        actions: list,
-        iteration: int,
-        trigger_reason: str,
-    ):
-        start_time = time.time()
-        try:
-            loop = asyncio.get_running_loop()
-            bm_predicted_observation_30_ticks, directive_data, bm_think, bm_chat_history = await loop.run_in_executor(
-                None,
-                lambda: self.bm_agent.run(
-                    obs_text=obs_text,
-                    metrics=metrics,
-                    actions=actions,
-                    background_request=trigger_reason,
-                ),
-            )
-            issued_at_tick = iteration
-            valid_until_tick = issued_at_tick + self.directive_ttl
-            directive = Directive(
-                data=directive_data,
-                issued_at_tick=issued_at_tick,
-                valid_until_tick=valid_until_tick,
-                source="BM",
-            )
-            self.directive_store.write(directive)
-            self.logging("bm_latency", round(time.time() - start_time, 4), save_trace=True)
-            self.logging("bm_trigger_reason", trigger_reason, save_trace=True)
-            self.logging("bm_predicted_observation_30_ticks", bm_predicted_observation_30_ticks, save_trace=True, print_log=False)
-            self.logging("bm_think", bm_think, save_trace=True, print_log=False)
-            self.logging("bm_chat_history", bm_chat_history, save_trace=True, print_log=False)
-            self.logging("directive", directive.to_dict(), save_trace=True)
-        except asyncio.CancelledError:
-            self.logging("bm_cancelled", trigger_reason, save_trace=True)
-            raise
-        except Exception as exc:
-            self.logging("bm_error", str(exc), level="error", save_trace=True)
-
-    async def _maybe_start_bm(
-        self,
-        iteration: int,
-        obs_text: str,
-        actions: list,
-        request_background: bool,
-        background_reason: str,
-        directive_before_im: Directive | None,
-        latest_directive: Directive | None,
-    ):
-        if not self.enable_bm or self.bm_agent is None:
-            return
-
-        reasons = []
-        if request_background:
-            reasons.append("im_request")
-        elif latest_directive is None:
-            reasons.append("cold_start")
-        elif directive_before_im is None or not latest_directive.is_valid(iteration):
-            reasons.append("guidance_expired")
-
-        trigger_reason = ",".join(reasons)
-        if not trigger_reason:
-            return
-
-        if self._active_bm_task():
-            if request_background and not self.bm_task_reason.startswith("im_request"):
-                self.bm_task.cancel()
-                self.logging("bm_cancelled_for_im_request", self.bm_task_reason, save_trace=True)
-            else:
-                self.logging("bm_triggered", False, save_trace=True)
-                self.logging("bm_skip_reason", "bm_already_running", save_trace=True)
-                return
-
-        if background_reason:
-            trigger_reason += f": {background_reason}"
-
-        metrics = self._snapshot_metrics(iteration)
-
-        self.logging("bm_triggered", True, save_trace=True)
-        self.logging("bm_trigger_reason", trigger_reason, save_trace=True)
-        self.bm_task_reason = trigger_reason
-        self.bm_task = asyncio.create_task(
-            self._run_bm_background(
-                obs_text=obs_text,
-                metrics=metrics,
-                actions=actions,
-                iteration=iteration,
-                trigger_reason=trigger_reason,
-            )
+    def _should_run_bm(self, iteration: int) -> bool:
+        return (
+            self.enable_bm
+            and self.bm_agent is not None
+            and iteration % self.bm_interval == 0
+            and self.minerals > self.bm_minerals_threshold
         )
+
+    async def _run_bm_blocking(self, iteration: int, obs_text: str) -> None:
+        start_time = time.time()
+        loop = asyncio.get_running_loop()
+        append_items, bm_think, bm_chat_history = await loop.run_in_executor(
+            None,
+            lambda: self.bm_agent.run(
+                obs_text=obs_text,
+                metrics=self._snapshot_metrics(iteration),
+                action_queues=self.action_queue_store.snapshot(),
+                blocked_feedback=self.action_queue_store.feedback_snapshot(),
+            ),
+        )
+        accepted = self.action_queue_store.append_tasks(append_items)
+        self.logging("bm_latency", round(time.time() - start_time, 4), save_trace=True)
+        self.logging("bm_append_items", append_items, save_trace=True)
+        self.logging("bm_accepted_items", accepted, save_trace=True)
+        self.logging("bm_think", bm_think, save_trace=True, print_log=False)
+        self.logging("bm_chat_history", bm_chat_history, save_trace=True, print_log=False)
+        self.logging("action_queues", self.action_queue_store.snapshot(), save_trace=True)
+
+    async def _run_im_for_queue(self, queue_name: str, task: dict, obs_text: str):
+        loop = asyncio.get_running_loop()
+        actions, im_think, im_chat_history = await loop.run_in_executor(
+            None,
+            lambda: self.im_agents[queue_name].run(
+                queue_name=queue_name,
+                obs_text=obs_text,
+                task=task,
+                verifier=self.verify_actions,
+            ),
+        )
+        return queue_name, task, actions, im_think, im_chat_history
+
+    async def _run_parallel_im(self) -> list:
+        waiting_tasks = [
+            (queue_name, self.action_queue_store.first_waiting(queue_name))
+            for queue_name in QUEUE_NAMES
+        ]
+        waiting_tasks = [
+            (queue_name, task)
+            for queue_name, task in waiting_tasks
+            if task is not None
+        ]
+        if not waiting_tasks:
+            return []
+
+        im_inputs = []
+        for queue_name, task in waiting_tasks:
+            obs_text = await self.obs_to_text(log_prefix=f"{queue_name}_", ability_queue=queue_name)
+            im_inputs.append((queue_name, task, obs_text))
+
+        im_tasks = [
+            self._run_im_for_queue(queue_name, task, obs_text)
+            for queue_name, task, obs_text in im_inputs
+        ]
+        results = await asyncio.gather(*im_tasks, return_exceptions=True)
+
+        valid_actions = []
+        for result in results:
+            if isinstance(result, Exception):
+                self.logging("im_error", str(result), level="error", save_trace=True)
+                continue
+
+            queue_name, task, actions, im_think, im_chat_history = result
+            self.logging(f"{queue_name}_task", task, save_trace=True)
+            self.logging(f"{queue_name}_actions", actions, save_trace=True)
+            self.logging(f"{queue_name}_im_think", im_think, save_trace=True, print_log=False)
+            self.logging(f"{queue_name}_im_chat_history", im_chat_history, save_trace=True, print_log=False)
+
+            if not actions:
+                self.action_queue_store.mark_blocked(
+                    queue_name,
+                    task["task"],
+                    "IM returned no executable actions.",
+                )
+                continue
+
+            ok, verification_message = self.verify_actions(actions)
+            if not ok:
+                self.action_queue_store.mark_blocked(
+                    queue_name,
+                    task["task"],
+                    verification_message,
+                )
+                self.logging(f"{queue_name}_blocked_reason", verification_message, save_trace=True)
+                continue
+
+            self.action_queue_store.mark_done(queue_name, task["task"])
+            valid_actions.extend(actions)
+
+        self.logging("action_queues", self.action_queue_store.snapshot(), save_trace=True)
+        return valid_actions
 
     async def run(self, iteration: int):
         await self._auto_micro()
 
-        if iteration % self.decision_interval != 0:
-            if iteration % 10 == 0:
-                self.log_current_iteration(iteration)
+        if iteration % 10 == 0:
+            self.log_current_iteration(iteration)
+
+        if self._should_run_bm(iteration):
+            obs_text = await self.obs_to_text(log_prefix="bm_")
+            await self._run_bm_blocking(iteration, obs_text)
+
+        if not self.action_queue_store.has_waiting_tasks():
             return
-
-        if self.minerals < self.decision_minerals:
-            if iteration % 10 == 0:
-                self.log_current_iteration(iteration)
-            self.logging("decision_skipped", True, save_trace=True)
-            self.logging("decision_skip_reason", f"minerals_below_{self.decision_minerals}", save_trace=True)
-            return
-
-        self.log_current_iteration(iteration)
-        obs_text = await self.obs_to_text()
-
-        latest_directive = self.directive_store.latest()
-        active_directive = self.directive_store.read(iteration)
-        directive_text = self._directive_to_im_text(active_directive)
-        directive_age = active_directive.age(iteration) if active_directive else None
-        self.logging("directive_age", directive_age, save_trace=True)
-        if active_directive:
-            self.logging("directive", active_directive.to_dict(), save_trace=True, print_log=False)
-            self.logging("directive_text", directive_text, save_trace=True, print_log=False)
 
         im_start_time = time.time()
-        (
-            predicted_observation_30_ticks,
-            actions,
-            request_background,
-            background_reason,
-            im_think,
-            im_chat_history,
-        ) = self.im_agent.run(
-            obs_text,
-            directive_text=directive_text,
-            verifier=self.verify_actions,
-        )
-        self.logging("im_latency", round(time.time() - im_start_time, 4), save_trace=True)
-        self.logging("predicted_observation_30_ticks", predicted_observation_30_ticks, save_trace=True, print_log=False)
-        self.logging("request_background", request_background, save_trace=True)
-        self.logging("background_reason", background_reason, save_trace=True)
-        self.logging("actions", actions, save_trace=True)
-        self.logging("im_think", im_think, save_trace=True, print_log=False)
-        self.logging("im_chat_history", im_chat_history, save_trace=True, print_log=False)
+        actions = await self._run_parallel_im()
+        self.logging("im_total_latency", round(time.time() - im_start_time, 4), save_trace=True)
+        self.logging("merged_actions", actions, save_trace=True)
 
-        await self.run_actions(actions)
-
-        await self._maybe_start_bm(
-            iteration=iteration,
-            obs_text=obs_text,
-            actions=actions,
-            request_background=request_background,
-            background_reason=background_reason,
-            directive_before_im=active_directive,
-            latest_directive=latest_directive,
-        )
+        if actions:
+            await self.run_actions(actions)

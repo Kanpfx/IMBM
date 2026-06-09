@@ -1,130 +1,91 @@
 from agents.base import BaseAgent
+from runtime.action_queue import QUEUE_NAMES
 from runtime.format import extract_code, constrcut_openai_qa
 
 import json
 
 
 role_prompt = """
-You are a real-time StarCraft II controller. Based on the current game state and the background model's guidance, choose immediately executable actions that help us win the game.
+前台执行器，负责把这个任务具体化。
+You convert one high-level queue task into immediately executable StarCraft II JSON actions.
 """.strip()
 
 
-strategic_aim_prompt = """
-Our final aim: defeat the enemy as efficiently as possible.
+queue_templates = {
+    "economy_build": """
+Queue Template: economy_build
+- Use only economy, worker, base, supply, building, and base-upgrade abilities shown in the filtered ability table.
+- Choose valid builders, producers, targets, and building positions from the observation.
+- Prefer actions that improve income, supply capacity, bases, or infrastructure.
+""".strip(),
+    "production_tech": """
+Queue Template: production_tech
+- Use only army production, research, upgrade, add-on, and tech morph abilities shown in the filtered ability table.
+- Choose idle or suitable production/tech structures from the observation.
+- Prefer actions that turn resources into useful army strength or unlock the next coherent tech step.
+""".strip(),
+    "combat": """
+Queue Template: combat
+- Use only movement, attack, defense, scouting, combat abilities, and combat mode abilities shown in the filtered ability table.
+- Choose combat units and visible enemy units or map positions from the observation.
+- Prefer useful immediate combat behavior: defend, regroup, scout, attack favorable targets, or use safe combat abilities.
+""".strip(),
+}
 
-Our action preferences:
-- Economy: maintain healthy resource income and spending.
-- Infrastructure and tech: build structures and progress technology at appropriate timings.
-- Army and combat: defend against enemy attacks when needed, and organize reasonable attacks with our army.
+
+action_rules_prompt = """
+Immediate Execution Rules:
+- Only output actions that are currently available in the filtered Unit abilities or Structure abilities.
+- Each unit or structure may receive at most one action in this response.
+- If the task cannot be executed now, output an empty actions list.
+- Do not invent unit ids, ability names, enemy ids, or coordinates outside the observation.
+- Return only low-level SC2 action JSON. Do not explain.
 """.strip()
 
 
 action_format_prompt = """
 ```
 {
-    "predicted_observation_30_ticks": "<brief text prediction for about 30 ticks later; summarize Economy, Production/Construction, Combat/Enemy, and Risk without copying the raw observation format>",
-    "actions": [
-        {
-            "action": "<action_name>",
-            "units": [1, 2],
-            "target_unit": 3
-        }
-    ],
-    "request_background": true,
-    "background_reason": "<reason why we request updated background strategic guidance>"
-}
-```
-""".strip()
-
-
-action_example_prompt = """
-Example:
-```
-{
-  "predicted_observation_30_ticks": "Economy: minerals decrease after the Depot and SCV actions while workers keep mining. Production/Construction: the Supply Depot starts near the base and the Command Center trains an SCV. Combat/Enemy: no visible enemy change is expected unless new units enter vision. Risk: supply remains tight until the Depot progresses.",
   "actions": [
     {
-      "action": "TERRANBUILD_SUPPLYDEPOT",
-      "units": [1],
-      "target_position": [24, 30]
-    },
-    {
-      "action": "COMMANDCENTERTRAIN_SCV",
-      "units": [2]
+      "action": "<action_name>",
+      "units": [1, 2],
+      "target_unit": 3
     }
-  ],
-  "request_background": true,
-  "background_reason": "We are under heavy attack and need updated guidance on how to handle the next step."
+  ]
 }
 ```
 """.strip()
 
 
-action_rules_prompt = """
-Immediate Action Rules:
-
-1. Executability
-- Only output actions that are currently available in the observation's Unit abilities or Structure abilities.
-- Each unit or structure may receive at most one action in this response.
-- Prefer actions that are useful immediately; ignore strategic ideas that cannot be executed now.
-- Before actions, predict the likely observation about 30 ticks later after your actions and automatic economy/micro have progressed.
-- Write the prediction as concise text with Economy, Production/Construction, Combat/Enemy, and Risk; do not copy the raw observation format or invent exact unit ids.
-
-2. Balanced Control
-- At every decision, consider survival, economy, supply, production, technology, scouting, and combat.
-- Choose the actions with the highest immediate value across these areas, not only the most obvious combat or production action.
-- Before finalizing actions, check whether any critical area has an urgent gap.
-
-3. Economy And Spending
-- Keep worker production healthy while it improves mining efficiency, but avoid excessive worker queues or over-saturating bases.
-- Spend resources efficiently across workers, supply, production, tech, army, defenses, and expansions.
-- When resources are floating, prefer actions that increase long-term capacity or convert resources into useful army strength.
-
-4. Production And Tech
-- Keep idle production structures active when resources and supply allow.
-- Build or upgrade infrastructure when current production capacity, tech access, or army composition is limiting future strength.
-- Do not repeatedly queue the same structure's production if its queue is already long; diversify spending when possible.
-
-5. Supply And Expansion
-- Prevent supply blocks before they stop production.
-- Expand when the current economy is saturated or resource income limits the plan, unless there is an immediate threat that must be handled first.
-- Do not delay expansion forever because of vague uncertainty; use the current threat level and army readiness to decide.
-
-6. Combat And Information
-- Defend important economy and production assets when threatened.
-- Scout or move for information when enemy state is unknown and the cost is acceptable.
-- Attack when the army is grouped and the expected trade is favorable; avoid feeding small groups unless scouting, harassing, or finishing a weak target.
-
-7. Background Requests
-- Request background guidance when there is strategic uncertainty: tech path, expansion timing, attack timing, enemy composition, or major plan changes.
-- Do not request background guidance for local execution issues such as insufficient resources, full queues, invalid actions, or obvious defensive responses.
-""".strip()
-
-
-def create_im_prompt(race: str, obs_text: str, directive_text: str | None):
-    directive_text = directive_text or "[No active directive]"
+def create_im_prompt(race: str, queue_name: str, obs_text: str, task: dict):
+    template = queue_templates.get(queue_name, "")
+    task_text = json.dumps(task, indent=2, ensure_ascii=False)
     return f"""
 {role_prompt}
 
-### Strategic Objective
-{strategic_aim_prompt}
+### Current Race
+{race}
 
-### Current Game State
+### Current Queue
+{queue_name}
+
+### Current Observation With Filtered Ability Table
 {obs_text}
 
-### Current Strategic Guidance
-{directive_text}
+### Queue Task
+{task_text}
 
-### Immediate Action Rules
+### Queue Template
+{template}
+
+### Rules
 {action_rules_prompt}
 
 ### Required JSON Output
 {action_format_prompt}
 
-### Example JSON Output
-{action_example_prompt}
-
-Please output only the well-formed JSON object that you have decided on, wrapped with triple backticks, with no extra text.
+Please output only the JSON object wrapped with triple backticks, with no extra text.
     """.strip()
 
 
@@ -136,58 +97,26 @@ class ImAgent(BaseAgent):
         self.think = []
         self.chat_history = []
 
-    def _parse_response(self, response: str) -> tuple[dict, str]:
+    def _parse_response(self, response: str) -> tuple[list, str]:
         try:
             code = extract_code(response)
             if not code:
                 raise ValueError("Response must contain a JSON code block wrapped with triple backticks.")
             payload = json.loads(code)
             if not isinstance(payload, dict):
-                raise ValueError(
-                    "IM response must be a JSON object with predicted_observation_30_ticks, actions, request_background, and background_reason."
-                )
-            if "predicted_observation_30_ticks" not in payload:
-                raise ValueError("Missing required key: predicted_observation_30_ticks.")
-            predicted_observation = payload["predicted_observation_30_ticks"]
-            if isinstance(predicted_observation, (dict, list)):
-                predicted_observation = json.dumps(predicted_observation, ensure_ascii=False)
-            else:
-                predicted_observation = str(predicted_observation)
-            if not predicted_observation.strip():
-                raise ValueError("`predicted_observation_30_ticks` must be a non-empty prediction.")
+                raise ValueError("IM response must be a JSON object with an actions list.")
             actions = payload.get("actions", [])
             if not isinstance(actions, list):
                 raise ValueError("`actions` must be a list.")
-            return {
-                "predicted_observation_30_ticks": predicted_observation,
-                "actions": actions,
-                "request_background": bool(payload.get("request_background", False)),
-                "background_reason": str(payload.get("background_reason", "")),
-            }, ""
+            return actions, ""
         except Exception as exc:
-            return {
-                "predicted_observation_30_ticks": "",
-                "actions": [],
-                "request_background": False,
-                "background_reason": "",
-            }, str(exc)
-
-    def _safe_parse(self, response: str) -> dict:
-        payload, error = self._parse_response(response)
-        if error:
-            return {
-                "predicted_observation_30_ticks": "",
-                "actions": [],
-                "request_background": True,
-                "background_reason": "IM response could not be parsed.",
-            }
-        return payload
+            return [], str(exc)
 
     def _refine_schema_prompt(self, error: str) -> str:
         return (
             "The previous IM response failed JSON syntax/schema validation:\n"
             + error
-            + "\nReturn only a complete IM JSON object wrapped with triple backticks in this schema:\n"
+            + "\nReturn only a JSON object wrapped with triple backticks in this schema:\n"
             + action_format_prompt
         )
 
@@ -195,15 +124,18 @@ class ImAgent(BaseAgent):
         return (
             "The previous IM actions failed validation:\n"
             + verification_message
-            + "\nAnalyze the issue silently and return only a complete refined IM JSON object wrapped with triple backticks in this schema:\n"
+            + "\nReturn only a refined JSON object wrapped with triple backticks in this schema. If the task cannot be executed now, use an empty actions list:\n"
             + action_format_prompt
         )
 
-    def run(self, obs_text: str, directive_text: str | None = None, verifier=None):
+    def run(self, queue_name: str, obs_text: str, task: dict, verifier=None):
+        if queue_name not in QUEUE_NAMES:
+            return [], [[f"Unknown queue: {queue_name}"]], []
+
         self.think = []
         self.chat_history = []
 
-        prompt = create_im_prompt(self.race, obs_text, directive_text)
+        prompt = create_im_prompt(self.race, queue_name, obs_text, task)
         response, messages = self.llm_client.call(
             prompt=prompt,
             **self.generation_config,
@@ -213,9 +145,7 @@ class ImAgent(BaseAgent):
         self.chat_history.append(messages)
 
         history = constrcut_openai_qa(prompt, response)
-        payload, parse_error = self._parse_response(response)
-        requested_background = payload["request_background"]
-        requested_reason = payload["background_reason"]
+        actions, parse_error = self._parse_response(response)
 
         for _ in range(self.max_retry_attempts):
             if parse_error:
@@ -230,16 +160,13 @@ class ImAgent(BaseAgent):
                 self.think.append([response])
                 self.chat_history.append(messages)
                 history.extend(constrcut_openai_qa(refine_prompt, response))
-                payload, parse_error = self._parse_response(response)
-                if payload["request_background"]:
-                    requested_background = True
-                    requested_reason = payload["background_reason"] or requested_reason
+                actions, parse_error = self._parse_response(response)
                 continue
 
             if not verifier:
                 break
 
-            ok, verification_message = verifier(payload["actions"])
+            ok, verification_message = verifier(actions)
             self.think[-1].append(verification_message)
             if ok:
                 break
@@ -254,20 +181,7 @@ class ImAgent(BaseAgent):
             self.think.append([response])
             self.chat_history.append(messages)
             history.extend(constrcut_openai_qa(refine_prompt, response))
-            payload, parse_error = self._parse_response(response)
-            if payload["request_background"]:
-                requested_background = True
-                requested_reason = payload["background_reason"] or requested_reason
+            actions, parse_error = self._parse_response(response)
 
-        payload = self._safe_parse(response)
-        if requested_background:
-            payload["request_background"] = True
-            payload["background_reason"] = payload["background_reason"] or requested_reason
-        return (
-            payload["predicted_observation_30_ticks"],
-            payload["actions"],
-            payload["request_background"],
-            payload["background_reason"],
-            self.think,
-            self.chat_history,
-        )
+        actions, _ = self._parse_response(response)
+        return actions, self.think, self.chat_history

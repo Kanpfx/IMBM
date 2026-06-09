@@ -1,10 +1,10 @@
 # IM/BM StarCraft II Framework
 
-This project is a trimmed StarCraft II battle flow built from SunTzu. It keeps only the current IM/BM decision pipeline:
+This project is a trimmed StarCraft II battle flow built from SunTzu. It keeps only the current IM/BM queue decision pipeline:
 
-- **IM (Interaction Model)** runs synchronously at decision ticks and outputs executable SC2 actions.
-- **BM (Background Model)** runs asynchronously and writes high-level directives.
-- **DirectiveStore** is the only shared channel between IM and BM.
+- **BM (Background Model)** runs as a blocking planner every 60 ticks when minerals are above 100, then appends high-level queue tasks.
+- **IM (Interaction Model)** runs one foreground executor per non-empty queue and turns the queue head into executable SC2 actions.
+- **ActionQueueStore** keeps three queues: economy_build, production_tech, and combat.
 - SunTzu observation, action validation, action execution, worker distribution, and logging are retained.
 
 ## Structure
@@ -21,10 +21,11 @@ core/
 agents/
   base.py               # Agent base class
   im.py                 # Interaction model prompt, parsing, retry
-  bm.py                 # Background model prompt and directive parsing
+  bm.py                 # Background model prompt and queue append parsing
   prompts.py            # Shared strategy and race rules
 runtime/
-  directive.py          # Directive and DirectiveStore
+  action_queue.py       # ActionQueueStore and queue constants
+  directive.py          # Legacy directive structures
   format.py             # JSON/code-block helpers
   llm.py                # OpenAI-compatible LLM client
   logging.py            # Logger setup
@@ -48,6 +49,29 @@ BM_API_KEY=
 ```
 
 BM variables are required only when running with `-bm`.
+
+## vLLM
+
+Start a local OpenAI-compatible vLLM server:
+
+```bash
+bash scripts/start_vllm_qwen35_2b.sh
+```
+
+Defaults:
+
+```text
+MODEL_PATH=/root/autodl-tmp/models/Qwen3.5-2B
+SERVED_MODEL_NAME=Qwen3.5-2B
+PORT=12001
+MAX_NUM_SEQS=8
+```
+
+`MAX_NUM_SEQS=8` is intended to cover one blocking BM request plus three parallel IM requests with a little headroom. Override any value as needed:
+
+```bash
+MAX_NUM_SEQS=4 PORT=12001 bash scripts/start_vllm_qwen35_2b.sh
+```
 
 ## Run
 

@@ -1,86 +1,46 @@
 from agents.base import BaseAgent
+from runtime.action_queue import QUEUE_NAMES, WAITING
 from runtime.format import extract_code
 
 import json
 
 
 role_prompt = """
-You are a strong background decision model for StarCraft II. Based on the current observation and request, provide macro-level guidance for the next period of the game, covering multiple steps and aspects of play. Give strategic advice, not executable actions.
+后台计划器，负责全局决策与长期协调。
+You maintain three high-level action queues for a StarCraft II agent. Read the observation and current queues, then append a small number of useful tasks.
 """.strip()
 
 
-strategic_aim_prompt = """
-Our overall goal: strategically coordinate economy, production infrastructure, technology, and army strength to ultimately defeat the enemy.
+queue_rules_prompt = """
+Queue Rules:
 
-Strategic decision preferences:
-- Economy: maintain efficient resource income and healthy resource spending.
-- Infrastructure and tech: plan production structures, add-ons, upgrades, and technology progression.
-- Army and combat: allocate army forces reasonably to defend against attacks and win favorable fights.
+1. Queues
+- economy_build: economy, workers, bases, supply, buildings, and economy/base upgrades.
+- production_tech: army production, research, upgrades, add-ons, and tech morphs.
+- combat: movement, attacks, defense, scouting, combat abilities, and combat mode switches.
+
+2. Work
+- Only append new tasks. Do not delete, move, reorder, or rewrite existing tasks.
+- Keep each queue around 5 tasks. If a queue is already near 5 useful tasks, append few or no tasks to it.
+- Do not output low-level SC2 ability names, unit ids, or target coordinates.
+- Each task must be one concise sentence.
+- Prefer tasks that are actionable soon and fit the current game state.
+
+3. Status
+- Every appended task must use status "waiting".
 """.strip()
 
 
-guidance_rules_prompt = """
-Strategic Guidance Rules:
-
-1. Role
-- Provide strategic guidance for roughly the next minute of play.
-- Give priorities, tradeoffs, and trigger conditions, not exact unit IDs or low-level command sequences.
-- Guidance must respect the currently observed economy, army, tech, enemy information, and available action space.
-- Before the directive fields, predict the likely observation about 30 ticks later after the IM actions and automatic economy/micro have progressed.
-- Write the prediction as concise text with Economy, Production/Construction, Combat/Enemy, and Risk; do not copy the raw observation format or invent exact unit ids.
-
-2. Strategic Balance
-- Evaluate economy, supply, production capacity, technology, scouting, defense, and attack potential.
-- Identify which area is currently the main bottleneck.
-- Do not optimize only one dimension; a good plan should keep the overall game state growing.
-
-3. Adaptation
-- If under threat, prioritize survival, defense, and preserving economy.
-- If safe and saturated, prioritize expansion or production growth.
-- If resources are imbalanced, guide spending toward the area that converts the surplus into useful strength.
-- If enemy information is poor, guide scouting before committing to a risky attack or tech switch.
-
-4. Tech And Composition
-- Recommend tech and unit composition based on our current infrastructure, resource balance, and enemy threats.
-- Prefer coherent army plans over scattered unit choices.
-
-5. Combat Posture
-- Specify whether IM should defend, scout, regroup, contain, harass, or commit to an attack.
-- For attacks, state the readiness condition or timing logic.
-- For defense, state what must be protected and what kind of force posture is needed.
-
-6. Directive Format
-- Output concise JSON with predicted_observation_30_ticks, overall, priority, economy, construction, combat, and avoid fields.
-- Each field should be one short sentence.
-""".strip()
-
-
-guidance_format_prompt = """
+output_format_prompt = """
 ```
 {
-    "predicted_observation_30_ticks": "<brief text prediction for about 30 ticks later; summarize Economy, Production/Construction, Combat/Enemy, and Risk without copying the raw observation format>",
-    "overall": "<main strategic plan for the next period>",
-    "priority": "<the single most important bottleneck or objective now>",
-    "economy": "<worker, saturation, expansion, supply, or spending guidance>",
-    "construction": "<production, tech, add-ons, upgrades, or defense guidance>",
-    "combat": "<defend, scout, regroup, attack, or timing guidance>",
-    "avoid": "<one thing IM should not do in the next period>"
-}
-```
-""".strip()
-
-
-guidance_example_prompt = """
-Example:
-```
-{
-  "predicted_observation_30_ticks": "Economy: mining continues while current production spends minerals and gas. Production/Construction: Barracks production continues and Factory tech becomes the next likely bottleneck. Combat/Enemy: no immediate fight should change unless enemy pressure appears. Risk: pushing before the army is grouped would waste early units.",
-  "overall": "Stabilize on Marine production, add Tank tech, and expand once the front is secure.",
-  "priority": "The current bottleneck is converting early economy into safe production and tech.",
-  "economy": "Keep worker and supply flow healthy, and prepare a natural expansion when the main is saturated and pressure is controlled.",
-  "construction": "Use Barracks production first, then add Factory Tech Lab for Siege Tanks before unrelated tech.",
-  "combat": "Hold defensively until Marines are grouped with Tank support, then look for a cautious timing attack.",
-  "avoid": "Do not send scattered Marines across the map before the army is grouped."
+  "append": [
+    {
+      "queue": "economy_build",
+      "status": "waiting",
+      "task": "Build a Supply Depot soon to avoid a supply block."
+    }
+  ]
 }
 ```
 """.strip()
@@ -90,41 +50,38 @@ def create_bm_prompt(
     race: str,
     obs_text: str,
     metrics: dict,
-    actions: list | None = None,
-    background_request: str = "",
+    action_queues: dict,
+    blocked_feedback: list | None = None,
 ):
     metrics_text = json.dumps(metrics, indent=2, ensure_ascii=False)
-    actions_text = json.dumps(actions or [], indent=2, ensure_ascii=False)
-    request_text = background_request.strip() or "[No specific background request]"
+    queues_text = json.dumps(action_queues, indent=2, ensure_ascii=False)
+    feedback_text = json.dumps(blocked_feedback or [], indent=2, ensure_ascii=False)
 
     return f"""
 {role_prompt}
 
-### Strategic Objective
-{strategic_aim_prompt}
-
-### Strategic Guidance Rules
-{guidance_rules_prompt}
+### Current Race
+{race}
 
 ### Runtime Metrics
 {metrics_text}
 
-### Strategic Guidance Request
-{request_text}
-
-### Game State Snapshot Before IM Actions
+### Current Observation
 {obs_text}
 
-### IM Validated Actions
-{actions_text}
+### Current Action Queues
+{queues_text}
 
-### Example Directive JSON
-{guidance_example_prompt}
+### Blocked Task Feedback
+{feedback_text}
 
-### Required Directive JSON
-{guidance_format_prompt}
+### Queue Rules
+{queue_rules_prompt}
 
-Please output only the well-formed JSON object that you have decided on, wrapped with triple backticks, with no extra text.
+### Required JSON Output
+{output_format_prompt}
+
+Please output only the JSON object wrapped with triple backticks, with no extra text.
     """.strip()
 
 
@@ -135,52 +92,46 @@ class BmAgent(BaseAgent):
         self.think = []
         self.chat_history = []
 
-    def _stringify_prediction(self, value) -> str:
-        if isinstance(value, (dict, list)):
-            return json.dumps(value, ensure_ascii=False)
-        return str(value or "")
-
-    def _safe_parse(self, response: str) -> tuple[str, dict]:
-        allowed_fields = ["overall", "priority", "economy", "construction", "combat", "avoid"]
-        predicted_observation = ""
+    def _safe_parse(self, response: str) -> list:
         try:
             payload = json.loads(extract_code(response))
-            if isinstance(payload, list):
-                directive = {"overall": " ".join(str(item).strip() for item in payload if str(item).strip())}
-            elif isinstance(payload, dict):
-                predicted_observation = self._stringify_prediction(payload.get("predicted_observation_30_ticks", ""))
-                directive = {
-                    field: payload[field].strip()
-                    for field in allowed_fields
-                    if isinstance(payload.get(field), str) and payload[field].strip()
-                }
-                if "economy" not in directive and isinstance(payload.get("resource"), str) and payload["resource"].strip():
-                    directive["economy"] = payload["resource"].strip()
-                raw_guidance = payload.get("guidance") or payload.get("directives") or payload.get("instructions")
-                if isinstance(raw_guidance, list):
-                    directive.setdefault(
-                        "overall",
-                        " ".join(str(item).strip() for item in raw_guidance if str(item).strip()),
-                    )
-            elif isinstance(payload, str):
-                directive = {"overall": payload.strip()}
-            else:
-                raise ValueError("BM response must be a JSON object, list, or string")
         except Exception:
-            directive = {
-                "overall": "Continue with a safe baseline: keep economy active, avoid invalid repeated actions, and attack only with a clear advantage."
-            }
+            return []
+        if not isinstance(payload, dict):
+            return []
 
-        if not directive.get("overall"):
-            directive["overall"] = "No specific background guidance is available; follow the current game state and strategic aim."
-        return predicted_observation, directive
+        accepted = []
+        append_items = payload.get("append", [])
+        if not isinstance(append_items, list):
+            return []
+
+        for item in append_items:
+            if not isinstance(item, dict):
+                continue
+            queue_name = item.get("queue")
+            status = item.get("status")
+            task = item.get("task")
+            if queue_name not in QUEUE_NAMES:
+                continue
+            if status != WAITING:
+                continue
+            if not isinstance(task, str) or not task.strip():
+                continue
+            accepted.append(
+                {
+                    "queue": queue_name,
+                    "status": WAITING,
+                    "task": task.strip(),
+                }
+            )
+        return accepted
 
     def run(
         self,
         obs_text: str,
         metrics: dict,
-        actions: list | None = None,
-        background_request: str = "",
+        action_queues: dict,
+        blocked_feedback: list | None = None,
     ):
         self.think = []
         self.chat_history = []
@@ -189,8 +140,8 @@ class BmAgent(BaseAgent):
             race=self.race,
             obs_text=obs_text,
             metrics=metrics,
-            actions=actions,
-            background_request=background_request,
+            action_queues=action_queues,
+            blocked_feedback=blocked_feedback,
         )
         response, messages = self.llm_client.call(
             prompt=prompt,
@@ -200,5 +151,5 @@ class BmAgent(BaseAgent):
         self.think.append([response])
         self.chat_history.append(messages)
 
-        predicted_observation, directive = self._safe_parse(response)
-        return predicted_observation, directive, self.think, self.chat_history
+        append_items = self._safe_parse(response)
+        return append_items, self.think, self.chat_history
