@@ -49,23 +49,11 @@ def load_knowledge():
             "enabled": item["enabled"],
             "description": description,
             "target": target,  # None, Point, Unit, PointOrUnit
-            "queue": str(item.get("queue", "") or ""),
         }
     return TerranAbility
 
 
 TerranAbility = load_knowledge()
-
-
-def ability_queue_names(action: str) -> set[str]:
-    raw_queue = str(TerranAbility[action].get("queue", "") or "")
-    for separator in ("|", ";", "/"):
-        raw_queue = raw_queue.replace(separator, ",")
-    return {name.strip() for name in raw_queue.split(",") if name.strip()}
-
-
-def ability_matches_queue(action: str, ability_queue: str | None) -> bool:
-    return not ability_queue or ability_queue in ability_queue_names(action)
 
 
 class BasePlayer(BotAI):
@@ -520,21 +508,18 @@ class BasePlayer(BotAI):
         self.last_action.extend(valid_action_texts)
 
     ################ obs to text
-    async def obs_to_text(self, log_prefix: str = "", ability_queue: str | None = None):
+    async def obs_to_text(self, log_prefix: str = ""):
         obs = {}
         obs["Round state"] = self.round_state_to_text()
         obs["Own units"] = await self.units_to_text(self.units)
-        obs["Unit abilities"] = await self.abilities_to_text(self.units, ability_queue=ability_queue)
+        obs["Unit abilities"] = await self.abilities_to_text(self.units)
         obs["Own structures"] = await self.structures_to_text(self.structures)
-        obs["Structure abilities"] = await self.abilities_to_text(self.structures, ability_queue=ability_queue)
+        obs["Structure abilities"] = await self.abilities_to_text(self.structures)
         obs["Visible enemy units"] = await self.units_to_text(self.enemy_units)
         obs["Visible enemy structures"] = await self.structures_to_text(self.enemy_structures)
-        obs["Action history"] = self.action_history_to_text(ability_queue=ability_queue)
+        obs["Action history"] = self.action_history_to_text()
         obs["Map information"] = self.miner_to_text() + "\n" + self.gas_to_text()
-        obs["Ability description"] = self.get_ability_desc(
-            obs["Unit abilities"] + obs["Structure abilities"],
-            ability_queue=ability_queue,
-        )
+        obs["Ability description"] = self.get_ability_desc(obs["Unit abilities"] + obs["Structure abilities"])
         obs_text = "\n\n".join([f"## {key}\n{value}" for key, value in obs.items()])
 
         self.logging(f"{log_prefix}obs", obs, save_trace=True, print_log=False)
@@ -542,11 +527,9 @@ class BasePlayer(BotAI):
             self.logging(f"{log_prefix}obs_text", obs_text, save_file=True, print_log=False)
         return obs_text
 
-    def get_ability_desc(self, text: str, ability_queue: str | None = None):
+    def get_ability_desc(self, text: str):
         desc = []
         for action in TerranAbility:
-            if not ability_matches_queue(action, ability_queue):
-                continue
             if TerranAbility[action].get("enabled", False) and action in text:
                 action_desc = TerranAbility[action]["description"]
                 action_keys = TerranAbility[action]["target"]
@@ -576,10 +559,8 @@ class BasePlayer(BotAI):
 
         return text.strip()
 
-    def action_history_to_text(self, ability_queue: str | None = None):
+    def action_history_to_text(self):
         history = self.last_action
-        if ability_queue:
-            history = self.last_action_by_queue.get(ability_queue, [])
         if len(history) == 0:
             return "[Empty]"
         return "\n".join(history[-10:])
@@ -674,7 +655,7 @@ class BasePlayer(BotAI):
                     text += f"Production list: {', '.join(production_list)}\n"
         return text.strip()
 
-    async def abilities_to_text(self, units: Units, ability_queue: str | None = None):
+    async def abilities_to_text(self, units: Units):
         units = [unit for unit in units if unit.build_progress == 1.0]
         n_units = len(units)
         units_ability_ids = await self.get_available_abilities(units, ignore_resource_requirements=True)
@@ -688,19 +669,12 @@ class BasePlayer(BotAI):
             if unknown_abilities:
                 print(f"Unit {unit.name} has unknown abilities: {unknown_abilities}")
                 import pdb; pdb.set_trace()
-            if unit.name in self.miner_units and ability_queue is None:
+            if unit.name in self.miner_units:
                 ability_names = [name for name in ability_names if name not in ["MOVE_MOVE", "ATTACK_ATTACK"]]
             ability_names = [name for name in ability_names if TerranAbility[name].get("enabled", False)]
             self._id_to_abilities[self.tag_to_id(unit.tag)] = ability_names
-            display_ability_names = ability_names
-            if ability_queue:
-                display_ability_names = [
-                    name
-                    for name in ability_names
-                    if ability_matches_queue(name, ability_queue)
-                ]
 
-            unit_hash = unit.name + "|" + ", ".join(display_ability_names)
+            unit_hash = unit.name + "|" + ", ".join(ability_names)
             if unit_hash not in unit_hash_table:
                 unit_hash_table[unit_hash] = []
             unit_hash_table[unit_hash].append(str(self.tag_to_id(unit.tag)))

@@ -20,19 +20,19 @@ queue_aims = {
 queue_templates = {
     "economy_build": """
 Focus: economy_build
-- Use only economy, worker, base, supply, building, and base-upgrade abilities shown in the current observation.
+- Use abilities shown in the current observation that fit economy, worker, base, supply, building, or base-upgrade tasks.
 - Choose valid builders, producers, targets, and building positions from the observation.
 - Prefer actions that improve income, supply capacity, bases, or infrastructure.
 """.strip(),
     "production_tech": """
 Focus: production_tech
-- Use only army production, research, upgrade, add-on, and tech morph abilities shown in the current observation.
+- Use abilities shown in the current observation that fit army production, research, upgrade, add-on, or tech morph tasks.
 - Choose idle or suitable production/tech structures from the observation.
 - Prefer actions that turn resources into useful army strength or unlock the next coherent tech step.
 """.strip(),
     "combat": """
 Focus: combat
-- Use only movement, attack, defense, scouting, combat abilities, and combat mode abilities shown in the current observation.
+- Use abilities shown in the current observation that fit movement, attack, defense, scouting, combat, or combat mode tasks.
 - Choose combat units and visible enemy units or map positions from the observation.
 - Prefer useful immediate combat behavior: defend, regroup, scout, attack favorable targets, or use safe combat abilities.
 """.strip(),

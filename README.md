@@ -52,37 +52,28 @@ BM variables are required only when running with `-bm`.
 
 ## vLLM
 
-Start a local OpenAI-compatible vLLM server:
+Start vLLM with values from `.env`:
+
+```bash
+source .env && vllm serve "$VLLM_MODEL_PATH" --served-model-name "$IM_MODEL_NAME" --host 0.0.0.0 --port "$VLLM_PORT" --max-num-seqs "$VLLM_MAX_NUM_SEQS"
+```
+
+Or use the helper script, which reads `.env` automatically:
 
 ```bash
 bash scripts/start_vllm_qwen35_2b.sh
 ```
 
-Defaults:
-
-```text
-MODEL_PATH=/root/autodl-tmp/models/Qwen3.5-2B
-SERVED_MODEL_NAME=Qwen3.5-2B
-PORT=12001
-MAX_NUM_SEQS=8
-```
-
-`MAX_NUM_SEQS=8` is intended to cover one blocking BM request plus three parallel IM requests with a little headroom. Override any value as needed:
-
-```bash
-MAX_NUM_SEQS=4 PORT=12001 bash scripts/start_vllm_qwen35_2b.sh
-```
-
 ## Run
 
 ```bash
-python main.py --map_name Flat64 --difficulty Medium --ai_build RandomBuild --own_race Terran --enemy_race Terran
+python main.py --map_name Flat48 --difficulty Hard --ai_build RandomBuild --own_race Terran --enemy_race Terran
 ```
 
 Enable BM:
 
 ```bash
-python main.py --map_name Flat64 --difficulty Medium --ai_build RandomBuild --own_race Terran --enemy_race Terran -bm
+python main.py --map_name Flat48 --difficulty Hard --ai_build RandomBuild --own_race Terran --enemy_race Terran -bm
 ```
 
 Logs and replay files are written under `logs/`.
@@ -103,14 +94,14 @@ Current BM limitations:
 
 ## IM Design Notes
 
-Each IM call receives one queue name, the queue head task, and an observation whose ability table is filtered to that queue. This keeps foreground execution focused: economy_build, production_tech, and combat can each translate one waiting task into low-level SC2 actions in parallel.
+Each IM call receives one queue name, the queue head task, and the same SunTzu-style observation view. The available ability table is not filtered by queue; queue focus is provided by the task and IM prompt. This lets economy_build, production_tech, and combat translate their own waiting task into low-level SC2 actions in parallel while sharing a consistent world view.
 
 Current IM limitations:
 
 - IM output only contains low-level actions. It cannot explicitly report task outcome, partial progress, why a task is currently impossible, or whether the task should stay in the queue.
 - An empty IM action list is treated as blocked by the runtime, but the prompt does not ask IM to provide a structured reason. Future queue feedback should preserve a reason from IM when available.
 - The required output example only shows a `target_unit` action. It should also show `target_position`, no-target actions, and an explicit empty `actions` example.
-- Queue ability filtering is prompt-visible, but validation still accepts any enabled ability currently available to the selected unit or structure. Queue-specific ability constraints are therefore not yet enforced by code.
+- Queue-specific ability constraints are prompt-level guidance, not hard code constraints. Validation accepts any enabled ability currently available to the selected unit or structure.
 - Parallel IM calls are validated independently before their actions are merged. The merged action set is not yet revalidated for cross-queue conflicts such as shared resources, supply, or issuing competing commands to the same unit.
 - Queue tasks are marked done after IM validation but before actual SC2 action execution. If execution later fails because of placement, unit state, or ability availability changes, the task may already have been removed.
 - IM retry only refines JSON/schema and action validation failures. It does not reason over execution failures from the previous frame, because those failures are not yet fed back as structured queue outcomes.

@@ -13,7 +13,7 @@ You are an expert StarCraft II strategic decision model responsible for maintain
 queue_responsibility_prompt = """
 - economy_build: Maintain healthy resource income and spending, avoid supply or worker bottlenecks, expand when appropriate, and construct useful economic or infrastructure buildings.
 - production_tech: Plan army production, add-ons, tech progression, upgrades, and unit composition so resources turn into coherent fighting strength.
-- combat: Plan defense, scouting, regrouping, harassment, attacks, retreats, and combat ability usage according to enemy threats and army readiness.
+- combat: Plan necessary defense, regrouping, retreats, and only clearly justified scouting or attacks according to enemy threats and army readiness.
 """.strip()
 
 
@@ -41,7 +41,7 @@ Strategic Guidance Rules:
 
 4. combat Rules
 - Protect workers, bases, production structures, and key army units when enemy pressure is visible or likely.
-- Scout when enemy information is poor before committing to risky tech choices or attacks.
+- Scout only when a suitable non-critical unit is available and the information is needed for an immediate decision.
 - Regroup or defend when the army is fragmented, damaged, outnumbered, or poorly positioned.
 - Harass or attack only when army readiness, enemy position, and tactical risk make the action reasonable.
 
@@ -83,7 +83,7 @@ example_result = """
     },
     {
       "queue": "combat",
-      "task": "Send a safe scout toward the opponent side of the map to identify the enemy opening without risking the economy."
+      "task": "Keep available combat units near the base for defense if enemy pressure becomes visible."
     }
   ]
 }

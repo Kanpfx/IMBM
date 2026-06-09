@@ -94,7 +94,7 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
             suggestions.append("Supply is tight; consider supply capacity before a block.")
 
         if self.supply_army == 0 and not self.enemy_units.exists:
-            suggestions.append("No army and no visible enemy threat; avoid repeated generic combat scout or monitor tasks.")
+            suggestions.append("No army and no visible enemy threat; prefer economy or production tasks over generic map activity.")
 
         if self.config.own_race == "Terran":
             supply_depots = self.get_total_amount(UnitTypeId.SUPPLYDEPOT)
@@ -224,7 +224,7 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
 
         im_inputs = []
         for queue_name, task in waiting_tasks:
-            obs_text = await self.obs_to_text(log_prefix=f"{queue_name}_", ability_queue=queue_name)
+            obs_text = await self.obs_to_text(log_prefix=f"{queue_name}_")
             im_inputs.append((queue_name, task, obs_text))
 
         im_tasks = [
