@@ -86,3 +86,17 @@ python main.py --map_name Flat64 --difficulty Medium --ai_build RandomBuild --ow
 ```
 
 Logs and replay files are written under `logs/`.
+
+## BM Design Notes
+
+The BM prompt receives the main game state through the observation text. This already includes race, time, minerals, vespene, supply, own units, own structures, visible enemy units, visible enemy structures, available abilities, map information, and recent action history. Extra structured metrics are therefore optional rather than strictly required, but they may still be useful later if the BM needs stable numeric summaries instead of reading all values from text.
+
+For future feedback design, prefer a short sliding window of queue outcomes over raw action history. Each record should describe the queue, task, result, reason, and recent game time, for example whether a task was completed, blocked, dropped, or replaced. This gives BM direct feedback about queue progress without forcing it to infer completion from low-level actions.
+
+Current BM limitations:
+
+- BM tasks are natural-language sentences and do not yet include explicit execution boundaries such as priority, preconditions, success conditions, expiry, or expected queue outcome.
+- The BM output examples currently emphasize appending tasks and should include an explicit empty append example for cases where existing queues are sufficient.
+- BM can only append tasks. It cannot yet cancel obsolete tasks, reorder tasks, replace tasks, or mark tasks as stale when the game state changes.
+- BM scheduling is based on a fixed interval and mineral threshold. It is not yet event-triggered by empty queues, repeated blocked tasks, attacks, supply blocks, or other urgent state changes.
+- BM does not maintain an explicit long-term strategic state such as current game plan, tech route, army composition target, expansion plan, or attack timing.

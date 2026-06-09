@@ -21,6 +21,9 @@ class ActionQueueStore:
     def has_waiting_tasks(self) -> bool:
         return any(self.first_waiting(name) is not None for name in QUEUE_NAMES)
 
+    def has_queue_pressure(self, max_tasks_per_queue: int = 5) -> bool:
+        return any(len(self.queues.get(name, [])) > max_tasks_per_queue for name in QUEUE_NAMES)
+
     def first_waiting(self, queue_name: str) -> dict | None:
         for task in self.queues.get(queue_name, []):
             if task.get("status") == WAITING and task.get("task"):
@@ -44,6 +47,7 @@ class ActionQueueStore:
             task = {
                 "status": WAITING,
                 "task": task_text.strip(),
+                "retry_count": 0,
             }
             self.queues[queue_name].append(task)
             accepted.append({"queue": queue_name, **task})
@@ -55,15 +59,25 @@ class ActionQueueStore:
                 self.queues[queue_name].pop(idx)
                 return
 
-    def mark_blocked(self, queue_name: str, task_text: str, reason: str) -> None:
-        for task in self.queues.get(queue_name, []):
+    def mark_blocked(self, queue_name: str, task_text: str, reason: str, max_retries: int = 1) -> str:
+        for idx, task in enumerate(self.queues.get(queue_name, [])):
             if task.get("status") == WAITING and task.get("task") == task_text:
-                task["status"] = BLOCKED
+                retry_count = int(task.get("retry_count", 0))
+                if retry_count < max_retries:
+                    task["retry_count"] = retry_count + 1
+                    outcome = "retry"
+                else:
+                    self.queues[queue_name].pop(idx)
+                    outcome = "dropped"
                 break
+        else:
+            outcome = "missing"
         self.blocked_feedback.append(
             {
                 "queue": queue_name,
                 "task": task_text,
                 "reason": reason,
+                "outcome": outcome,
             }
         )
+        return outcome

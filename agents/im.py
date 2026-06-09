@@ -6,9 +6,15 @@ import json
 
 
 role_prompt = """
-前台执行器，负责把这个任务具体化。
-You convert one high-level queue task into immediately executable StarCraft II JSON actions.
+You are a StarCraft II decision executor. Based on the current observation and the given queue task, produce concrete executable actions for the agent.
 """.strip()
+
+
+queue_aims = {
+    "economy_build": "Core Aim: Execute the current economy or building task with available workers, bases, structures, and valid build or economy abilities.",
+    "production_tech": "Core Aim: Execute the current production or technology task with available production structures, tech structures, add-ons, and research or training abilities.",
+    "combat": "Core Aim: Execute the current combat task with available combat units, visible targets, map positions, and valid movement, attack, defense, scouting, or combat abilities.",
+}
 
 
 queue_templates = {
@@ -59,30 +65,28 @@ action_format_prompt = """
 
 
 def create_im_prompt(race: str, queue_name: str, obs_text: str, task: dict):
+    queue_aim = queue_aims.get(queue_name, "")
     template = queue_templates.get(queue_name, "")
     task_text = json.dumps(task, indent=2, ensure_ascii=False)
     return f"""
 {role_prompt}
 
-### Current Race
-{race}
+# Task Aim
+{queue_aim}
 
-### Current Queue
-{queue_name}
-
-### Current Observation With Filtered Ability Table
+# Current Observation
 {obs_text}
 
-### Queue Task
+# Current Task
 {task_text}
 
-### Queue Template
+# Task Guidance
 {template}
 
-### Rules
+# Rules
 {action_rules_prompt}
 
-### Required JSON Output
+# Required JSON Output
 {action_format_prompt}
 
 Please output only the JSON object wrapped with triple backticks, with no extra text.

@@ -6,28 +6,53 @@ import json
 
 
 role_prompt = """
-后台计划器，负责全局决策与长期协调。
-You maintain three high-level action queues for a StarCraft II agent. Read the observation and current queues, then append a small number of useful tasks.
+You are an expert StarCraft II strategic decision model responsible for maintaining the agent's action queues. Given the current observation and existing queues, append a concise sequence of feasible near-term tasks that advances a planned, efficient path toward defeating the opponent.
 """.strip()
 
 
-queue_rules_prompt = """
-Queue Rules:
+queue_responsibility_prompt = """
+Queue Responsibilities:
 
-1. Queues
-- economy_build: economy, workers, bases, supply, buildings, and economy/base upgrades.
-- production_tech: army production, research, upgrades, add-ons, and tech morphs.
-- combat: movement, attacks, defense, scouting, combat abilities, and combat mode switches.
+- economy_build: Maintain healthy resource income and spending, avoid supply or worker bottlenecks, expand when appropriate, and construct useful economic or infrastructure buildings.
+- production_tech: Plan army production, add-ons, tech progression, upgrades, and unit composition so resources turn into coherent fighting strength.
+- combat: Plan defense, scouting, regrouping, harassment, attacks, retreats, and combat ability usage according to enemy threats and army readiness.
+""".strip()
 
-2. Work
-- Only append new tasks. Do not delete, move, reorder, or rewrite existing tasks.
-- Keep each queue around 5 tasks. If a queue is already near 5 useful tasks, append few or no tasks to it.
-- Do not output low-level SC2 ability names, unit ids, or target coordinates.
-- Each task must be one concise sentence.
-- Prefer tasks that are actionable soon and fit the current game state.
 
-3. Status
-- Every appended task must use status "waiting".
+guidance_rules_prompt = """
+Strategic Guidance Rules:
+
+1. Overall Responsibility
+- Read the observation, metrics, existing queues, and blocked feedback before appending any task.
+- Identify the most urgent short-term bottleneck: economy, supply, production, tech, defense, scouting, or attack timing.
+- Keep the game plan balanced; do not improve one area while leaving another critical area stalled.
+- If under pressure, prioritize survival, worker protection, base defense, and recovery.
+- If safe, prioritize efficient resource spending, production growth, expansion, or useful technology.
+
+2. economy_build Rules
+- Maintain healthy resource income through workers, bases, gas access, and appropriate expansion timing.
+- Prevent basic macro failures such as supply blocks, missing workers, idle economy, or delayed core infrastructure.
+- Add buildings that support the current plan, such as supply, resource, production-enabling, tech-enabling, or static defense structures.
+- Avoid redundant economy tasks when resources, workers, or bases are already sufficient for the current stage.
+
+3. production_tech Rules
+- Convert available minerals, gas, and production capacity into a coherent army composition.
+- Add unit production tasks that fit current tech, enemy information, and the intended fighting plan.
+- Add upgrades, add-ons, morphs, or tech progression when they directly improve future combat strength.
+- Prefer consistent production plans over scattered unit choices or unsupported tech switches.
+
+4. combat Rules
+- Protect workers, bases, production structures, and key army units when enemy pressure is visible or likely.
+- Scout when enemy information is poor before committing to risky tech choices or attacks.
+- Regroup or defend when the army is fragmented, damaged, outnumbered, or poorly positioned.
+- Harass or attack only when army readiness, enemy position, and tactical risk make the action reasonable.
+
+5. Queue Requirements
+- Only append new tasks; never delete, move, reorder, or rewrite existing queue items.
+- Keep each queue compact, usually around 3 useful waiting tasks, and append nothing to queues that are already healthy.
+- Avoid repeating existing tasks or recently blocked tasks unless the replacement is more specific and more executable.
+- Each task must be one concise natural-language sentence, not a low-level ability name, unit id, or exact coordinate.
+- If the queues already cover the next useful steps, output an empty append list.
 """.strip()
 
 
@@ -60,25 +85,22 @@ def create_bm_prompt(
     return f"""
 {role_prompt}
 
-### Current Race
-{race}
+# Queue Responsibilities
+{queue_responsibility_prompt}
 
-### Runtime Metrics
-{metrics_text}
-
-### Current Observation
+# Current Observation
 {obs_text}
 
-### Current Action Queues
+# Current Action Queues
 {queues_text}
 
-### Blocked Task Feedback
+# Blocked Task Feedback
 {feedback_text}
 
-### Queue Rules
-{queue_rules_prompt}
+# Strategic Guidance Rules
+{guidance_rules_prompt}
 
-### Required JSON Output
+# Required JSON Output
 {output_format_prompt}
 
 Please output only the JSON object wrapped with triple backticks, with no extra text.

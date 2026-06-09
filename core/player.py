@@ -44,6 +44,8 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
         self.action_queue_store = ActionQueueStore()
         self.bm_interval = 60
         self.bm_minerals_threshold = 100
+        self.queue_pressure_limit = 5
+        self._bm_task = None
 
         self.scv_auto_attack_distance = 4
         self.scv_auto_attack_time = 240
@@ -95,23 +97,51 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
 
     async def _run_bm_blocking(self, iteration: int, obs_text: str) -> None:
         start_time = time.time()
-        loop = asyncio.get_running_loop()
-        append_items, bm_think, bm_chat_history = await loop.run_in_executor(
-            None,
-            lambda: self.bm_agent.run(
-                obs_text=obs_text,
-                metrics=self._snapshot_metrics(iteration),
-                action_queues=self.action_queue_store.snapshot(),
-                blocked_feedback=self.action_queue_store.feedback_snapshot(),
-            ),
-        )
-        accepted = self.action_queue_store.append_tasks(append_items)
-        self.logging("bm_latency", round(time.time() - start_time, 4), save_trace=True)
-        self.logging("bm_append_items", append_items, save_trace=True)
-        self.logging("bm_accepted_items", accepted, save_trace=True)
-        self.logging("bm_think", bm_think, save_trace=True, print_log=False)
-        self.logging("bm_chat_history", bm_chat_history, save_trace=True, print_log=False)
-        self.logging("action_queues", self.action_queue_store.snapshot(), save_trace=True)
+        try:
+            loop = asyncio.get_running_loop()
+            append_items, bm_think, bm_chat_history = await loop.run_in_executor(
+                None,
+                lambda: self.bm_agent.run(
+                    obs_text=obs_text,
+                    metrics=self._snapshot_metrics(iteration),
+                    action_queues=self.action_queue_store.snapshot(),
+                    blocked_feedback=self.action_queue_store.feedback_snapshot(),
+                ),
+            )
+            accepted = self.action_queue_store.append_tasks(append_items)
+            self.logging("bm_latency", round(time.time() - start_time, 4), save_trace=True)
+            self.logging("bm_append_items", append_items, save_trace=True)
+            self.logging("bm_accepted_items", accepted, save_trace=True)
+            self.logging("bm_think", bm_think, save_trace=True, print_log=False)
+            self.logging("bm_chat_history", bm_chat_history, save_trace=True, print_log=False)
+            self.logging("action_queues", self.action_queue_store.snapshot(), save_trace=True)
+        except Exception as exc:
+            self.logging("bm_error", str(exc), level="error", save_trace=True)
+
+    def _clear_finished_bm_task(self) -> None:
+        if self._bm_task is not None and self._bm_task.done():
+            self._bm_task = None
+
+    async def _schedule_bm_if_ready(self, iteration: int) -> None:
+        if not self._should_run_bm(iteration):
+            return
+
+        self._clear_finished_bm_task()
+        if self._bm_task is not None:
+            self.logging("bm_skip_reason", "Previous BM task is still running.", save_trace=True)
+            return
+
+        if self.action_queue_store.has_queue_pressure(self.queue_pressure_limit):
+            self.logging(
+                "bm_skip_reason",
+                f"Action queue length exceeded pressure limit {self.queue_pressure_limit}.",
+                save_trace=True,
+            )
+            return
+
+        obs_text = await self.obs_to_text(log_prefix="bm_")
+        self._bm_task = asyncio.create_task(self._run_bm_blocking(iteration, obs_text))
+        self.logging("bm_scheduled", iteration, save_trace=True)
 
     async def _run_im_for_queue(self, queue_name: str, task: dict, obs_text: str):
         loop = asyncio.get_running_loop()
@@ -163,24 +193,29 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
             self.logging(f"{queue_name}_im_chat_history", im_chat_history, save_trace=True, print_log=False)
 
             if not actions:
-                self.action_queue_store.mark_blocked(
+                outcome = self.action_queue_store.mark_blocked(
                     queue_name,
                     task["task"],
                     "IM returned no executable actions.",
                 )
+                self.logging(f"{queue_name}_blocked_outcome", outcome, save_trace=True)
                 continue
 
             ok, verification_message = self.verify_actions(actions)
             if not ok:
-                self.action_queue_store.mark_blocked(
+                outcome = self.action_queue_store.mark_blocked(
                     queue_name,
                     task["task"],
                     verification_message,
                 )
                 self.logging(f"{queue_name}_blocked_reason", verification_message, save_trace=True)
+                self.logging(f"{queue_name}_blocked_outcome", outcome, save_trace=True)
                 continue
 
             self.action_queue_store.mark_done(queue_name, task["task"])
+            for action in actions:
+                if isinstance(action, dict):
+                    action["_source_queue"] = queue_name
             valid_actions.extend(actions)
 
         self.logging("action_queues", self.action_queue_store.snapshot(), save_trace=True)
@@ -192,9 +227,7 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
         if iteration % 10 == 0:
             self.log_current_iteration(iteration)
 
-        if self._should_run_bm(iteration):
-            obs_text = await self.obs_to_text(log_prefix="bm_")
-            await self._run_bm_blocking(iteration, obs_text)
+        await self._schedule_bm_if_ready(iteration)
 
         if not self.action_queue_store.has_waiting_tasks():
             return

@@ -84,6 +84,7 @@ class BasePlayer(BotAI):
         self.next_id = 1
 
         self.last_action = []
+        self.last_action_by_queue = {}
         self.trace = {}
         self.tag_to_health = {}
 
@@ -450,8 +451,13 @@ class BasePlayer(BotAI):
 
     ################ run actions
     async def run_actions(self, actions):
+        action_sources = {}
         for action in actions:
             try:
+                if isinstance(action, dict):
+                    source_queue = action.pop("_source_queue", None)
+                    if source_queue:
+                        action_sources[id(action)] = source_queue
                 action_check_result, action_check_msg = self.check_action(action)
                 if not action_check_result:
                     action["is_valid"] = False
@@ -493,8 +499,14 @@ class BasePlayer(BotAI):
         self.logging("valid_actions", valid_actions, save_trace=True, print_log=False)
         self.logging("valid_actions", "\n" + json.dumps(valid_actions, indent=2, ensure_ascii=False))
 
-        valid_actions = [json.dumps(action, ensure_ascii=False) for action in valid_actions]
-        self.last_action.extend(valid_actions)
+        valid_action_texts = []
+        for action in valid_actions:
+            action_text = json.dumps(action, ensure_ascii=False)
+            valid_action_texts.append(action_text)
+            source_queue = action_sources.get(id(action))
+            if source_queue:
+                self.last_action_by_queue.setdefault(source_queue, []).append(action_text)
+        self.last_action.extend(valid_action_texts)
 
     ################ obs to text
     async def obs_to_text(self, log_prefix: str = "", ability_queue: str | None = None):
@@ -506,13 +518,13 @@ class BasePlayer(BotAI):
         obs["Structure abilities"] = await self.abilities_to_text(self.structures, ability_queue=ability_queue)
         obs["Visible enemy units"] = await self.units_to_text(self.enemy_units)
         obs["Visible enemy structures"] = await self.structures_to_text(self.enemy_structures)
-        obs["Action history"] = self.action_history_to_text()
+        obs["Action history"] = self.action_history_to_text(ability_queue=ability_queue)
         obs["Map information"] = self.miner_to_text() + "\n" + self.gas_to_text()
         obs["Ability description"] = self.get_ability_desc(
             obs["Unit abilities"] + obs["Structure abilities"],
             ability_queue=ability_queue,
         )
-        obs_text = "\n\n".join([f"# {key}\n{value}" for key, value in obs.items()])
+        obs_text = "\n\n".join([f"## {key}\n{value}" for key, value in obs.items()])
 
         self.logging(f"{log_prefix}obs", obs, save_trace=True, print_log=False)
         if self.enable_logging:
@@ -553,10 +565,13 @@ class BasePlayer(BotAI):
 
         return text.strip()
 
-    def action_history_to_text(self):
-        if len(self.last_action) == 0:
+    def action_history_to_text(self, ability_queue: str | None = None):
+        history = self.last_action
+        if ability_queue:
+            history = self.last_action_by_queue.get(ability_queue, [])
+        if len(history) == 0:
             return "[Empty]"
-        return "\n".join(self.last_action[-10:])
+        return "\n".join(history[-10:])
 
     async def units_to_text(self, units: Units):
         if len(units) == 0:
