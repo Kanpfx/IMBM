@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BM / IM Classic Message Flow</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --ink: #18202c;
+      --muted: #657083;
+      --line: #d9dee8;
+      --soft: #eef1f6;
+      --good: #177245;
+      --good-bg: #e7f5ed;
+      --warn: #946200;
+      --warn-bg: #fff4ce;
+      --bad: #b3261e;
+      --bad-bg: #fdeceb;
+      --blue: #2457c5;
+      --blue-bg: #eaf0ff;
+      --code: #111827;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 18px 24px 14px;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: 24px;
+      line-height: 1.2;
+    }
+
+    h2 {
+      font-size: 17px;
+      margin-bottom: 10px;
+    }
+
+    h3 {
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      max-width: 1100px;
+    }
+
+    .source {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .source code {
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      padding: 2px 5px;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.85fr) minmax(320px, 1.1fr) minmax(360px, 1.25fr);
+      gap: 14px;
+      padding: 16px;
+      max-width: 1680px;
+      margin: 0 auto;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      min-width: 0;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      padding: 3px 8px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .pill.good {
+      color: var(--good);
+      background: var(--good-bg);
+      border-color: #b8dfc7;
+    }
+
+    .pill.warn {
+      color: var(--warn);
+      background: var(--warn-bg);
+      border-color: #ead18a;
+    }
+
+    .pill.bad {
+      color: var(--bad);
+      background: var(--bad-bg);
+      border-color: #efbeb9;
+    }
+
+    .pill.info {
+      color: var(--blue);
+      background: var(--blue-bg);
+      border-color: #bdccf8;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .event {
+      border-left: 4px solid var(--line);
+      background: #fbfcfe;
+      border-radius: 6px;
+      padding: 10px 10px 10px 12px;
+    }
+
+    .event.good {
+      border-left-color: var(--good);
+    }
+
+    .event.warn {
+      border-left-color: #c48a00;
+    }
+
+    .event.bad {
+      border-left-color: var(--bad);
+    }
+
+    .event.info {
+      border-left-color: var(--blue);
+    }
+
+    .tick {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .event-title {
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .event-body {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 12px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fbfcfe;
+      min-width: 0;
+    }
+
+    .card.good {
+      background: var(--good-bg);
+      border-color: #b8dfc7;
+    }
+
+    .card.warn {
+      background: var(--warn-bg);
+      border-color: #ead18a;
+    }
+
+    .card.bad {
+      background: var(--bad-bg);
+      border-color: #efbeb9;
+    }
+
+    .card.info {
+      background: var(--blue-bg);
+      border-color: #bdccf8;
+    }
+
+    .grid-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    dl {
+      margin: 0;
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 6px 10px;
+    }
+
+    dt {
+      color: var(--muted);
+    }
+
+    dd {
+      margin: 0;
+      min-width: 0;
+    }
+
+    pre {
+      margin: 8px 0 0;
+      padding: 10px;
+      border-radius: 6px;
+      background: var(--code);
+      color: #eef2ff;
+      overflow: auto;
+      font: 12px/1.45 Consolas, "Cascadia Mono", "SFMono-Regular", monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    details {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--panel);
+      padding: 9px 10px;
+    }
+
+    details + details {
+      margin-top: 8px;
+    }
+
+    summary {
+      cursor: pointer;
+      color: var(--blue);
+      font-weight: 650;
+    }
+
+    .message-path {
+      display: grid;
+      gap: 9px;
+    }
+
+    .arrow {
+      color: var(--muted);
+      text-align: center;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .compact-list {
+      margin: 6px 0 0;
+      padding-left: 18px;
+    }
+
+    .compact-list li {
+      margin: 3px 0;
+    }
+
+    a {
+      color: var(--blue);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 1120px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .grid-two {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>BM / IM 经典消息链路可视化</h1>
+    <p class="subtitle">
+      片段：<strong>2026-06-10_01-18-58</strong> 的 tick 56-67。这个窗口展示 BM 如何追加队列任务，IM 如何把任务转成 action，以及当前 verifier 哪些挡住了、哪些漏过了。
+    </p>
+    <div class="source">
+      <span>日志：</span>
+      <code>im_bm_player\Flat48_Harder_RandomBuild\im_bm\Qwen3.5-2B\2026-06-10_01-18-58\im_bm_player_Qwen3.5-2B_20260610.log</code>
+      <span>观察：</span>
+      <a href="im_bm_player/Flat48_Harder_RandomBuild/im_bm/Qwen3.5-2B/2026-06-10_01-18-58/observation/57-bm_obs_text.txt">57-bm_obs_text.txt</a>
+      <a href="im_bm_player/Flat48_Harder_RandomBuild/im_bm/Qwen3.5-2B/2026-06-10_01-18-58/observation/57-economy_build_obs_text.txt">57-economy_build_obs_text.txt</a>
+      <a href="im_bm_player/Flat48_Harder_RandomBuild/im_bm/Qwen3.5-2B/2026-06-10_01-18-58/observation/57-combat_obs_text.txt">57-combat_obs_text.txt</a>
+    </div>
+    <div class="legend">
+      <span class="pill good">绿色：有效动作</span>
+      <span class="pill warn">黄色：重复或可疑</span>
+      <span class="pill bad">红色：验证失败或明显错误</span>
+      <span class="pill info">蓝色：调度或状态变化</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>时间线</h2>
+      <div class="timeline">
+        <article class="event info">
+          <div class="tick"><span>tick 53</span><span>BM 调度</span></div>
+          <div class="event-title">bm_scheduled: 52</div>
+          <div class="event-body">上一次 BM 结束后很快再次启动，新 BM 在 tick 56 返回结果。</div>
+        </article>
+
+        <article class="event info">
+          <div class="tick"><span>tick 56</span><span>BM 输出</span></div>
+          <div class="event-title">BM append: combat + economy_build</div>
+          <div class="event-body">BM 同时追加 scout/monitor 任务和 worker/supply 任务。</div>
+        </article>
+
+        <article class="event warn">
+          <div class="tick"><span>tick 57</span><span>BM 又调度</span></div>
+          <div class="event-title">bm_scheduled: 56</div>
+          <div class="event-body">队列还没完全消化时，BM 又开始下一次。随后又追加同类 combat monitor 任务。</div>
+        </article>
+
+        <article class="event good">
+          <div class="tick"><span>tick 57</span><span>IM economy</span></div>
+          <div class="event-title">COMMANDCENTERTRAIN_SCV</div>
+          <div class="event-body">economy_build 任务被 IM 转成训练 SCV，验证通过并执行。</div>
+        </article>
+
+        <article class="event bad">
+          <div class="tick"><span>tick 57</span><span>IM combat</span></div>
+          <div class="event-title">ATTACK_ATTACK 缺 target</div>
+          <div class="event-body">combat IM 输出攻击动作但没有 target_position / target_unit，被 verifier 拦截并 retry。</div>
+        </article>
+
+        <article class="event bad">
+          <div class="tick"><span>tick 67</span><span>IM combat retry</span></div>
+          <div class="event-title">self-target 漏过 verifier</div>
+          <div class="event-body">IM 输出 units=[673], target_unit=673，自攻被当前 verifier 当成 valid action。</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>BM：Planner + Task Executor</h2>
+      <div class="stack">
+        <div class="card info">
+          <h3>BM 输入摘要 tick 57</h3>
+          <dl>
+            <dt>时间</dt><dd>00:10</dd>
+            <dt>资源</dt><dd>Minerals 110, Vespene 0</dd>
+            <dt>供给</dt><dd>Army 0, Workers 12, Unused 3</dd>
+            <dt>我方</dt><dd>12 SCV, 1 idle CommandCenter</dd>
+            <dt>敌方可见</dt><dd>Empty</dd>
+            <dt>BM 可见能力</dt><dd>SCV build CC / Depot / Refinery; CommandCenter train SCV</dd>
+          </dl>
+          <details>
+            <summary>BM obs 关键片段</summary>
+            <pre>## Round state
+Time: 00:10
+Race: Terran
+Minerals: 110
+Vespene: 0
+Supply army: 0
+Supply workers: 12
+Supply unused: 3
+Map size: 48x48
+
+## Own units
+[817, 961, 665, 241, 953, 97, 521, 673, 809, 385, 529, 105]SCV
+State: collecting resources automatically
+
+## Own structures
+[377]CommandCenter
+Position: (24, 45)
+State: idle
+Harvesters: 12/16
+
+## Visible enemy units
+[Empty]
+
+## Map information
+Closest mineral fields: [913](25, 51), [745](18, 45), ...
+Closest vespene geysers: [449](17, 42), [881](28, 52)</pre>
+          </details>
+        </div>
+
+        <div class="message-path">
+          <div class="card">
+            <h3>tick 56: BM append_items</h3>
+            <pre>[
+  {
+    "queue": "combat",
+    "status": "waiting",
+    "task": "Monitor the map for enemy movement and scout for any approaching threats to the base."
+  },
+  {
+    "queue": "economy_build",
+    "status": "waiting",
+    "task": "Maintain worker production and ensure supply is available for expansion or defense."
+  }
+]</pre>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="card">
+            <h3>tick 56: accepted queues</h3>
+            <pre>{
+  "economy_build": [
+    {
+      "status": "waiting",
+      "task": "Maintain worker production and ensure supply is available for expansion or defense.",
+      "retry_count": 0
+    }
+  ],
+  "production_tech": [],
+  "combat": [
+    {
+      "status": "waiting",
+      "task": "Monitor the map for enemy movement and scout for any approaching threats to the base.",
+      "retry_count": 0
+    }
+  ]
+}</pre>
+          </div>
+          <div class="arrow">↓</div>
+          <div class="card warn">
+            <h3>tick 57: BM 继续追加同类 combat</h3>
+            <p class="note">
+              在 IM 处理 tick 56 队列附近，BM 已经再次 scheduled，并返回另一个相同 combat monitor 任务。这是后面 scout/monitor 重复堆积的早期形态。
+            </p>
+            <pre>[
+  {
+    "queue": "combat",
+    "status": "waiting",
+    "task": "Monitor the map for enemy movement and scout for any approaching threats to the base."
+  }
+]</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>IM：Task → Low-level Action</h2>
+      <div class="stack">
+        <div class="grid-two">
+          <div class="card good">
+            <h3>tick 57 economy_build</h3>
+            <p><strong>Task</strong></p>
+            <pre>{
+  "status": "waiting",
+  "task": "Maintain worker production and ensure supply is available for expansion or defense.",
+  "retry_count": 0
+}</pre>
+            <p><strong>IM actions</strong></p>
+            <pre>[
+  {
+    "action": "COMMANDCENTERTRAIN_SCV",
+    "units": [377]
+  }
+]</pre>
+            <p class="pill good">验证通过，进入 valid_actions</p>
+          </div>
+
+          <div class="card bad">
+            <h3>tick 57 combat</h3>
+            <p><strong>Task</strong></p>
+            <pre>{
+  "status": "waiting",
+  "task": "Monitor the map for enemy movement and scout for any approaching threats to the base.",
+  "retry_count": 0
+}</pre>
+            <p><strong>IM actions</strong></p>
+            <pre>[
+  {
+    "action": "ATTACK_ATTACK",
+    "units": [105]
+  }
+]</pre>
+            <p><strong>Verifier</strong></p>
+            <pre>Missing required key: target_position or target_unit
+blocked_outcome: retry</pre>
+          </div>
+        </div>
+
+        <div class="card bad">
+          <h3>tick 67 combat retry：自攻漏过</h3>
+          <div class="grid-two">
+            <div>
+              <p><strong>Task</strong></p>
+              <pre>{
+  "status": "waiting",
+  "task": "Monitor the map for enemy movement and scout for any approaching threats to the base.",
+  "retry_count": 1
+}</pre>
+            </div>
+            <div>
+              <p><strong>IM actions / valid_actions</strong></p>
+              <pre>[
+  {
+    "action": "ATTACK_ATTACK",
+    "units": [673],
+    "target_unit": 673
+  }
+]</pre>
+            </div>
+          </div>
+          <p class="pill bad">人工标注：self-target accepted by current verifier</p>
+          <ul class="compact-list">
+            <li>IM 选择了 SCV 673 作为执行单位。</li>
+            <li>同时又把 target_unit 设置成 673。</li>
+            <li>当前 verifier 只检查 target id 存在，没有检查 ATTACK target 是否敌方或至少不是自己。</li>
+          </ul>
+        </div>
+
+        <div class="card info">
+          <h3>最终能看出的链路</h3>
+          <pre>BM append task
+  -> ActionQueueStore accepts waiting task
+  -> IM reads first waiting task per queue
+  -> IM emits low-level action JSON
+  -> verify_actions checks syntax / ability / resources
+  -> valid actions run, invalid task retry or drop</pre>
+          <p class="note">
+            这个 run 没有 trace.json，bm_think 和 im_chat_history 也没有打印到 log，所以这里展示的是“可从日志和 observation 恢复的消息链路”，不是完整 raw chat history。
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

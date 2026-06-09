@@ -6,7 +6,7 @@ import json
 
 
 role_prompt = """
-You are an expert StarCraft II strategic decision model responsible for maintaining the agent's action queues. Given the current observation and existing queues, append a concise sequence of feasible near-term tasks that advances a planned, efficient path toward defeating the opponent.
+You are an expert StarCraft II strategic decision model responsible for maintaining the agent's action queues. Given the current observation and existing queues, append a concise sequence of feasible near-term tasks for roughly the next minute of development and response that advances a planned, efficient path toward defeating the opponent.
 """.strip()
 
 
@@ -48,7 +48,7 @@ Strategic Guidance Rules:
 5. Queue Requirements
 - Only append new tasks; never delete, move, reorder, or rewrite existing queue items.
 - Add only enough tasks to keep each queue compact, usually around 3 useful waiting tasks, and append nothing to queues that are already healthy.
-- Avoid repeating existing tasks or recently blocked tasks unless the replacement is more specific and more executable.
+- Avoid adding tasks that are semantically the same as current waiting tasks or recently blocked tasks unless the replacement is more specific and more executable.
 - Each task must be one concise natural-language sentence, not an exact ability name, unit id, or exact coordinate.
 - If the queues already cover the next useful steps, output an empty append list.
 """.strip()
@@ -65,7 +65,7 @@ output_format_prompt = """
   ]
 }
 ```
-Replace every angle-bracket placeholder with a concrete value. If no task should be added, return the same object with an empty append list.
+Replace every angle-bracket placeholder with a concrete value. If no task should be added, return the same object with an empty append list. An empty append list is a valid output.
 """.strip()
 
 
@@ -96,9 +96,14 @@ def create_bm_prompt(
     obs_text: str,
     action_queues: dict,
     blocked_feedback: list | None = None,
+    strategic_suggestions: list[str] | None = None,
 ):
     queues_text = json.dumps(action_queues, indent=2, ensure_ascii=False)
     feedback_text = json.dumps(blocked_feedback or [], indent=2, ensure_ascii=False)
+    if strategic_suggestions:
+        suggestions_text = "\n".join(f"- {item}" for item in strategic_suggestions)
+    else:
+        suggestions_text = "[Empty]"
 
     return f"""
 {role_prompt}
@@ -111,6 +116,9 @@ def create_bm_prompt(
 
 # Current Action Queues
 {queues_text}
+
+# Strategic Suggestions
+{suggestions_text}
 
 # Blocked Task Feedback
 {feedback_text}
@@ -174,6 +182,7 @@ class BmAgent(BaseAgent):
         obs_text: str,
         action_queues: dict,
         blocked_feedback: list | None = None,
+        strategic_suggestions: list[str] | None = None,
     ):
         self.think = []
         self.chat_history = []
@@ -183,6 +192,7 @@ class BmAgent(BaseAgent):
             obs_text=obs_text,
             action_queues=action_queues,
             blocked_feedback=blocked_feedback,
+            strategic_suggestions=strategic_suggestions,
         )
         response, messages = self.llm_client.call(
             prompt=prompt,
