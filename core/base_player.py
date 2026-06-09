@@ -57,6 +57,17 @@ def load_knowledge():
 TerranAbility = load_knowledge()
 
 
+def ability_queue_names(action: str) -> set[str]:
+    raw_queue = str(TerranAbility[action].get("queue", "") or "")
+    for separator in ("|", ";", "/"):
+        raw_queue = raw_queue.replace(separator, ",")
+    return {name.strip() for name in raw_queue.split(",") if name.strip()}
+
+
+def ability_matches_queue(action: str, ability_queue: str | None) -> bool:
+    return not ability_queue or ability_queue in ability_queue_names(action)
+
+
 class BasePlayer(BotAI):
     def __init__(self, config, player_name, model_name, generation_config, llm_client, log_path="logs", enable_logging=True):
         super().__init__()
@@ -534,7 +545,7 @@ class BasePlayer(BotAI):
     def get_ability_desc(self, text: str, ability_queue: str | None = None):
         desc = []
         for action in TerranAbility:
-            if ability_queue and TerranAbility[action].get("queue") != ability_queue:
+            if not ability_matches_queue(action, ability_queue):
                 continue
             if TerranAbility[action].get("enabled", False) and action in text:
                 action_desc = TerranAbility[action]["description"]
@@ -677,7 +688,7 @@ class BasePlayer(BotAI):
             if unknown_abilities:
                 print(f"Unit {unit.name} has unknown abilities: {unknown_abilities}")
                 import pdb; pdb.set_trace()
-            if unit.name in self.miner_units:
+            if unit.name in self.miner_units and ability_queue is None:
                 ability_names = [name for name in ability_names if name not in ["MOVE_MOVE", "ATTACK_ATTACK"]]
             ability_names = [name for name in ability_names if TerranAbility[name].get("enabled", False)]
             self._id_to_abilities[self.tag_to_id(unit.tag)] = ability_names
@@ -686,7 +697,7 @@ class BasePlayer(BotAI):
                 display_ability_names = [
                     name
                     for name in ability_names
-                    if TerranAbility[name].get("queue") == ability_queue
+                    if ability_matches_queue(name, ability_queue)
                 ]
 
             unit_hash = unit.name + "|" + ", ".join(display_ability_names)

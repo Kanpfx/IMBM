@@ -61,9 +61,30 @@ output_format_prompt = """
 {
   "append": [
     {
+      "queue": "economy_build/production_tech/combat",
+      "task": "The task to insert into the corresponding action queue."
+    }
+  ]
+}
+```
+""".strip()
+
+
+example_result = """
+```
+{
+  "append": [
+    {
       "queue": "economy_build",
-      "status": "waiting",
-      "task": "Build a Supply Depot soon to avoid a supply block."
+      "task": "Stabilize the early economy by keeping worker production active and adding supply before a block."
+    },
+    {
+      "queue": "production_tech",
+      "task": "Begin basic infantry production from available Barracks to convert minerals into early army strength."
+    },
+    {
+      "queue": "combat",
+      "task": "Send a safe scout toward the opponent side of the map to identify the enemy opening without risking the economy."
     }
   ]
 }
@@ -103,6 +124,9 @@ def create_bm_prompt(
 # Required JSON Output
 {output_format_prompt}
 
+# Example
+{example_result}
+
 Please output only the JSON object wrapped with triple backticks, with no extra text.
     """.strip()
 
@@ -131,7 +155,7 @@ class BmAgent(BaseAgent):
             if not isinstance(item, dict):
                 continue
             queue_name = item.get("queue")
-            status = item.get("status")
+            status = item.get("status", WAITING)
             task = item.get("task")
             if queue_name not in QUEUE_NAMES:
                 continue

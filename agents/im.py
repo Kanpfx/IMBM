@@ -54,9 +54,18 @@ action_format_prompt = """
 {
   "actions": [
     {
-      "action": "<action_name>",
-      "units": [1, 2],
-      "target_unit": 3
+      "action": "<no_target_action_name>",
+      "units": [1]
+    },
+    {
+      "action": "<unit_target_action_name>",
+      "units": [1],
+      "target_unit": 2
+    },
+    {
+      "action": "<point_target_action_name>",
+      "units": [1],
+      "target_position": [40, 24]
     }
   ]
 }
@@ -64,9 +73,51 @@ action_format_prompt = """
 """.strip()
 
 
+queue_example_results = {
+    "economy_build": """
+```
+{
+  "actions": [
+    {
+      "action": "COMMANDCENTERTRAIN_SCV",
+      "units": [377]
+    }
+  ]
+}
+```
+""".strip(),
+    "production_tech": """
+```
+{
+  "actions": [
+    {
+      "action": "BARRACKSTRAIN_MARINE",
+      "units": [12]
+    }
+  ]
+}
+```
+""".strip(),
+    "combat": """
+```
+{
+  "actions": [
+    {
+      "action": "MOVE_MOVE",
+      "units": [105],
+      "target_position": [40, 24]
+    }
+  ]
+}
+```
+""".strip(),
+}
+
+
 def create_im_prompt(race: str, queue_name: str, obs_text: str, task: dict):
     queue_aim = queue_aims.get(queue_name, "")
     template = queue_templates.get(queue_name, "")
+    example_result = queue_example_results.get(queue_name, "")
     task_text = json.dumps(task, indent=2, ensure_ascii=False)
     return f"""
 {role_prompt}
@@ -88,6 +139,9 @@ def create_im_prompt(race: str, queue_name: str, obs_text: str, task: dict):
 
 # Required JSON Output
 {action_format_prompt}
+
+# Example
+{example_result}
 
 Please output only the JSON object wrapped with triple backticks, with no extra text.
     """.strip()

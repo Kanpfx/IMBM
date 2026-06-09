@@ -36,7 +36,7 @@ class ActionQueueStore:
             if not isinstance(item, dict):
                 continue
             queue_name = item.get("queue")
-            status = item.get("status")
+            status = item.get("status", WAITING)
             task_text = item.get("task")
             if queue_name not in QUEUE_NAMES:
                 continue

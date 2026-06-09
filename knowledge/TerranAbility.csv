@@ -119,7 +119,7 @@ enabled,ability,description,queue
 1,ATTACK_ATTACK,Attack some unit or structure.,combat
 1,ATTACK_ATTACKTOWARDS,Attack towards target position.,combat
 1,ATTACK_ATTACKBARRAGE,Attack barrage.,combat
-1,MOVE_MOVE,Move to target position.,combat
+1,MOVE_MOVE,Move to target position.,"economy_build,production_tech,combat"
 0,PATROL_PATROL,Command unit to patrol from current position to target position.,
 1,ARMORYRESEARCH_TERRANSHIPPLATINGLEVEL1,"Increase the armor of Terran Air units (Viking, Liberator, Banshee, and Battlecruiser).",production_tech
 1,ARMORYRESEARCH_TERRANSHIPPLATINGLEVEL2,"Increase the armor of Terran Air units (Viking, Liberator, Banshee, and Battlecruiser).",production_tech
