@@ -100,3 +100,18 @@ Current BM limitations:
 - BM can only append tasks. It cannot yet cancel obsolete tasks, reorder tasks, replace tasks, or mark tasks as stale when the game state changes.
 - BM scheduling is based on a fixed interval and mineral threshold. It is not yet event-triggered by empty queues, repeated blocked tasks, attacks, supply blocks, or other urgent state changes.
 - BM does not maintain an explicit long-term strategic state such as current game plan, tech route, army composition target, expansion plan, or attack timing.
+
+## IM Design Notes
+
+Each IM call receives one queue name, the queue head task, and an observation whose ability table is filtered to that queue. This keeps foreground execution focused: economy_build, production_tech, and combat can each translate one waiting task into low-level SC2 actions in parallel.
+
+Current IM limitations:
+
+- IM output only contains low-level actions. It cannot explicitly report task outcome, partial progress, why a task is currently impossible, or whether the task should stay in the queue.
+- An empty IM action list is treated as blocked by the runtime, but the prompt does not ask IM to provide a structured reason. Future queue feedback should preserve a reason from IM when available.
+- The required output example only shows a `target_unit` action. It should also show `target_position`, no-target actions, and an explicit empty `actions` example.
+- Queue ability filtering is prompt-visible, but validation still accepts any enabled ability currently available to the selected unit or structure. Queue-specific ability constraints are therefore not yet enforced by code.
+- Parallel IM calls are validated independently before their actions are merged. The merged action set is not yet revalidated for cross-queue conflicts such as shared resources, supply, or issuing competing commands to the same unit.
+- Queue tasks are marked done after IM validation but before actual SC2 action execution. If execution later fails because of placement, unit state, or ability availability changes, the task may already have been removed.
+- IM retry only refines JSON/schema and action validation failures. It does not reason over execution failures from the previous frame, because those failures are not yet fed back as structured queue outcomes.
+- IM does not distinguish atomic one-step execution from multi-step task progress. A broad task may be removed after one valid action even if the higher-level objective is only partially completed.
