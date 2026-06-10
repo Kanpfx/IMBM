@@ -4,7 +4,8 @@ import time
 from agents import BmAgent, ImAgent
 from core.base_player import BasePlayer
 from core.economy import EconomyMixin
-from runtime.action_queue import ActionQueueStore, QUEUE_NAMES, WAITING
+from runtime.action_queue import ActionQueueStore, QUEUE_NAMES
+from runtime.strategic_suggestions import build_strategic_suggestions
 from sc2.ids.unit_typeid import UnitTypeId
 
 
@@ -82,47 +83,7 @@ class ImBmPlayer(EconomyMixin, BasePlayer):
         )
 
     def _bm_strategic_suggestions(self) -> list[str]:
-        suggestions = []
-
-        if self.minerals >= 500:
-            suggestions.append("Minerals are high; prefer tasks that spend resources on economy, production, or useful tech.")
-
-        if self.townhalls.exists and self.supply_workers < self.townhalls.amount * 16:
-            suggestions.append("Worker count is below base saturation; keep worker production in mind if a base can train workers.")
-
-        if self.supply_left <= 3 and self.supply_cap < 200:
-            suggestions.append("Supply is tight; consider supply capacity before a block.")
-
-        if self.supply_army == 0 and not self.enemy_units.exists:
-            suggestions.append("No army and no visible enemy threat; prefer economy or production tasks over generic map activity.")
-
-        if self.config.own_race == "Terran":
-            supply_depots = self.get_total_amount(UnitTypeId.SUPPLYDEPOT)
-            barracks = self.get_total_amount(UnitTypeId.BARRACKS)
-            refineries = self.get_total_amount(UnitTypeId.REFINERY)
-
-            if supply_depots < 1:
-                suggestions.append("No Supply Depot is present or pending; basic supply infrastructure is an early bottleneck.")
-            if refineries < 1 and self.minerals >= 75:
-                suggestions.append("No Refinery is present or pending; gas access may be needed for future tech.")
-            if barracks < 1:
-                if supply_depots < 1:
-                    suggestions.append("No Barracks yet; it normally comes after a Supply Depot unlocks infantry production.")
-                else:
-                    suggestions.append("No Barracks is present or pending; infantry production is not unlocked yet.")
-
-        for queue_name in QUEUE_NAMES:
-            waiting_count = sum(
-                1
-                for task in self.action_queue_store.queues.get(queue_name, [])
-                if task.get("status") == WAITING and task.get("task")
-            )
-            if waiting_count:
-                suggestions.append(
-                    f"{queue_name} already has {waiting_count} waiting task(s); append only if the new task is more specific or covers a different immediate need."
-                )
-
-        return suggestions[:8]
+        return build_strategic_suggestions(self)
 
     async def _run_bm_blocking(self, iteration: int, obs_text: str) -> None:
         start_time = time.time()
