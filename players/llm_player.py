@@ -665,10 +665,10 @@ class LLMPlayer(BasePlayer):
 
         # 10 iteration -> 1.7s
         if self.config.enable_random_decision_interval:
-            decision_iteration = random.randint(8, 12)
+            decision_iteration = random.randint(24, 36)
             decision_minerals = random.randint(130, 200)
         else:
-            decision_iteration = 10
+            decision_iteration = 30
             decision_minerals = 170
         if (
             iteration % decision_iteration == 0
