@@ -1,178 +1,189 @@
-# SunTzu
+# SunTzu / IMBM
 
-Paper: TODO
+这是一个使用大模型控制《星际争霸 II》的项目。当前活跃主链路是 IM/BM 双模型架构：
 
-Git Page: TODO
+- IM（Immediate Model）：同步决策模型，基于当前观测和 BM 指令生成下一批可执行动作。
+- BM（Background Model）：异步战略模型，在后台生成中期战略指令，通过 `DirectiveStore` 传递给 IM。
 
-### A Benchmark for Long-Horizon Decision-Making with LLMs in StarCraft II
+本仓库目前只保留 IM/BM 主链路作为活跃代码；旧 benchmark、采集、Elo、SFT、GUI、notebook 和旧 SunTzu agent 已统一放入 `archive/`。
 
-SunTzu is a novel benchmark designed to evaluate Large Language Models (LLMs) in complex, long-horizon decision-making tasks. Built upon StarCraft II, it provides a comprehensive platform for testing strategic reasoning capabilities of LLMs in one of the most complex real-time strategy environments.
+## 项目特点
 
----
+- 支持 `python main.py ... -bm` 启动 IM/BM 双模型控制流程。
+- 保留 SunTzu 原有的观测压缩、动作校验、动作执行、自动工人、MULE 和自动还击逻辑。
+- 动作校验语义保持不变；IM 的 `predicted_observation` 输出由 `-observation` 开关控制。
+- 代码已按运行职责分层：agent、prompt、游戏观测、动作执行、自动逻辑、建议系统、校验器、运行时状态分别管理。
 
-## 📖 Abstract
+## 环境准备
 
-Recent advancements in decision-making algorithms, such as reinforcement learning (RL), have achieved significant breakthroughs in mastering precise control. However, these methods struggle with long-horizon decision-making tasks, which require strategic reasoning to break down into sub-tasks effectively.
+### 1. 安装 StarCraft II
 
-Conversely, Large Language Models (LLMs), trained on vast corpora, have internalized high-dimensional abstractions of world knowledge, causal relationships, and logical laws, endowing them with powerful reasoning capabilities.
+需要本地安装 StarCraft II，免费 Starter Edition 即可。
 
-To bridge the gap between traditional decision-making algorithms and high-level strategic reasoning, we introduce **SunTzu**, a novel benchmark adapted for LLMs within the complex, long-horizon environment.
+Windows / macOS：
 
----
+1. 从 StarCraft II 官方网站安装游戏。
+2. 建议在 Battle.net 启动器中把游戏语言设置为英文。
 
-## ✨ Key Features
+Linux：
 
-*   **Full-Length Game Context:** Supports complete gameplay scenarios spanning thousands of real-time decisions
-*   **All Playable Races:** Full support for Terran, Protoss, and Zerg with unique mechanics
-*   **Complete Low-Level Actions:** Preserves the game's original strategic depth and complexity
-*   **Agent-vs-Agent Gameplay:** Enables direct competition and ELO-based ranking mechanisms
-*   **Optimized Observations:** Proximity-based unit ordering and worker aggregation reduce information overload
-*   **Hierarchical Self-Correction Framework:** Baseline algorithm with Planner, Executor, and Verifier modules
-*   **Standardized JSON Interface:** Extensible and easy-to-use API for agent development
+1. 从 Blizzard `s2client-proto` 仓库下载 Linux 游戏包。
+2. 设置 `SC2PATH`：
 
----
+```bash
+export SC2PATH="/path/to/StarCraftII"
+```
 
-## 🏗️ Benchmark Design
+### 2. 安装地图
 
-![Benchmark Design](fig/benchmark_design.png)
+1. 下载 `Melee` 地图包。
+2. 在 StarCraft II 安装目录中创建 `Maps` 文件夹。
+3. 将地图包解压到 `Maps` 文件夹中。
 
-SunTzu introduces two key techniques to address challenges in long-horizon decision-making:
+### 3. 安装 Python 依赖
 
-1.  **Proximity-based Unit Ordering:** Enhances spatial reasoning via greedy nearest-neighbor unit ordering
-2.  **Unit Aggregation:** Reduces information overload by aggregating redundant units
+建议使用项目对应的 Conda 环境：
 
----
+```bash
+pip install -r requirements.txt
+```
 
-## 🤖 Method: Hierarchical Self-Correction Framework
+当前普通 Python 环境如果缺少 `sc2`、`openai` 等依赖，只能通过静态编译和 `--help` 检查，不能完整启动游戏。
 
-![Method](fig/agent_illustration.png)
+## 配置模型
 
-The baseline algorithm employs a two-tier architecture:
+复制环境变量模板：
 
-*   **Planner:** Generates high-level strategic commands in natural language
-*   **Executor:** Translates commands into executable low-level JSON actions
-*   **Verifier:** Enables iterative self-correction for both modules
+```bash
+cp .env_template .env
+```
 
----
+在 `.env` 中配置 IM 模型：
 
-## 📊 Results
+```text
+IM_MODEL_NAME=...
+IM_BASE_URL=...
+IM_API_KEY=...
+```
 
-![ELO Results](fig/elo_results.png)
+如果启用 `-bm`，还需要配置 BM 模型：
 
-### Key Findings
+```text
+BM_MODEL_NAME=...
+BM_BASE_URL=...
+BM_API_KEY=...
+```
 
-1.  **Finding 1:** Due to cognitive overload, LLMs cannot be directly applied to long-horizon decision-making tasks.
+## 运行
 
-2.  **Finding 2:** Hierarchical reasoning and observation optimization can enhance the reasoning capabilities of LLMs in long-horizon decision-making tasks.
-
-3.  **Finding 3:** LLMs possess unique strategic reasoning capabilities and strong interpretability.
-
----
-
-## 🚀 Getting Started
-
-Follow these steps to set up your local environment and start experimenting.
-
-### 1. Install StarCraft II 🎮
-
-You need a local installation of the game. The free Starter Edition is sufficient.
-
-*   **Windows / macOS:**
-    1.  Download and install the game from the [official StarCraft II website](https://starcraft2.blizzard.com/).
-    2.  (Optional but recommended) In the Battle.net launcher settings, change the game language to English.
-
-*   **Linux:**
-    1.  Download the Linux game package from the [s2client-proto repository](https://github.com/Blizzard/s2client-proto?tab=readme-ov-file#linux-packages).
-    2.  Set the `SC2PATH` environment variable to your installation directory.
-        ```bash
-        export SC2PATH="/path/to/StarCraftII"
-        ```
-
-### 2. Set Up Game Maps 🗺️
-
-1.  Download the `Melee` map pack from the [s2client-proto repository](https://github.com/Blizzard/s2client-proto?tab=readme-ov-file#map-packs).
-2.  Create a `Maps` folder inside your StarCraft II installation directory.
-3.  Unzip `Melee.zip` into the `Maps` folder.
-
-### 3. Configure the Agent 🤖
-
-1.  **Clone the repository and install dependencies:**
-    ```bash
-    git clone TODO
-    cd SunTzu
-    pip install -r requirements.txt
-    ```
-
-2.  **Configure API Keys:**
-    ```bash
-    cp .env_template .env
-    ```
-    Edit `.env` and add your LLM provider's API key and base URL.
-
----
-
-## ▶️ Running a Battle
-
-### LLMs-vs-Built-in AI
+示例：LLM 对战内置 AI，并启用 BM 后台战略模型。
 
 ```bash
 python main.py \
     --map_name Flat32 \
     --difficulty Hard \
-    --model Qwen2.5-32B-Instruct \
     --ai_build RandomBuild \
-    --enable_plan \
-    --enable_plan_verifier \
-    --enable_action_verifier \
     --own_race Terran \
-    --enemy_race Terran
+    --enemy_race Terran \
+    -bm
 ```
 
-### Battle in ELO mode (LLMs-vs-LLMs)
+默认情况下，IM 的 JSON 输出不包含 `predicted_observation` 字段。如果需要恢复预测观测输出和对应校验，添加 `-observation`：
 
 ```bash
-python run_elo_template.py
+python main.py \
+    --map_name Flat32 \
+    --difficulty Hard \
+    --ai_build RandomBuild \
+    --own_race Terran \
+    --enemy_race Terran \
+    -bm \
+    -observation
 ```
 
----
+查看参数：
 
-## 📋 Evaluation Metrics
+```bash
+python main.py --help
+```
 
-### Performance Metrics
-| Metric | Description |
-|--------|-------------|
-| ELO | ELO Rating from agent-vs-agent matches |
-| WR | Win Rate against built-in AIs |
-| TCW | Time Cost of Winning |
-| SBR | Supply Block Ratio |
-| RUR | Resource Utilization Ratio |
+## 当前目录结构
 
-### Efficiency Metrics
-| Metric | Description |
-|--------|-------------|
-| TPD | Tokens Per Decision |
-| VAR | Valid Action Ratio |
+| 路径 | 说明 |
+|---|---|
+| `main.py` | 兼容入口，只调用 `cli.main()`。 |
+| `cli.py` | 解析命令行参数、读取环境变量、创建 LLM client、启动 SC2 game。 |
+| `player.py` | IM/BM 主玩家循环：自动逻辑、IM 同步动作、BM 异步调度、指令读取和动作执行。 |
+| `agents/` | IM/BM agent 类和 `agents/prompts/` prompt builder。 |
+| `game/` | 游戏侧逻辑，包括 player adapter、观测、动作、校验、自动逻辑和建议系统。 |
+| `runtime/` | 运行时横切模块：BM/IM directive、日志封装、指标统计。 |
+| `knowledge/` | 静态知识加载：能力表、SC2 API 数据、ability 描述。 |
+| `config/` | 环境变量、生成参数和 SC2 枚举配置。 |
+| `utils/` | LLM client、格式化和通用工具函数。 |
+| `docs/` | 架构说明、文件说明、改造记录和图片资源。 |
+| `archive/` | 历史 SunTzu 代码、旧脚本、tokenizer 工具和缓存归档。 |
 
----
+## 核心模块分层
 
-## 🤝 How to Contribute
+`agents/`：
 
-Contributions are welcome! Whether it's adding a new agent, improving documentation, or fixing a bug, we appreciate your help.
+- `agents/immediate.py`：IM 调用、输出解析、schema/action refine。
+- `agents/background.py`：BM 调用、plan critic/refine。
+- `agents/prompts/`：IM/BM prompt 字符串和 prompt builder；IM 预测观测 schema 由 `-observation` 控制。
 
-1.  **Fork** the repository
-2.  Create a new **branch** (`git checkout -b feature/your-feature-name`)
-3.  Make your changes and **commit** them
-4.  Push to your branch (`git push origin feature/your-feature-name`)
-5.  Open a **Pull Request**
+`game/`：
 
----
+- `game/base_player.py`：底层 player adapter，挂接观测、动作、校验等功能。
+- `game/llm_player.py`：LLM player adapter，挂接自动逻辑和建议系统。
+- `game/observation/`：观测文本构造。
+- `game/actions/`：动作执行和建筑落点查找。
+- `game/verifier/`：动作 schema、资源、单位、target 和 ability 校验。
+- `game/automation/`：自动工人、MULE、自动还击和早期 SCV 防守。
+- `game/suggestions/`：全局建议和 Terran / Protoss / Zerg 种族建议。
 
-## 📄 Citation
+`runtime/`：
 
-TODO
+- `runtime/directive.py`：BM 到 IM 的线程安全指令传递。
+- `runtime/logging.py`：运行日志封装。
+- `runtime/metrics.py`：迭代指标统计。
 
----
+## 验证命令
 
-## ⚖️ License
+静态编译：
 
-StarCraft II is a trademark of Blizzard Entertainment, Inc. This project is not affiliated with or endorsed by Blizzard Entertainment.
+```bash
+python -m compileall main.py cli.py player.py agents game config utils runtime knowledge
+```
+
+轻量入口检查：
+
+```bash
+python main.py --help
+```
+
+轻量 import 检查：
+
+```bash
+python -c "import cli, agents.immediate, agents.background, game; print('imports-ok')"
+```
+
+完整游戏运行需要安装 StarCraft II、地图包和 Python SC2 相关依赖。
+
+## 文档
+
+- `docs/项目文件说明.md`：当前文件和目录职责说明。
+- `docs/IMBM_CHANGES.md`：IM/BM 相对旧 SunTzu 的改造说明。
+- `docs/架构细节.md`：架构细节补充。
+- `docs/fig/`：README 和架构文档使用的图片。
+
+## 归档说明
+
+`archive/` 中的内容保留历史用途，不作为当前主链路维护重点：
+
+- `archive/legacy_suntzu/`：旧 SunTzu agent/player。
+- `archive/scripts/`：旧 benchmark、采集、Elo、SFT、GUI、notebook 和日志脚本。
+- `archive/tools/`：当前主链路未使用的 tokenizer 相关工具和资源。
+
+## 版权说明
+
+StarCraft II 是 Blizzard Entertainment, Inc. 的商标。本项目与 Blizzard Entertainment 无官方关联。

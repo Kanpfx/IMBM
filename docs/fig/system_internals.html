@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMBM Internal Architecture Details</title>
+<style>
+  :root{
+    --bg:#f6f7fb;
+    --panel:#fff;
+    --ink:#151923;
+    --muted:#667085;
+    --line:#d8dee9;
+    --blue:#2563eb;
+    --green:#059669;
+    --amber:#d97706;
+    --rose:#db2777;
+    --violet:#7c3aed;
+    --slate:#475569;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC",Arial,sans-serif;
+    line-height:1.55;
+  }
+  .page{
+    width:1220px;
+    margin:0 auto;
+    padding:30px 28px 44px;
+  }
+  header{margin-bottom:18px}
+  h1{
+    margin:0 0 8px;
+    font-size:28px;
+    line-height:1.25;
+    font-weight:780;
+    letter-spacing:0;
+  }
+  .subtitle{
+    max-width:980px;
+    color:var(--muted);
+    font-size:13px;
+  }
+  section,.hero,.card,.side-card{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    box-shadow:0 8px 24px rgba(20,28,45,.06);
+  }
+  .hero{
+    display:grid;
+    grid-template-columns:1.2fr .8fr;
+    gap:18px;
+    padding:18px 20px;
+    margin-bottom:18px;
+  }
+  .hero h2{
+    margin:0 0 8px;
+    font-size:17px;
+    line-height:1.3;
+  }
+  .hero p,.card p,.side-card p{
+    margin:0;
+    color:#344054;
+    font-size:12px;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) 340px;
+    gap:18px;
+    align-items:start;
+  }
+  .main{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+  section{
+    padding:18px 20px;
+  }
+  h2{
+    margin:0 0 12px;
+    font-size:17px;
+    line-height:1.3;
+    font-weight:760;
+  }
+  h3{
+    margin:0 0 7px;
+    font-size:13px;
+    line-height:1.35;
+    font-weight:760;
+  }
+  code{
+    padding:1px 4px;
+    border-radius:4px;
+    background:#eef2f7;
+    color:#263445;
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+    font-size:11px;
+  }
+  .cards{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:12px;
+  }
+  .card{
+    padding:13px;
+    box-shadow:none;
+    background:#fbfcff;
+  }
+  .card ul,.side-card ul{
+    margin:0;
+    padding-left:18px;
+    color:#344054;
+    font-size:12px;
+  }
+  li{margin:5px 0}
+  .full{grid-column:1 / -1}
+  .tag{
+    display:inline-block;
+    margin:0 6px 6px 0;
+    padding:4px 8px;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:720;
+  }
+  .t-blue{background:#dbeafe;color:#1d4ed8}
+  .t-green{background:#d1fae5;color:#047857}
+  .t-amber{background:#fef3c7;color:#a16207}
+  .t-rose{background:#fce7f3;color:#be185d}
+  .t-violet{background:#ede9fe;color:#6d28d9}
+  .t-slate{background:#e2e8f0;color:#334155}
+  .matrix{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+  }
+  .mini-card{
+    border:1px solid #e4e8ef;
+    border-radius:8px;
+    background:#fafbfe;
+    padding:11px;
+    min-height:116px;
+  }
+  .mini-card .num{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:22px;
+    height:22px;
+    margin-bottom:8px;
+    border-radius:999px;
+    background:#334155;
+    color:#fff;
+    font-size:11px;
+    font-weight:760;
+  }
+  .mini-card p{
+    margin:0;
+    color:var(--muted);
+    font-size:11px;
+  }
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12px;
+  }
+  th,td{
+    padding:9px 10px;
+    border-bottom:1px solid #e5e9f0;
+    text-align:left;
+    vertical-align:top;
+  }
+  th{
+    background:#f1f5f9;
+    color:#344054;
+    font-weight:760;
+  }
+  tr:last-child td{border-bottom:0}
+  .side{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    position:sticky;
+    top:18px;
+  }
+  .side-card{
+    padding:16px;
+  }
+  .side-card h2{font-size:16px;margin-bottom:10px}
+  .correct{
+    border-color:#bfdbfe;
+    background:#eff6ff;
+  }
+  .correct h2{color:#1d4ed8}
+  .warn{
+    border-color:#fed7aa;
+    background:#fff7ed;
+  }
+  .warn h2{color:#9a3412}
+  .legend-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+  .small{
+    color:var(--muted);
+    font-size:11px;
+    margin-top:8px;
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <h1>IMBM 内置架构细节说明</h1>
+    <div class="subtitle">
+      参照 <code>架构细节.md</code> 与当前代码实现整理。页面重点解释系统内部默认逻辑：自动控制、建议系统、知识库、状态压缩、决策触发、IM/BM 异步关系、verifier 与动作执行。
+    </div>
+  </header>
+
+  <div class="hero">
+    <div>
+      <h2>核心定位</h2>
+      <p>
+        当前主程序使用 <code>ImBmPlayer</code>。它保留 SunTzu 的自动经济、自动微操、状态压缩、动作校验和执行层；在决策层上，用同步阻塞的 IM 代替旧 action path，用可选异步 BM 代替后台战略建议来源。
+      </p>
+    </div>
+    <div>
+      <h2>一句话数据流</h2>
+      <p>
+        <code>on_step</code> 先执行自动逻辑，再在决策点构造观测；IM 同步生成动作并通过 verifier 修正；动作落地后再按需触发 BM，BM 后台写入 <code>DirectiveStore</code> 给之后的 IM 使用。
+      </p>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="main">
+      <section>
+        <h2>运行主循环</h2>
+        <div class="matrix">
+          <div class="mini-card">
+            <div class="num">1</div>
+            <h3>on_step</h3>
+            <p>只要己方单位和基地存在，就进入 <code>run(iteration)</code>；每 15 iteration 更新一次生命值缓存。</p>
+          </div>
+          <div class="mini-card">
+            <div class="num">2</div>
+            <h3>自动逻辑</h3>
+            <p>先执行工人/MULE/自动还击/SCV 防守等无需 LLM 的即时控制。</p>
+          </div>
+          <div class="mini-card">
+            <div class="num">3</div>
+            <h3>决策触发</h3>
+            <p>默认 <code>iteration % 30 == 0</code> 且矿物至少 170，或到达强制触发点。</p>
+          </div>
+          <div class="mini-card">
+            <div class="num">4</div>
+            <h3>IM/BM</h3>
+            <p>IM 当前轮同步产出动作；BM 只在后台异步刷新指令，不阻塞当前动作执行。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>自动部分</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>自动工人分配</h3>
+            <ul>
+              <li>入口是 <code>distribute_workers()</code>。</li>
+              <li>按基地附近矿点和气矿统计需求。</li>
+              <li>优先补 gas 缺工，再把剩余 idle worker 派往矿点。</li>
+              <li>会释放 gas surplus worker 进入可重新分配池。</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>MULE 自动采矿</h3>
+            <ul>
+              <li>Terran 分支调用 <code>_deploy_mules()</code>。</li>
+              <li>按资源量、距离、当前采集单位数量、已有 MULE 数计算矿点分数。</li>
+              <li>只对 idle MULE 自动下采矿命令。</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>全单位自动还击</h3>
+            <ul>
+              <li>每轮遍历己方单位，跳过 MULE 和正在建造的 SCV。</li>
+              <li>若敌人在当前单位攻击范围内，攻击生命值最低目标。</li>
+              <li>该逻辑发生在 LLM 决策之前。</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>前期 SCV 防守</h3>
+            <ul>
+              <li>当敌人靠近出生点且时间小于 <code>240s</code> 时，SCV 会自动攻击。</li>
+              <li>防守半径由 <code>scv_auto_attack_distance = 4</code> 控制。</li>
+              <li>目标同样选最低生命值敌人。</li>
+            </ul>
+          </div>
+          <div class="card full">
+            <h3>自动建筑落点修正</h3>
+            <ul>
+              <li><code>run_actions()</code> 执行 build 类动作时，调用 <code>find_placement()</code> 搜索可放置位置。</li>
+              <li>Terran Barracks/Factory/Starport 会额外检查 addon 位置。</li>
+              <li>这意味着 IM 给出的目标点不一定是最终建筑落点，执行层会尝试修正。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>建议系统</h2>
+        <p>建议由 <code>get_suggestions()</code> 生成。当前 IMBM 主路径中，这些建议不是追加给同步 planner，而是在 BM 后台运行时追加进 BM 的规则集合。</p>
+        <table>
+          <thead>
+            <tr>
+              <th>类别</th>
+              <th>当前逻辑</th>
+              <th>作用</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>全局敌情</td>
+              <td>发现非工人敌军时建议攻击；60-300 秒提醒 3:00 敌军猛攻；300 秒后军队人口大于 15 且敌军较少时建议主动搜索消灭敌人。</td>
+              <td>把早期防守和中后期终结意识注入 BM。</td>
+            </tr>
+            <tr>
+              <td>资源使用</td>
+              <td>矿物大于等于 500 时建议消费、扩张或发展科技。</td>
+              <td>抑制资源闲置。</td>
+            </tr>
+            <tr>
+              <td>Terran build-up</td>
+              <td>补 Supply Depot、Refinery、Barracks、Tech Lab、Marine/Marauder、Factory、Siege Tank、Orbital Command、二矿、MULE。</td>
+              <td>用规则化提示补足 LLM 对开局节奏的稳定性。</td>
+            </tr>
+            <tr>
+              <td>其他种族</td>
+              <td>代码中也实现了 Protoss/Zerg 的 Pylon/Gateway/Queen/Inject/Overlord 等建议。</td>
+              <td>不只 Terran，但当前能力知识库以 TerranAbility 为核心，跨种族仍需注意。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>知识库与能力表</h2>
+        <div class="cards">
+          <div class="card">
+            <h3><code>knowledge/TerranAbility.csv</code></h3>
+            <ul>
+              <li>提供 action 名、是否启用、自然语言描述。</li>
+              <li><code>get_ability_desc()</code> 只把当前观测中出现且 enabled 的能力写入 prompt。</li>
+              <li><code>check_action()</code> 用它判断 action 是否已知。</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3><code>knowledge/data.json</code></h3>
+            <ul>
+              <li>用于查能力目标类型，如 None、Point、Unit、PointOrUnit。</li>
+              <li>动作字段校验依赖 target type 决定需要 <code>target_position</code> 还是 <code>target_unit</code>。</li>
+            </ul>
+          </div>
+          <div class="card full">
+            <h3>静态科技树</h3>
+            <p>你的 md 中提到静态科技树“没用到”。从当前主链路看，主要确实依赖 CSV 和 data.json，未看到静态科技树进入 IM/BM 决策或动作校验路径。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>状态压缩</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>观测结构</h3>
+            <ul>
+              <li><code># Round state</code>：时间、种族、矿气、军队/工人人口、剩余人口、地图尺寸。</li>
+              <li><code># Own units / structures</code>：己方单位和建筑摘要。</li>
+              <li><code># Unit abilities / Structure abilities</code>：可用能力摘要。</li>
+              <li><code># Visible enemy units / structures</code>：可见敌方信息。</li>
+              <li><code># Action history</code>：最近 10 个有效动作。</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>压缩技巧</h3>
+            <ul>
+              <li>采矿工人聚合为一行，减少重复单位文本。</li>
+              <li>单位按距离出生点的空间顺序排序。</li>
+              <li>ID 使用 <code>tag % 1000</code> 并处理冲突，降低 token 成本。</li>
+              <li>能力按单位类型和能力集合聚合。</li>
+              <li>矿点取和工人数相关的最近部分，气矿最多取 10 个。</li>
+            </ul>
+          </div>
+          <div class="card full">
+            <h3>动态状态检测</h3>
+            <p>
+              <code>tag_to_health</code> 每 15 iteration 更新一次。若当前生命值低于缓存生命值，单位状态会标记为 <code>under attack</code>。这是一种轻量“正在受攻击”检测，目前没有扩展到全部动态变化。
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>IM/BM 与 verifier</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>部件</th>
+              <th>当前实现</th>
+              <th>重要细节</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>IM Agent</td>
+              <td>同步阻塞调用 IM LLM，输出预测观测、动作、是否请求 BM、请求原因。</td>
+              <td>当前主路径显式传入 <code>verifier=self.verify_actions</code>，不是裸动作生成。</td>
+            </tr>
+            <tr>
+              <td>IM schema 修正</td>
+              <td>如果 JSON 缺字段、格式不对、预测观测缺 10 个 section，会要求 IM 重新输出。</td>
+              <td>当前本地最大重试次数为 2。</td>
+            </tr>
+            <tr>
+              <td>IM action verifier</td>
+              <td>动作校验失败时，错误信息会回传给 IM 让它修正。</td>
+              <td>这修正了 md 中“动作校验没传回错误信息”的旧描述；执行阶段失败仍只写日志。</td>
+            </tr>
+            <tr>
+              <td>BM Agent</td>
+              <td>后台通过 <code>asyncio.create_task</code> 启动，并用 <code>run_in_executor</code> 包住阻塞式 LLM 调用。</td>
+              <td>BM 不直接执行动作，只产出自然语言计划。</td>
+            </tr>
+            <tr>
+              <td>BM planner verifier</td>
+              <td>BM 生成 plan 后调用 critic/refine 自审流程。</td>
+              <td>当前本地最大自纠错轮数为 2。</td>
+            </tr>
+            <tr>
+              <td>DirectiveStore</td>
+              <td>线程安全 latest directive 单槽，BM 写入，IM 在后续决策点读取。</td>
+              <td>不是队列；TTL 为 360 iteration。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>动作校验与执行</h2>
+        <div class="cards">
+          <div class="card">
+            <h3><code>verify_actions()</code></h3>
+            <ul>
+              <li>检查 actions 必须是 list。</li>
+              <li>逐个调用 <code>check_action()</code>。</li>
+              <li>累加矿物、气体、人口成本，判断总资源是否足够。</li>
+              <li>返回 <code>ok, message</code>，message 可回传给 IM 修正。</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3><code>check_action()</code></h3>
+            <ul>
+              <li>校验 action 字段、target 类型、unit id 是否存在。</li>
+              <li>校验单位是否己方、是否具备对应能力、是否正在建造。</li>
+              <li>校验资源、人口和供给建筑抑制规则。</li>
+              <li>Protoss Pylon 额外检查距离已有 Pylon 是否过近。</li>
+            </ul>
+          </div>
+          <div class="card full">
+            <h3>当前仍需注意</h3>
+            <p>
+              md 中写到“没验证重复 unit 使用”基本仍成立：IM prompt 规则要求同一个单位最多使用一次，但 <code>verify_actions()</code> 本身没有全局检查同一 unit id 是否在多个 action 中重复出现。
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <aside class="side">
+      <div class="side-card correct">
+        <h2>对 md 的关键修正</h2>
+        <ul>
+          <li><code>10tick</code> 已不是当前固定决策间隔；现在默认是 <code>30 iteration</code>。</li>
+          <li>后续强制触发不是 90，而是 <code>9 * 30 = 270 iteration</code>。</li>
+          <li>当前 IMBM 主路径不是旧同步 planner + action，而是 IM 同步动作，BM 异步计划。</li>
+          <li>planner/BM 自审和 IM 修正当前本地都是最多 2，而非 3。</li>
+          <li>动作校验错误会回传给 IM 修正；但执行阶段错误不再即时回传。</li>
+        </ul>
+      </div>
+
+      <div class="side-card warn">
+        <h2>当前限制</h2>
+        <ul>
+          <li>BM 使用当前真实观测；启用 <code>-observation</code> 时，IM 的 <code>predicted_observation</code> 仅用于记录/校验，不作为 BM 规划输入。</li>
+          <li>DirectiveStore 只有最新一条指令，没有历史队列或多版本计划。</li>
+          <li>跨轮次记忆不是完全没有：有 directive、last_action、tag/id 映射、trace；但 LLM chat history 每轮重建。</li>
+          <li>动作校验依赖当前可用能力与 TerranAbility 表，跨种族能力覆盖要谨慎。</li>
+          <li>重复单位跨 action 使用主要靠 prompt 约束，不靠强校验。</li>
+        </ul>
+      </div>
+
+      <div class="side-card">
+        <h2>模块标签</h2>
+        <div class="legend-row">
+          <span class="tag t-slate">Auto micro</span>
+          <span class="tag t-blue">State compression</span>
+          <span class="tag t-green">Action execution</span>
+          <span class="tag t-rose">Verifier</span>
+          <span class="tag t-violet">Async BM</span>
+          <span class="tag t-amber">DirectiveStore</span>
+        </div>
+        <p class="small">
+          这页适合和 <code>imbm_architecture.html</code> 搭配：一个讲整体图，一个讲内部实现细节。
+        </p>
+      </div>
+    </aside>
+  </div>
+</main>
+</body>
+</html>

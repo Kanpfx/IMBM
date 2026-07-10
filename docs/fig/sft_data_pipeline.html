@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SFT Data Filtering Pipeline</title>
+<style>
+  :root{
+    --bg:#f6f7fb;
+    --panel:#fff;
+    --ink:#151923;
+    --muted:#667085;
+    --line:#d8dee9;
+    --blue:#2563eb;
+    --green:#059669;
+    --amber:#d97706;
+    --rose:#db2777;
+    --violet:#7c3aed;
+    --slate:#475569;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC",Arial,sans-serif;
+    line-height:1.55;
+  }
+  .page{
+    width:1220px;
+    margin:0 auto;
+    padding:30px 28px 40px;
+  }
+  header{
+    margin-bottom:18px;
+  }
+  h1{
+    margin:0 0 8px;
+    font-size:28px;
+    line-height:1.25;
+    font-weight:780;
+    letter-spacing:0;
+  }
+  .subtitle{
+    max-width:920px;
+    color:var(--muted);
+    font-size:13px;
+  }
+  .grid{
+    display:grid;
+    grid-template-columns: minmax(0,1fr) 340px;
+    gap:18px;
+    align-items:start;
+  }
+  section,.side-card,.hero{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    box-shadow:0 8px 24px rgba(20,28,45,.06);
+  }
+  .hero{
+    padding:18px 20px;
+    margin-bottom:18px;
+  }
+  .hero-title{
+    font-size:16px;
+    font-weight:760;
+    margin-bottom:6px;
+  }
+  .hero p{
+    margin:0;
+    color:var(--muted);
+    font-size:13px;
+  }
+  .main{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+  section{
+    padding:18px 20px;
+  }
+  h2{
+    margin:0 0 12px;
+    font-size:17px;
+    line-height:1.3;
+    font-weight:760;
+  }
+  h3{
+    margin:0 0 8px;
+    font-size:13px;
+    line-height:1.35;
+    font-weight:760;
+  }
+  p{
+    margin:0 0 10px;
+    color:#344054;
+    font-size:12px;
+  }
+  code{
+    padding:1px 4px;
+    border-radius:4px;
+    background:#eef2f7;
+    color:#263445;
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+    font-size:11px;
+  }
+  .flow{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:10px;
+    margin-top:8px;
+  }
+  .step{
+    position:relative;
+    min-height:142px;
+    padding:12px;
+    border:1px solid #e4e8ef;
+    border-radius:8px;
+    background:#fafbfe;
+  }
+  .step:not(:last-child)::after{
+    content:"";
+    position:absolute;
+    top:50%;
+    right:-10px;
+    width:10px;
+    height:2px;
+    background:#cbd5e1;
+  }
+  .num{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:22px;
+    height:22px;
+    margin-bottom:8px;
+    border-radius:999px;
+    color:#fff;
+    font-size:11px;
+    font-weight:760;
+  }
+  .n1{background:var(--slate)}
+  .n2{background:var(--blue)}
+  .n3{background:var(--green)}
+  .n4{background:var(--amber)}
+  .n5{background:var(--violet)}
+  .step p{font-size:11px;margin-bottom:0;color:var(--muted)}
+  .cards{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:12px;
+  }
+  .card{
+    border:1px solid #e4e8ef;
+    border-radius:8px;
+    background:#fbfcff;
+    padding:13px;
+  }
+  .card ul,.side-card ul{
+    margin:0;
+    padding-left:18px;
+    color:#344054;
+    font-size:12px;
+  }
+  li{margin:5px 0}
+  table{
+    width:100%;
+    border-collapse:collapse;
+    overflow:hidden;
+    border-radius:8px;
+    font-size:12px;
+  }
+  th,td{
+    padding:9px 10px;
+    border-bottom:1px solid #e5e9f0;
+    text-align:left;
+    vertical-align:top;
+  }
+  th{
+    color:#344054;
+    background:#f1f5f9;
+    font-weight:760;
+  }
+  tr:last-child td{border-bottom:0}
+  .formula{
+    padding:12px 14px;
+    border:1px solid #e4e8ef;
+    border-radius:8px;
+    background:#f8fafc;
+    color:#263445;
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;
+    font-size:12px;
+    line-height:1.7;
+  }
+  .side{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    position:sticky;
+    top:18px;
+  }
+  .side-card{
+    padding:16px;
+  }
+  .side-card h2{font-size:16px;margin-bottom:10px}
+  .tag{
+    display:inline-block;
+    margin:0 6px 6px 0;
+    padding:4px 8px;
+    border-radius:999px;
+    background:#eef2ff;
+    color:#3730a3;
+    font-size:11px;
+    font-weight:720;
+  }
+  .warn{border-color:#fed7aa;background:#fff7ed}
+  .warn h2{color:#9a3412}
+  .improve{border-color:#c7d2fe;background:#f8faff}
+  .improve h2{color:#3730a3}
+  .mini{
+    color:var(--muted);
+    font-size:11px;
+    margin-top:8px;
+  }
+</style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <h1>SFT 数据筛选脚本流程说明</h1>
+    <div class="subtitle">
+      对应 <code>scripts/gene_sft_data.py</code>。这个脚本的核心思想是：从胜利局日志中找到“决策后未来一段时间内资产和人口增长较好”的旧 SunTzu 决策点，再把当时的 planner/action 对话历史导出成 SFT 样本。
+    </div>
+  </header>
+
+  <div class="hero">
+    <div class="hero-title">一句话原理</div>
+    <p>
+      它不是人工标注，也不是严格的因果归因；它用胜利局、动作有效性、planner 自检通过、未来指标增长、时间窗口均衡这几组启发式规则，自动筛出更像“优质专家轨迹”的对话样本。
+    </p>
+  </div>
+
+  <div class="grid">
+    <div class="main">
+      <section>
+        <h2>总流程</h2>
+        <div class="flow">
+          <div class="step">
+            <div class="num n1">1</div>
+            <h3>读取 trace 日志</h3>
+            <p>扫描固定路径下的 <code>trace.json</code>，并读取相邻的 <code>config.json</code> 判断种族。</p>
+          </div>
+          <div class="step">
+            <div class="num n2">2</div>
+            <h3>过滤可用局面</h3>
+            <p>只保留胜利局、指定种族、存在 obs/plans/actions，且动作全部有效、plan 自审通过的决策点。</p>
+          </div>
+          <div class="step">
+            <div class="num n3">3</div>
+            <h3>计算未来收益</h3>
+            <p>观察之后最多 15 个 trace 点，累计单位价值、建筑价值、军队人口、工人人口的折扣增量。</p>
+          </div>
+          <div class="step">
+            <div class="num n4">4</div>
+            <h3>标准化与截断</h3>
+            <p>对每个收益指标做标准化，合成 <code>stand_score</code>，再按阈值和时间窗口取 top 样本。</p>
+          </div>
+          <div class="step">
+            <div class="num n5">5</div>
+            <h3>导出 SFT 格式</h3>
+            <p>抽取 <code>plan_chat_history</code> 和 <code>action_chat_history</code>，转换成 <code>from/value</code> 格式输出。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>输入数据与硬编码范围</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>日志路径</h3>
+            <p>脚本只扫描两个固定 glob：</p>
+            <ul>
+              <li><code>logs/sc2agent_0731/Flat48_Medium*/*/*/trace.json</code></li>
+              <li><code>logs/sc2agent_0731/Flat48_MediumHard*/*/*/trace.json</code></li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>种族与结果</h3>
+            <ul>
+              <li><code>RACE = "Protoss"</code> 是硬编码。</li>
+              <li>只保留最后一条 trace 中 <code>game_result == "Victory"</code> 的对局。</li>
+              <li>失败局、未完成局、其他地图/难度默认不会进入数据集。</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>单个决策点的保留条件</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>条件</th>
+              <th>脚本含义</th>
+              <th>筛选目的</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>obs</code> 存在</td>
+              <td>当时的文本化观测可用。</td>
+              <td>保证可以还原 prompt 输入。</td>
+            </tr>
+            <tr>
+              <td><code>plans</code> 非空且不超过 5 条</td>
+              <td>planner 给过可执行的短计划。</td>
+              <td>避免空计划或过长计划污染训练。</td>
+            </tr>
+            <tr>
+              <td><code>actions</code> 非空</td>
+              <td>action agent 确实生成了动作。</td>
+              <td>避免只训练等待或无输出样本。</td>
+            </tr>
+            <tr>
+              <td><code>len(actions) == len(valid_actions)</code></td>
+              <td>所有生成动作都通过执行侧校验。</td>
+              <td>偏向收集合法动作样本。</td>
+            </tr>
+            <tr>
+              <td><code>"error_number": 0</code></td>
+              <td>planner critic 最后一轮认为计划没有违反规则。</td>
+              <td>偏向收集自审通过的 plan 样本。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>未来收益打分</h2>
+        <p>脚本用六个局面指标衡量当前决策点之后的增长，并把未来越远的增长折扣得越小。</p>
+        <div class="cards">
+          <div class="card">
+            <h3>收益指标</h3>
+            <ul>
+              <li><code>unit_mineral_value</code> 增量</li>
+              <li><code>unit_vespene_value</code> 增量</li>
+              <li><code>structure_mineral_value</code> 增量</li>
+              <li><code>structure_vespene_value</code> 增量</li>
+              <li><code>supply_army</code> 增量</li>
+              <li><code>supply_workers</code> 增量</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>时间折扣</h3>
+            <p>对每个未来 trace 点，计算：</p>
+            <div class="formula">
+score[item] += (future[key] - current[key]) * 0.95 ** ((future_iteration - current_iteration) / 10)
+            </div>
+            <p class="mini">最多向后看 15 个 trace 点，越近的变化权重越高。</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>标准化、加权与时间均衡</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>阶段</th>
+              <th>做法</th>
+              <th>影响</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>指标标准化</td>
+              <td>每个 score item 用 <code>StandardScaler</code> 变成均值 0、方差 1。</td>
+              <td>让不同量纲的矿物价值、气体价值、人口增长可以相加。</td>
+            </tr>
+            <tr>
+              <td>合成总分</td>
+              <td><code>stand_score = sum(z_scores) * 1.1 ** n_visible_enemy_units</code></td>
+              <td>看到敌军越多的局面被放大，偏向保留带战斗压力的样本。</td>
+            </tr>
+            <tr>
+              <td>分数阈值</td>
+              <td>只保留 <code>stand_score > 1.5</code>。</td>
+              <td>砍掉未来增长不明显或负增长的样本。</td>
+            </tr>
+            <tr>
+              <td>时间窗口</td>
+              <td>按 <code>30s</code> 分桶，每个桶取 top <code>60</code>。</td>
+              <td>避免数据全部集中在中后期滚雪球阶段。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>SFT 样本导出</h2>
+        <p>脚本最后不是重新构造 prompt，而是直接复用日志里的 chat history。</p>
+        <div class="cards">
+          <div class="card">
+            <h3>Planner 样本</h3>
+            <ul>
+              <li>总是加入 <code>plan_chat_history[-2]</code>。</li>
+              <li>以 50% 概率加入 <code>plan_chat_history[-1]</code>。</li>
+              <li>如果历史长度足够，再以 50% 概率加入 <code>plan_chat_history[-3]</code>。</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3>Action 样本</h3>
+            <ul>
+              <li>总是加入 <code>action_chat_history[-1]</code>。</li>
+              <li>统计 action 分布并画 <code>action_distribution.png</code>。</li>
+              <li>输出文件名为 <code>sc2-ds-Protoss.json</code>。</li>
+            </ul>
+          </div>
+        </div>
+        <p class="mini">
+          导出时把 OpenAI 消息格式中的 <code>role/content</code> 文本替换成 <code>from/value</code>，即常见的 ShareGPT 风格 SFT 数据格式。
+        </p>
+      </section>
+    </div>
+
+    <aside class="side">
+      <div class="side-card warn">
+        <h2>当前不足</h2>
+        <ul>
+          <li>脚本面向旧 SunTzu 的 <code>plans/action_chat_history</code> 日志，不直接适配当前 IMBM 的 <code>im_chat_history/bm_chat_history</code>。</li>
+          <li>只保留胜利局，会强烈偏向优势局和滚雪球局面。</li>
+          <li>未来资产增长不等于当前动作质量，信用分配比较粗。</li>
+          <li>自动经济、自动还击和之前已排队生产会混进收益，容易高估当前决策。</li>
+          <li>阈值、窗口、top_k 都是经验参数，没有和训练后胜率闭环校准。</li>
+          <li>相邻样本未来窗口高度重叠，容易产生重复和强相关样本。</li>
+        </ul>
+      </div>
+
+      <div class="side-card improve">
+        <h2>可以提升之处</h2>
+        <ul>
+          <li>改成 IMBM 版本抽取：支持 <code>im_chat_history</code>、<code>bm_chat_history</code>、<code>directive</code>、<code>request_background</code>。</li>
+          <li>把 plan/BM 指令样本和 IM 动作样本分开导出，分别训练战略模型与执行模型。</li>
+          <li>加入失败局和低分局，标记为反例或偏好数据，用于 DPO/RLHF 风格训练。</li>
+          <li>把收益指标扩展到战斗结果：击杀价值、损失价值、敌方建筑摧毁、基地扩张、资源闲置率。</li>
+          <li>做 action-level attribution：只评估动作相关单位和相关资源变化，减少自动逻辑干扰。</li>
+          <li>加入去重和多样性约束，避免同一时间段、同一 build order 样本过密。</li>
+          <li>记录筛选元数据，例如 score、game_id、time_seconds、map、difficulty，方便训练后回溯。</li>
+          <li>把硬编码路径、种族、阈值、窗口、top_k 改成命令行参数或配置文件。</li>
+        </ul>
+      </div>
+
+      <div class="side-card">
+        <h2>关键标签</h2>
+        <span class="tag">Victory-only</span>
+        <span class="tag">Future reward</span>
+        <span class="tag">StandardScaler</span>
+        <span class="tag">Time bucket</span>
+        <span class="tag">Old SunTzu logs</span>
+        <span class="tag">ShareGPT format</span>
+        <p class="mini">
+          当前脚本更像“启发式专家轨迹提纯器”，不是严格的训练数据评价器。
+        </p>
+      </div>
+    </aside>
+  </div>
+</main>
+</body>
+</html>

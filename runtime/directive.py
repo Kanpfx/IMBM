@@ -5,7 +5,7 @@ from typing import Optional
 
 @dataclass
 class Directive:
-    data: list[str]           # natural language plan commands, e.g. ["Train SCV", "Build Depot"]
+    data: list[str]           # BM 生成的自然语言战略命令。
     issued_at_tick: int
     valid_until_tick: int
     source: str = "BM"
@@ -27,6 +27,7 @@ class Directive:
 
 class DirectiveStore:
     def __init__(self):
+        # BM 后台线程和 IM 主循环都可能访问这里，因此读写都加锁。
         self._lock = Lock()
         self._latest: Optional[Directive] = None
 
@@ -36,6 +37,7 @@ class DirectiveStore:
                 return None
             if not self._latest.is_valid(current_tick):
                 return None
+            # 返回副本，避免调用方意外修改 store 内部状态。
             return Directive(
                 data=list(self._latest.data),
                 issued_at_tick=self._latest.issued_at_tick,
@@ -56,5 +58,6 @@ class DirectiveStore:
 
     def write(self, directive: Directive) -> None:
         with self._lock:
+            # 只接受更新的指令，避免较慢的旧 BM 任务覆盖新结果。
             if self._latest is None or directive.issued_at_tick >= self._latest.issued_at_tick:
                 self._latest = directive

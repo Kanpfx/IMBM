@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IMBM System Architecture</title>
+<style>
+  :root{
+    --bg:#f6f7fb;
+    --panel:#fff;
+    --ink:#151923;
+    --muted:#667085;
+    --line:#d8dee9;
+    --blue:#2563eb;
+    --violet:#7c3aed;
+    --amber:#d97706;
+    --green:#059669;
+    --rose:#db2777;
+    --red:#dc2626;
+    --slate:#475569;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans SC",Arial,sans-serif;
+    display:flex;
+    justify-content:center;
+    padding:28px;
+  }
+  .page{width:1180px}
+  header{margin-bottom:16px}
+  h1{margin:0 0 6px;font-size:26px;line-height:1.25;font-weight:760;letter-spacing:0}
+  .subtitle{font-size:13px;color:var(--muted);line-height:1.6}
+  .canvas{
+    position:relative;
+    width:1180px;
+    height:860px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    box-shadow:0 10px 28px rgba(20,28,45,.08);
+    overflow:hidden;
+  }
+  svg{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+  .lane{
+    position:absolute;
+    top:132px;
+    height:620px;
+    border:1px solid #e5e9f0;
+    border-radius:8px;
+    background:#fafbfe;
+    z-index:0;
+  }
+  .lane-title{
+    position:absolute;
+    top:12px;
+    left:16px;
+    font-size:12px;
+    font-weight:760;
+    color:#344054;
+  }
+  .lane-note{
+    position:absolute;
+    top:34px;
+    left:16px;
+    right:16px;
+    font-size:10px;
+    line-height:1.4;
+    color:var(--muted);
+  }
+  .node{
+    position:absolute;
+    z-index:2;
+    width:270px;
+    min-height:96px;
+    border:2px solid;
+    border-radius:8px;
+    background:#fff;
+    padding:11px 13px;
+    box-shadow:0 4px 14px rgba(15,23,42,.08);
+  }
+  .node.compact{min-height:78px}
+  .node .kicker{
+    margin-bottom:5px;
+    color:var(--muted);
+    font-size:10px;
+    font-weight:760;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+  }
+  .node .title{margin-bottom:5px;font-size:15px;font-weight:760;line-height:1.25}
+  .node .desc{color:var(--muted);font-size:11px;line-height:1.45}
+  .node .badge{
+    display:inline-block;
+    margin-top:8px;
+    padding:3px 7px;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:720;
+    line-height:1.2;
+  }
+  .blue{border-color:var(--blue);background:#eff6ff}
+  .violet{border-color:var(--violet);background:#f5f3ff}
+  .amber{border-color:var(--amber);background:#fffbeb}
+  .green{border-color:var(--green);background:#ecfdf5}
+  .rose{border-color:var(--rose);background:#fdf2f8}
+  .red{border-color:var(--red);background:#fef2f2}
+  .slate{border-color:var(--slate);background:#f8fafc}
+  .blue .badge{background:#dbeafe;color:#1d4ed8}
+  .violet .badge{background:#ede9fe;color:#6d28d9}
+  .amber .badge{background:#fef3c7;color:#a16207}
+  .green .badge{background:#d1fae5;color:#047857}
+  .rose .badge{background:#fce7f3;color:#be185d}
+  .red .badge{background:#fee2e2;color:#b91c1c}
+  .slate .badge{background:#e2e8f0;color:#334155}
+
+  .game{left:440px;top:42px;width:300px;min-height:74px;text-align:center}
+  .auto{left:60px;top:215px}
+  .imllm{left:60px;top:420px}
+  .log{left:60px;top:608px}
+  .obs{left:455px;top:170px}
+  .im{left:455px;top:318px;min-height:132px}
+  .imver{left:455px;top:500px;min-height:116px}
+  .exec{left:455px;top:666px}
+  .bm{left:850px;top:176px;min-height:128px}
+  .bmver{left:850px;top:374px}
+  .ds{left:850px;top:552px}
+  .bmllm{left:850px;top:684px}
+
+  .note{
+    position:absolute;
+    z-index:3;
+    left:38px;
+    top:28px;
+    width:330px;
+    padding:11px 13px;
+    border:1px solid #d8dee9;
+    border-radius:8px;
+    background:#fff;
+    box-shadow:0 4px 14px rgba(15,23,42,.06);
+    color:#344054;
+    font-size:11px;
+    line-height:1.55;
+  }
+  .note b{color:#111827}
+  .legend{
+    position:absolute;
+    z-index:3;
+    left:38px;
+    right:38px;
+    bottom:28px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px 20px;
+    align-items:center;
+    padding:10px 12px;
+    border:1px solid #d8dee9;
+    border-radius:8px;
+    background:#fff;
+    box-shadow:0 4px 14px rgba(15,23,42,.05);
+    color:#344054;
+    font-size:11px;
+  }
+  .legend b{margin-right:4px}
+  .sw{display:inline-block;width:26px;height:0;margin-right:6px;border-top:3px solid;vertical-align:middle}
+  .dash{border-top-style:dashed}
+  .dot{border-top-style:dotted}
+  .label{font-size:10px;font-weight:720}
+  .t-blue{fill:var(--blue);color:var(--blue)}
+  .t-violet{fill:var(--violet);color:var(--violet)}
+  .t-amber{fill:var(--amber);color:var(--amber)}
+  .t-green{fill:var(--green);color:var(--green)}
+  .t-rose{fill:var(--rose);color:var(--rose)}
+  .t-red{fill:var(--red);color:var(--red)}
+  .t-slate{fill:var(--slate);color:var(--slate)}
+</style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <h1>IMBM 当前系统架构</h1>
+    <div class="subtitle">基于 SunTzu 的主循环、状态压缩、自动经济/微操与动作执行，替换为 IM 同步动作生成 + BM 异步后台计划。</div>
+  </header>
+
+  <section class="canvas" aria-label="IMBM architecture diagram">
+    <div class="lane" style="left:38px;width:314px">
+      <div class="lane-title">SunTzu 保留模块</div>
+      <div class="lane-note">自动控制、LLM API、trace 记录等基础设施仍由原项目承担。</div>
+    </div>
+    <div class="lane" style="left:416px;width:350px">
+      <div class="lane-title">IM 同步主链路</div>
+      <div class="lane-note">决策点内阻塞调用 IM，完成动作生成、校验修正与动作执行。</div>
+    </div>
+    <div class="lane" style="left:810px;width:332px">
+      <div class="lane-title">BM 异步后台链路</div>
+      <div class="lane-note">BM 在后台生成中期指令，通过 DirectiveStore 回流给后续 IM。</div>
+    </div>
+
+    <svg viewBox="0 0 1180 860" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <marker id="arrowBlue" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#2563eb"/></marker>
+        <marker id="arrowViolet" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#7c3aed"/></marker>
+        <marker id="arrowAmber" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#d97706"/></marker>
+        <marker id="arrowGreen" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#059669"/></marker>
+        <marker id="arrowRose" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#db2777"/></marker>
+        <marker id="arrowRed" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#dc2626"/></marker>
+        <marker id="arrowSlate" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 9 3.5, 0 7" fill="#475569"/></marker>
+      </defs>
+
+      <!-- Main synchronous path -->
+      <path d="M590 116 L590 166" stroke="#2563eb" stroke-width="2.4" fill="none" marker-end="url(#arrowBlue)"/>
+      <text x="608" y="148" class="label t-blue">on_step -> obs_to_text</text>
+
+      <path d="M590 266 L590 314" stroke="#2563eb" stroke-width="2.4" fill="none" marker-end="url(#arrowBlue)"/>
+      <text x="612" y="292" class="label t-blue">observation</text>
+
+      <path d="M590 450 L590 496" stroke="#db2777" stroke-width="2.2" fill="none" marker-end="url(#arrowRose)"/>
+      <text x="612" y="480" class="label t-rose">verify</text>
+
+      <path d="M455 540 C370 510, 366 345, 455 338" stroke="#db2777" stroke-width="1.7" stroke-dasharray="6 4" fill="none" marker-end="url(#arrowRose)"/>
+      <text x="330" y="444" class="label t-rose">retry <= 2</text>
+
+      <path d="M590 616 L590 662" stroke="#059669" stroke-width="2.4" fill="none" marker-end="url(#arrowGreen)"/>
+      <text x="612" y="646" class="label t-green">actions</text>
+
+      <path d="M590 666 C666 520, 724 246, 646 116" stroke="#059669" stroke-width="1.8" fill="none" marker-end="url(#arrowGreen)"/>
+      <text x="674" y="534" class="label t-green">unit commands</text>
+
+      <!-- Retained SunTzu side modules -->
+      <path d="M440 82 C270 98, 170 158, 195 211" stroke="#475569" stroke-width="1.8" stroke-dasharray="6 4" fill="none" marker-end="url(#arrowSlate)"/>
+      <text x="246" y="134" class="label t-slate">auto routines</text>
+
+      <path d="M195 311 C278 458, 392 640, 455 704" stroke="#475569" stroke-width="1.8" stroke-dasharray="6 4" fill="none" marker-end="url(#arrowSlate)"/>
+      <text x="248" y="512" class="label t-slate">auto orders</text>
+
+      <path d="M455 386 C350 414, 270 462, 195 520" stroke="#dc2626" stroke-width="1.9" fill="none" marker-end="url(#arrowRed)"/>
+      <text x="292" y="450" class="label t-red">IM API</text>
+
+      <path d="M455 422 C350 504, 270 594, 195 608" stroke="#475569" stroke-width="1.5" stroke-dasharray="5 4" fill="none" marker-end="url(#arrowSlate)"/>
+      <text x="304" y="570" class="label t-slate">trace</text>
+
+      <!-- Async BM path -->
+      <path d="M725 218 C775 196, 812 190, 850 206" stroke="#7c3aed" stroke-width="1.8" stroke-dasharray="6 4" fill="none" marker-end="url(#arrowViolet)"/>
+      <text x="760" y="180" class="label t-violet">obs snapshot</text>
+
+      <path d="M725 360 C778 324, 824 282, 850 240" stroke="#7c3aed" stroke-width="2" stroke-dasharray="7 4" fill="none" marker-end="url(#arrowViolet)"/>
+      <text x="736" y="314" class="label t-violet">trigger BM</text>
+      <text x="736" y="328" class="label t-violet">request / cold / expired</text>
+
+      <path d="M985 304 L985 370" stroke="#7c3aed" stroke-width="2.2" fill="none" marker-end="url(#arrowViolet)"/>
+      <text x="1004" y="344" class="label t-violet">critic</text>
+
+      <path d="M850 420 C784 388, 784 260, 850 234" stroke="#7c3aed" stroke-width="1.6" stroke-dasharray="6 4" fill="none" marker-end="url(#arrowViolet)"/>
+      <text x="762" y="354" class="label t-violet">retry <= 2</text>
+
+      <path d="M985 478 L985 548" stroke="#d97706" stroke-width="2.4" fill="none" marker-end="url(#arrowAmber)"/>
+      <text x="1004" y="520" class="label t-amber">directive</text>
+
+      <path d="M850 600 C790 598, 752 506, 725 398" stroke="#d97706" stroke-width="2.4" fill="none" marker-end="url(#arrowAmber)"/>
+      <text x="746" y="584" class="label t-amber">Given Tasks</text>
+
+      <path d="M1050 304 C1094 420, 1092 596, 1048 680" stroke="#dc2626" stroke-width="1.9" fill="none" marker-end="url(#arrowRed)"/>
+      <text x="1096" y="508" class="label t-red">BM API</text>
+    </svg>
+
+    <div class="note">
+      <b>当前代码要点</b><br>
+      main.py 当前实例化 ImBmPlayer。旧 PlanAgent/ActionAgent 文件仍保留，但主路径由 IM 负责动作，BM 只产出中期自然语言指令。
+    </div>
+
+    <div class="node game slate compact">
+      <div class="kicker">Runtime</div>
+      <div class="title">StarCraft II / python-sc2</div>
+      <div class="desc">BotAI.on_step 驱动；realtime=False；iteration 作为决策时钟。</div>
+    </div>
+
+    <div class="node auto slate">
+      <div class="kicker">SunTzu retained</div>
+      <div class="title">自动经济与自动微操</div>
+      <div class="desc">工人分配、MULE 采矿、射程内自动还击、前期 SCV 防守、建筑落点修正。</div>
+      <span class="badge">无需 LLM</span>
+    </div>
+
+    <div class="node imllm red compact">
+      <div class="kicker">IM API</div>
+      <div class="title">IM LLM Client</div>
+      <div class="desc">IM_MODEL_NAME、IM_BASE_URL、IM_API_KEY；当前 timeout=90s。</div>
+    </div>
+
+    <div class="node log slate compact">
+      <div class="kicker">Trace</div>
+      <div class="title">日志与训练痕迹</div>
+      <div class="desc">obs、actions、valid_actions、im/bm_think、directive、latency、game_result。</div>
+    </div>
+
+    <div class="node obs blue">
+      <div class="kicker">State compressor</div>
+      <div class="title">obs_to_text()</div>
+      <div class="desc">Round state、单位/建筑、可用能力、敌军、动作历史、地图资源点、能力描述。</div>
+      <span class="badge">短上下文状态</span>
+    </div>
+
+    <div class="node im blue">
+      <div class="kicker">Immediate Model</div>
+      <div class="title">IM Agent 同步动作生成</div>
+      <div class="desc">输入当前观测 + Given Tasks；默认输出 actions、request_background、background_reason；启用 -observation 时额外输出 predicted_observation。</div>
+      <span class="badge">阻塞当前决策点</span>
+    </div>
+
+    <div class="node imver rose">
+      <div class="kicker">Verifier on</div>
+      <div class="title">IM schema + action verifier</div>
+      <div class="desc">检查 JSON/schema、字段、能力、资源、人口、目标单位；失败反馈给 IM 修正。</div>
+      <span class="badge">当前最多 2 次</span>
+    </div>
+
+    <div class="node exec green">
+      <div class="kicker">Action layer</div>
+      <div class="title">run_actions()</div>
+      <div class="desc">执行前再次 check_action；build 类动作调用 find_placement；失败写入 error 并记录日志。</div>
+      <span class="badge">低层动作落地</span>
+    </div>
+
+    <div class="node bm violet">
+      <div class="kicker">Background Model</div>
+      <div class="title">BM Agent 异步战略计划</div>
+      <div class="desc">触发原因包括 IM 请求、冷启动、指令过期；输出自然语言中期指令，不直接执行动作。</div>
+      <span class="badge">create_task + executor</span>
+    </div>
+
+    <div class="node bmver violet compact">
+      <div class="kicker">Planner verifier</div>
+      <div class="title">BM critic / refine</div>
+      <div class="desc">复用 SunTzu planner 规则和 plan critic；自审后修正。</div>
+      <span class="badge">当前最多 2 轮</span>
+    </div>
+
+    <div class="node ds amber compact">
+      <div class="kicker">Shared memory</div>
+      <div class="title">DirectiveStore</div>
+      <div class="desc">线程安全 latest directive 单槽；BM 写入，IM 读取有效指令并转成 Given Tasks。</div>
+      <span class="badge">TTL = 360 iteration</span>
+    </div>
+
+    <div class="node bmllm red compact">
+      <div class="kicker">BM API</div>
+      <div class="title">BM LLM Client</div>
+      <div class="desc">BM_MODEL_NAME、BM_BASE_URL、BM_API_KEY；仅启用 -bm 时需要。</div>
+    </div>
+
+    <div class="legend">
+      <b>图例</b>
+      <span><span class="sw" style="border-color:#2563eb"></span>同步 IM 主路径</span>
+      <span><span class="sw dash" style="border-color:#7c3aed"></span>BM 条件异步触发</span>
+      <span><span class="sw" style="border-color:#d97706"></span>Directive 指令传递</span>
+      <span><span class="sw" style="border-color:#db2777"></span>默认启用校验/修正</span>
+      <span><span class="sw" style="border-color:#059669"></span>动作执行</span>
+      <span><span class="sw" style="border-color:#dc2626"></span>LLM API 调用</span>
+    </div>
+  </section>
+</main>
+</body>
+</html>
