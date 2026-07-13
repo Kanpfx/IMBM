@@ -182,6 +182,15 @@ python -c "import cli, agents.immediate, agents.background, game; print('imports
 
 原有的混合 `trace.json`、独立 `config.json` 和旧 observation 命名不再生成。
 
+从完整对局日志导出 ShareGPT 兼容 SFT 数据：
+
+```powershell
+python utils/filter_im_sft.py --logs logs --output datasets/im_sft.jsonl --report datasets/im_report.json
+python utils/filter_bm_sft.py --logs logs --output datasets/bm_sft.jsonl --report datasets/bm_report.json
+```
+
+两者仅接受胜局。IM 要求最终动作均执行有效，并以 30 秒局面增量评分；BM 要求已发布、critic 最终通过且 Directive 被后续 IM 使用，并以 90 秒战略增量评分。
+
 ## 文档
 
 - `docs/项目文件说明.md`：当前文件和目录职责说明。

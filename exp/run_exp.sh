@@ -18,7 +18,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "Waiting for vLLM..."
-until curl -fsS "http://127.0.0.1:12001/v1/models" >/dev/null; do
+until curl -fs "http://127.0.0.1:12001/v1/models" >/dev/null; do
   if ! kill -0 "$VLLM_PID" 2>/dev/null; then
     echo "vLLM failed to start."
     exit 1
