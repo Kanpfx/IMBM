@@ -217,6 +217,7 @@ class ImBmPlayer(LLMPlayer):
                 task_id=task_id,
             )
         )
+        self.save_metrics(iteration, "bm_trigger")
         self.logging("BM started", f"task={task_id} reason={trigger_reason}")
 
     async def run(self, iteration: int):

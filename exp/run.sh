@@ -5,7 +5,7 @@
 #SBATCH -p compute
 #SBATCH -N 1
 #SBATCH -t 01:00:00
-#SBATCH --gres=gpu:nvidia_rtx_a6000:1
+#SBATCH --gres=gpu:a100-pcie-40gb:1
 
 set -e
 

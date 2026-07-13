@@ -17,6 +17,7 @@ class RunLogger:
         for directory in (self.root, self.obs_dir, self.im_dir, self.bm_dir):
             directory.mkdir(parents=True, exist_ok=True)
         self.overview_path = self.root / "overview.json"
+        self.metrics_path = self.root / "metrics.jsonl"
         self._lock = Lock()
         self._overview = None
 
@@ -75,6 +76,15 @@ class RunLogger:
         with self._lock:
             path.write_text(text, encoding="utf-8")
         return f"../obs/{filename}"
+
+    def append_metrics(self, metrics: dict) -> None:
+        """Append one compact numeric game-state snapshot for offline filtering."""
+        with self._lock:
+            with self.metrics_path.open("a", encoding="utf-8") as f:
+                json.dump(metrics, f, ensure_ascii=False, separators=(",", ":"))
+                f.write("\n")
+                f.flush()
+                os.fsync(f.fileno())
 
     def save_im(self, tick: int, payload: dict) -> None:
         self._write_json(self.im_dir / f"{tick:06d}.json", payload)

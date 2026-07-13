@@ -37,6 +37,12 @@ class LLMClient:
             messages.append({"role": "system", "content": system_message})
         if history:
             messages.extend(history)
+        if (
+            "qwen3" in model_name.lower()
+            and not prompt.endswith("/think")
+            and not prompt.endswith("/no_think")
+        ):
+            prompt += "/no_think"
         messages.append({"role": "user", "content": prompt})
 
         def call_thread():

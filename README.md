@@ -174,6 +174,7 @@ python -c "import cli, agents.immediate, agents.background, game; print('imports
 每局日志写入对应的 `logs/.../<model>/<timestamp>/` 目录：
 
 - `overview.json`：对局设置、最终胜负和 SBR/RUR，以及 IM/BM 调用计数。
+- `metrics.jsonl`：每 10 tick 的数值局面快照；BM 触发时追加同结构快照，供离线筛选训练时间步。
 - `obs/`：每次 IM 决策时的真实观测文本。
 - `im/`：IM 的原始请求/回复、schema 与动作 verifier 结果、最终动作。
 - `bm/`：BM 的原始请求/回复、critic 结果、最终 Directive，以及取消或异常记录。

@@ -5,11 +5,10 @@ vllm serve /home/share/models/Qwen3-8B \
   --served-model-name Qwen3-8B \
   --host 127.0.0.1 \
   --port 12001 \
-  --max-model-len 8192 \
+  --max-model-len 10240 \
   --gpu-memory-utilization 0.80 \
   --enable-prefix-caching \
-  --trust-remote-code \
-  --chat-template-kwargs '{"enable_thinking": false}' &
+  --trust-remote-code &
 
 VLLM_PID=$!
 

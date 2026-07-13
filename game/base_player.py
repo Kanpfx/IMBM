@@ -16,6 +16,7 @@ from game.observation.units import unit_to_text as build_unit_text
 from game.observation.units import units_to_text as build_units_text
 from runtime.metrics import IterativeMean
 from runtime.run_logger import RunLogger
+from runtime.logging import log_current_iteration
 from utils.format import extract_first_number
 from utils.logger import setup_logger
 from game.verifier.action_verifier import check_action as validate_action
@@ -93,6 +94,14 @@ class BasePlayer(BotAI):
         if self.run_logger:
             self.run_logger.save_bm(task_id, payload)
 
+    def save_metrics(self, iteration: int, sample_type: str) -> None:
+        """记录可用于离线筛选的数值局面快照，不包含 LLM 原始内容。"""
+        if not self.run_logger:
+            return
+        metrics = log_current_iteration(self, iteration)
+        metrics["sample_type"] = sample_type
+        self.run_logger.append_metrics(metrics)
+
     async def on_end(self, game_result):
         game_result = game_result.name
         self.logging("game_result", game_result)
@@ -134,6 +143,9 @@ class BasePlayer(BotAI):
             return
         # 供给阻塞比例是实验指标之一，每帧先更新。
         self.sbr.update(int(self.supply_used == self.supply_cap))
+
+        if iteration % 10 == 0:
+            self.save_metrics(iteration, "periodic")
 
         await self.run(iteration)
 
