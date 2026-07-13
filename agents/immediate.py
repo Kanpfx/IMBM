@@ -19,6 +19,7 @@ class ImAgent(BaseAgent):
         self.max_retry_attempts = 2
         self.think = []
         self.chat_history = []
+        self.last_trace = {"calls": [], "verifier": []}
 
     def _parse_response(self, response: str) -> tuple[dict, str]:
         try:
@@ -101,6 +102,7 @@ class ImAgent(BaseAgent):
     def run(self, obs_text: str, plan_text: str | None = None, verifier=None):
         self.think = []
         self.chat_history = []
+        self.last_trace = {"calls": [], "verifier": []}
 
         prompt = create_im_prompt(obs_text, plan_text, include_observation=self.include_observation)
         # 首次回答先做 JSON/schema 检查，再进入动作合法性检查。
@@ -109,13 +111,23 @@ class ImAgent(BaseAgent):
             **self.generation_config,
             need_json=True,
         )
+        stage = "initial"
+        self.last_trace["calls"].append({"stage": stage, "prompt": prompt, "response": response})
         self.think.append([response])
         self.chat_history.append(messages)
 
         history = constrcut_openai_qa(prompt, response)
         payload, parse_error = self._parse_response(response)
+        verification_record = {
+            "stage": stage,
+            "schema_error": parse_error,
+            "actions_ok": None,
+            "actions_error": "",
+        }
+        self.last_trace["verifier"].append(verification_record)
         requested_background = payload["request_background"]
         requested_reason = payload["background_reason"]
+        refine_number = 0
 
         for _ in range(self.max_retry_attempts):
             if parse_error:
@@ -128,10 +140,22 @@ class ImAgent(BaseAgent):
                     **self.generation_config,
                     need_json=True,
                 )
+                refine_number += 1
+                stage = f"refine_{refine_number}"
+                self.last_trace["calls"].append(
+                    {"stage": stage, "prompt": refine_prompt, "response": response}
+                )
                 self.think.append([response])
                 self.chat_history.append(messages)
                 history.extend(constrcut_openai_qa(refine_prompt, response))
                 payload, parse_error = self._parse_response(response)
+                verification_record = {
+                    "stage": stage,
+                    "schema_error": parse_error,
+                    "actions_ok": None,
+                    "actions_error": "",
+                }
+                self.last_trace["verifier"].append(verification_record)
                 if payload["request_background"]:
                     requested_background = True
                     requested_reason = payload["background_reason"] or requested_reason
@@ -142,6 +166,8 @@ class ImAgent(BaseAgent):
 
             ok, verification_message = verifier(payload["actions"])
             self.think[-1].append(verification_message)
+            verification_record["actions_ok"] = ok
+            verification_record["actions_error"] = verification_message
             if ok:
                 break
 
@@ -153,10 +179,22 @@ class ImAgent(BaseAgent):
                 **self.generation_config,
                 need_json=True,
             )
+            refine_number += 1
+            stage = f"refine_{refine_number}"
+            self.last_trace["calls"].append(
+                {"stage": stage, "prompt": refine_prompt, "response": response}
+            )
             self.think.append([response])
             self.chat_history.append(messages)
             history.extend(constrcut_openai_qa(refine_prompt, response))
             payload, parse_error = self._parse_response(response)
+            verification_record = {
+                "stage": stage,
+                "schema_error": parse_error,
+                "actions_ok": None,
+                "actions_error": "",
+            }
+            self.last_trace["verifier"].append(verification_record)
             if payload["request_background"]:
                 requested_background = True
                 requested_reason = payload["background_reason"] or requested_reason

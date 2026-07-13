@@ -2,7 +2,6 @@ import logging
 import sys
 import os
 from typing import Optional
-from datetime import datetime
 
 
 class ColoredFormatter(logging.Formatter):
@@ -28,6 +27,7 @@ def setup_logger(
 ) -> logging.Logger:
     logger = logging.getLogger(name)
     logger.setLevel(level)
+    logger.propagate = False
 
     format_config = {
         "fmt": "%(asctime)s [%(name)s] [%(levelname)s]: %(message)s",
@@ -37,25 +37,29 @@ def setup_logger(
     stream_formatter = ColoredFormatter(**format_config)
     file_formatter = logging.Formatter(**format_config)
 
-    if not logger.hasHandlers():
-        # Stream Handler
-        s_handler = logging.StreamHandler(stream=sys.stdout)
-        s_handler.setFormatter(stream_formatter)
-        s_handler.setLevel(level)
-        logger.addHandler(s_handler)
+    # 同名玩家在同一 Python 进程内重开对局时，必须换到新的 run.log。
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
+        handler.close()
 
-        # File Handler
-        if log_dir is None:
-            log_dir = "./logs"
-        os.makedirs(log_dir, exist_ok=True)
-        log_file = os.path.join(log_dir, f"{name}_{datetime.now().strftime('%Y%m%d')}.log")
-        try:
-            f_handler = logging.FileHandler(log_file, "a")
-            f_handler.setFormatter(file_formatter)
-            f_handler.setLevel(level)
-            logger.addHandler(f_handler)
-        except OSError as e:
-            logger.error(f"Failed to create log file: {e}")
+    # Stream Handler
+    s_handler = logging.StreamHandler(stream=sys.stdout)
+    s_handler.setFormatter(stream_formatter)
+    s_handler.setLevel(level)
+    logger.addHandler(s_handler)
+
+    # File Handler
+    if log_dir is None:
+        log_dir = "./logs"
+    os.makedirs(log_dir, exist_ok=True)
+    log_file = os.path.join(log_dir, "run.log")
+    try:
+        f_handler = logging.FileHandler(log_file, "a", encoding="utf-8")
+        f_handler.setFormatter(file_formatter)
+        f_handler.setLevel(level)
+        logger.addHandler(f_handler)
+    except OSError as e:
+        logger.error(f"Failed to create log file: {e}")
 
     return logger
 

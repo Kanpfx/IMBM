@@ -52,6 +52,7 @@ class ImBmPlayer(LLMPlayer):
         # 记录正在运行的 BM 任务，防止重复启动或过期指令长期生效。
         self.bm_task = None
         self.bm_task_reason = ""
+        self.bm_task_counter = 0
         self.directive_ttl = 360
 
         # 这些状态原本由 LLMPlayer 初始化；这里手动补齐。
@@ -75,7 +76,18 @@ class ImBmPlayer(LLMPlayer):
         except Exception:
             return fallback
 
-    async def _run_bm_background(self, obs_text: str, iteration: int, trigger_reason: str):
+    @staticmethod
+    def _directive_payload(directive: Directive | None):
+        return directive.to_dict() if directive else None
+
+    async def _run_bm_background(
+        self,
+        obs_text: str,
+        observation_file: str | None,
+        iteration: int,
+        trigger_reason: str,
+        task_id: int,
+    ):
         start_time = time.time()
         try:
             loop = asyncio.get_running_loop()
@@ -99,22 +111,70 @@ class ImBmPlayer(LLMPlayer):
                 source="BM",
             )
             self.directive_store.write(directive)
-            self.logging("bm_latency", round(time.time() - start_time, 4), save_trace=True)
-            self.logging("bm_trigger_reason", trigger_reason, save_trace=True)
-            self.logging("bm_plan", plan_data, save_trace=True)
-            self.logging("bm_think", bm_think, save_trace=True, print_log=False)
-            self.logging("bm_chat_history", bm_chat_history, save_trace=True, print_log=False)
-            self.logging("directive", directive.to_dict(), save_trace=True)
+            latency = round(time.time() - start_time, 4)
+            self.save_bm_record(
+                task_id,
+                {
+                    "task_id": task_id,
+                    "trigger_tick": iteration,
+                    "completed_tick": self._current_iteration(iteration),
+                    "observation_file": observation_file,
+                    "trigger_reason": trigger_reason,
+                    "status": "published",
+                    "calls": self.bm_agent.last_trace["calls"],
+                    "critics": self.bm_agent.last_trace["critics"],
+                    "final_plan": plan_data,
+                    "directive": directive.to_dict(),
+                    "latency_seconds": latency,
+                    "error": None,
+                },
+            )
+            self.logging("BM complete", f"task={task_id} commands={len(plan_data)} latency={latency}s")
         except asyncio.CancelledError:
-            self.logging("bm_cancelled", trigger_reason, save_trace=True)
+            self.save_bm_record(
+                task_id,
+                {
+                    "task_id": task_id,
+                    "trigger_tick": iteration,
+                    "completed_tick": self._current_iteration(iteration),
+                    "observation_file": observation_file,
+                    "trigger_reason": trigger_reason,
+                    "status": "cancelled",
+                    "calls": self.bm_agent.last_trace["calls"],
+                    "critics": self.bm_agent.last_trace["critics"],
+                    "final_plan": None,
+                    "directive": None,
+                    "latency_seconds": round(time.time() - start_time, 4),
+                    "error": None,
+                },
+            )
+            self.logging("BM cancelled", f"task={task_id} reason={trigger_reason}", level="warning")
             raise
         except Exception as exc:
-            self.logging("bm_error", str(exc), level="error", save_trace=True)
+            self.save_bm_record(
+                task_id,
+                {
+                    "task_id": task_id,
+                    "trigger_tick": iteration,
+                    "completed_tick": self._current_iteration(iteration),
+                    "observation_file": observation_file,
+                    "trigger_reason": trigger_reason,
+                    "status": "error",
+                    "calls": self.bm_agent.last_trace["calls"],
+                    "critics": self.bm_agent.last_trace["critics"],
+                    "final_plan": None,
+                    "directive": None,
+                    "latency_seconds": round(time.time() - start_time, 4),
+                    "error": str(exc),
+                },
+            )
+            self.logging("BM error", f"task={task_id} error={exc}", level="error")
 
     async def _maybe_start_bm(
         self,
         iteration: int,
         obs_text: str,
+        observation_file: str | None,
         request_background: bool,
         background_reason: str,
         directive_before_im: Directive | None,
@@ -139,25 +199,25 @@ class ImBmPlayer(LLMPlayer):
             if request_background and not self.bm_task_reason.startswith("im_request"):
                 # IM 主动请求的优先级更高，可以取消普通后台刷新。
                 self.bm_task.cancel()
-                self.logging("bm_cancelled_for_im_request", self.bm_task_reason, save_trace=True)
             else:
-                self.logging("bm_triggered", False, save_trace=True)
-                self.logging("bm_skip_reason", "bm_already_running", save_trace=True)
                 return
 
         if background_reason:
             trigger_reason += f": {background_reason}"
 
-        self.logging("bm_triggered", True, save_trace=True)
-        self.logging("bm_trigger_reason", trigger_reason, save_trace=True)
+        self.bm_task_counter += 1
+        task_id = self.bm_task_counter
         self.bm_task_reason = trigger_reason
         self.bm_task = asyncio.create_task(
             self._run_bm_background(
                 obs_text=obs_text,
+                observation_file=observation_file,
                 iteration=iteration,
                 trigger_reason=trigger_reason,
+                task_id=task_id,
             )
         )
+        self.logging("BM started", f"task={task_id} reason={trigger_reason}")
 
     async def run(self, iteration: int):
         # 自动经济和基础防守每帧先跑，减少 LLM 决策间隔带来的空转。
@@ -179,18 +239,13 @@ class ImBmPlayer(LLMPlayer):
         ):
             self.next_decision_time = iteration + 9 * decision_iteration
 
-            self.log_current_iteration(iteration)
             obs_text = await self.obs_to_text()
+            observation_file = self.save_observation(iteration, obs_text)
 
             # 每次 IM 决策前读取一次有效 BM 指令。
             latest_directive = self.directive_store.latest()
             active_directive = self.directive_store.read(iteration)
             plan_text = self._directive_to_plan_text(active_directive)
-            directive_age = active_directive.age(iteration) if active_directive else None
-            self.logging("directive_age", directive_age, save_trace=True)
-            if active_directive:
-                self.logging("directive", active_directive.to_dict(), save_trace=True, print_log=False)
-                self.logging("plan_text", plan_text, save_trace=True, print_log=False)
 
             # IM 同步返回动作；动作会在 agent 内经过 schema/refine 和 verifier。
             im_start_time = time.time()
@@ -206,27 +261,44 @@ class ImBmPlayer(LLMPlayer):
                 plan_text=plan_text,
                 verifier=self.verify_actions,
             )
-            self.logging("im_latency", round(time.time() - im_start_time, 4), save_trace=True)
-            if self.include_observation:
-                self.logging("predicted_observation", predicted_observation, save_trace=True, print_log=False)
-            self.logging("request_background", request_background, save_trace=True)
-            self.logging("background_reason", background_reason, save_trace=True)
-            self.logging("actions", actions, save_trace=True)
-            self.logging("im_think", im_think, save_trace=True, print_log=False)
-            self.logging("im_chat_history", im_chat_history, save_trace=True, print_log=False)
+            im_latency = round(time.time() - im_start_time, 4)
 
             # 执行动作前仍会在 BasePlayer wrapper 内做最终校验。
             await self.run_actions(actions)
+            im_result = {
+                "actions": actions,
+                "request_background": request_background,
+                "background_reason": background_reason,
+                "latency_seconds": im_latency,
+            }
+            if self.include_observation:
+                im_result["predicted_observation"] = predicted_observation
+            self.save_im_record(
+                iteration,
+                {
+                    "tick": iteration,
+                    "time_seconds": int(self.time),
+                    "observation_file": observation_file,
+                    "directive": self._directive_payload(active_directive),
+                    "calls": self.im_agent.last_trace["calls"],
+                    "verifier": self.im_agent.last_trace["verifier"],
+                    "result": im_result,
+                },
+            )
+            valid_actions = sum(action.get("is_valid", True) for action in actions)
+            self.logging(
+                "IM complete",
+                f"calls={len(self.im_agent.last_trace['calls'])} actions={len(actions)} "
+                f"valid={valid_actions} latency={im_latency}s",
+            )
 
             # 决策结束后根据 IM 请求或指令过期情况触发 BM。
             await self._maybe_start_bm(
                 iteration=iteration,
                 obs_text=obs_text,
+                observation_file=observation_file,
                 request_background=request_background,
                 background_reason=background_reason,
                 directive_before_im=active_directive,
                 latest_directive=latest_directive,
             )
-
-        elif iteration % 10 == 0:
-            self.log_current_iteration(iteration)

@@ -1,5 +1,4 @@
 from argparse import ArgumentParser
-import json
 import os
 
 from config import game
@@ -140,8 +139,7 @@ def main():
         "bm_model_name": bm_model_name if args.bm else "",
         "bm_base_url": os.getenv("BM_BASE_URL", "") if args.bm else "",
     }
-    with open(ai_player.log_path + "/config.json", "w", encoding="utf-8") as f:
-        json.dump(config_for_log, f, indent=4, ensure_ascii=False)
+    ai_player.initialize_overview(config_for_log)
 
     run_game(
         maps.get(args.map_name),

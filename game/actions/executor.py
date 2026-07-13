@@ -57,8 +57,4 @@ async def execute_actions(player, actions):
             action["error"] = str(e)
 
     valid_actions = [action for action in actions if action.get("is_valid", True)]
-    player.logging("valid_actions", valid_actions, save_trace=True, print_log=False)
-    player.logging("valid_actions", "\n" + json.dumps(valid_actions, indent=2, ensure_ascii=False))
-
-    valid_actions = [json.dumps(action, ensure_ascii=False) for action in valid_actions]
-    player.last_action.extend(valid_actions)
+    player.last_action.extend([json.dumps(action, ensure_ascii=False) for action in valid_actions])

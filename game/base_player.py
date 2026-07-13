@@ -1,5 +1,3 @@
-import json
-import os
 import time
 
 from sc2.bot_ai import BotAI
@@ -17,6 +15,7 @@ from game.observation.units import unit_state_to_text as build_unit_state_text
 from game.observation.units import unit_to_text as build_unit_text
 from game.observation.units import units_to_text as build_units_text
 from runtime.metrics import IterativeMean
+from runtime.run_logger import RunLogger
 from utils.format import extract_first_number
 from utils.logger import setup_logger
 from game.verifier.action_verifier import check_action as validate_action
@@ -43,8 +42,10 @@ class BasePlayer(BotAI):
         self.enable_logging = enable_logging
         if enable_logging:
             self.log_path = f"{log_path}/{self.real_model_name}/{time_str}"
-            os.makedirs(f"{self.log_path}/observation", exist_ok=True)
             self.logger = setup_logger(f"{player_name}_{self.real_model_name}", log_dir=self.log_path)
+            self.run_logger = RunLogger(self.log_path)
+        else:
+            self.run_logger = None
 
         self._tag_to_id = {}
         self._id_to_tag = {}
@@ -53,7 +54,6 @@ class BasePlayer(BotAI):
 
         # LLM 只看到短 ID，不直接暴露 python-sc2 的长 tag。
         self.last_action = []
-        self.trace = {}
         self.tag_to_health = {}
 
         self.sbr = IterativeMean()
@@ -74,33 +74,42 @@ class BasePlayer(BotAI):
             elif level == "error":
                 self.logger.error(text)
 
-        if save_trace:
-            # trace.json 按游戏 tick 聚合，便于复盘每轮模型决策。
-            if idx not in self.trace:
-                self.trace[idx] = {}
-            self.trace[idx][key] = value
-            if idx % 500 == 0:
-                with open(f"{self.log_path}/trace.json", "w", encoding="utf-8") as f:
-                    json.dump(self.trace, f, indent=2, ensure_ascii=False)
+        # save_trace/save_file 保留在签名中兼容旧调用；结构化内容改由 RunLogger 分类落盘。
 
-        if save_file:
-            with open(f"{self.log_path}/observation/{idx}-{key}.txt", "w", encoding="utf-8") as f:
-                if isinstance(value, list) or isinstance(value, dict):
-                    value = json.dumps(value, indent=2, ensure_ascii=False)
-                f.write(value)
+    def initialize_overview(self, config: dict) -> None:
+        if self.run_logger:
+            self.run_logger.initialize_overview(config)
+
+    def save_observation(self, tick: int, text: str) -> str | None:
+        if self.run_logger:
+            return self.run_logger.save_observation(tick, text)
+        return None
+
+    def save_im_record(self, tick: int, payload: dict) -> None:
+        if self.run_logger:
+            self.run_logger.save_im(tick, payload)
+
+    def save_bm_record(self, task_id: int, payload: dict) -> None:
+        if self.run_logger:
+            self.run_logger.save_bm(task_id, payload)
 
     async def on_end(self, game_result):
         game_result = game_result.name
-        self.logging("game_result", game_result, save_trace=True)
-        self.logging("SBR", round(self.sbr.mean, 4), save_trace=True)
+        self.logging("game_result", game_result)
 
         time_cost = self.time_formatted.split(":")
         time_cost = int(time_cost[0]) * 60 + int(time_cost[1])
-        self.logging("time_cost", time_cost, save_trace=True)
-        self.logging("RUR", round(self.resource_cost / time_cost, 4), save_trace=True)
-
-        with open(f"{self.log_path}/trace.json", "w", encoding="utf-8") as f:
-            json.dump(self.trace, f, indent=2, ensure_ascii=False)
+        rur = round(self.resource_cost / time_cost, 4) if time_cost else 0.0
+        self.logging("game_summary", f"time={time_cost}s SBR={self.sbr.mean:.4f} RUR={rur:.4f}")
+        if self.run_logger:
+            self.run_logger.finalize(
+                {
+                    "game_result": game_result,
+                    "time_seconds": time_cost,
+                    "sbr": round(self.sbr.mean, 4),
+                    "rur": rur,
+                }
+            )
 
     def update_tag_to_health(self):
         self.tag_to_health = {unit.tag: unit.health for unit in self.units}

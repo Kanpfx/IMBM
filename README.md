@@ -169,6 +169,18 @@ python -c "import cli, agents.immediate, agents.background, game; print('imports
 
 完整游戏运行需要安装 StarCraft II、地图包和 Python SC2 相关依赖。
 
+## 运行日志
+
+每局日志写入对应的 `logs/.../<model>/<timestamp>/` 目录：
+
+- `overview.json`：对局设置、最终胜负和 SBR/RUR，以及 IM/BM 调用计数。
+- `obs/`：每次 IM 决策时的真实观测文本。
+- `im/`：IM 的原始请求/回复、schema 与动作 verifier 结果、最终动作。
+- `bm/`：BM 的原始请求/回复、critic 结果、最终 Directive，以及取消或异常记录。
+- `run.log`：简短的运行摘要、warning 和 error。
+
+原有的混合 `trace.json`、独立 `config.json` 和旧 observation 命名不再生成。
+
 ## 文档
 
 - `docs/项目文件说明.md`：当前文件和目录职责说明。

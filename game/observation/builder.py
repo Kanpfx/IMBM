@@ -20,8 +20,4 @@ async def build_observation_text(player):
     obs["Ability description"] = get_ability_desc(player, obs["Unit abilities"] + obs["Structure abilities"])
     obs_text = "\n\n".join([f"# {key}\n{value}" for key, value in obs.items()])
 
-    player.logging("obs", obs, save_trace=True, print_log=False)
-    if player.enable_logging:
-        # 完整观测单独落盘，trace 里保存结构化版本。
-        player.logging("obs_text", obs_text, save_file=True, print_log=False)
     return obs_text
