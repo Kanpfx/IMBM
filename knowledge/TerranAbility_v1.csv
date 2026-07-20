@@ -1,6 +1,6 @@
 enabled,class,ability,description
 0,utility,TAUNT_TAUNT,
-2,control,STOP_STOP,
+2,control,STOP_STOP,Stop the unit's current orders.
 0,control,STOP_HOLDFIRESPECIAL,
 0,control,STOP_CHEER,
 0,control,STOP_DANCE,
@@ -25,10 +25,10 @@ enabled,class,ability,description
 0,control,CANCEL_GRAVITONBEAM,
 0,control,CANCEL_NEURALPARASITE,
 0,control,CANCEL_QUEUE1,
-2,control,CANCEL_QUEUE5,
+2,control,CANCEL_QUEUE5,Cancel up to five queued production or research orders.
 0,control,CANCEL_QUEUECANCELTOSELECTION,
 0,control,CANCEL_QUEUEADDON,
-2,control,CANCEL_BUILDINPROGRESS,
+2,control,CANCEL_BUILDINPROGRESS,Cancel this unfinished construction or morph.
 0,control,CANCEL_BARRACKSADDON,
 0,control,CANCEL_FACTORYADDON,
 0,control,CANCEL_STARPORTADDON,
@@ -103,18 +103,18 @@ enabled,class,ability,description
 0,utility,MORPHTOCOLLAPSIBLEROCKTOWERDEBRISRAMPLEFTGREEN_CANCEL,
 0,utility,MORPHTOCOLLAPSIBLEROCKTOWERDEBRISRAMPRIGHTGREEN_CANCEL,
 0,utility,MORPHTOBANELING_CANCEL,
-2,control,LIFT_COMMANDCENTER,
-2,control,LIFT_BARRACKS,
-2,control,LIFT_FACTORY,
-2,control,LIFT_STARPORT,
-2,control,LIFT_ORBITALCOMMAND,
-2,utility,LIFT,
-2,control,LAND_COMMANDCENTER,
-2,control,LAND_FACTORY,
-2,control,LAND_STARPORT,
-2,control,LAND_BARRACKS,
-2,control,LAND_ORBITALCOMMAND,
-2,utility,LAND,
+2,control,LIFT_COMMANDCENTER,Lift this Command Center into its flying form.
+2,control,LIFT_BARRACKS,Lift this Barracks into its flying form.
+2,control,LIFT_FACTORY,Lift this Factory into its flying form.
+2,control,LIFT_STARPORT,Lift this Starport into its flying form.
+2,control,LIFT_ORBITALCOMMAND,Lift this Orbital Command into its flying form.
+2,utility,LIFT,Lift this Terran structure into its flying form.
+2,control,LAND_COMMANDCENTER,Land this flying Command Center at the target position.
+2,control,LAND_FACTORY,Land this flying Factory at the target position.
+2,control,LAND_STARPORT,Land this flying Starport at the target position.
+2,control,LAND_BARRACKS,Land this flying Barracks at the target position.
+2,control,LAND_ORBITALCOMMAND,Land this flying Orbital Command at the target position.
+2,utility,LAND,Land this flying Terran structure at the target position.
 0,utility,SALVAGEEFFECT_SALVAGE,
 1,combat,ATTACK_ATTACK,Attack some unit or structure.
 1,combat,ATTACK_ATTACKTOWARDS,Attack towards target position.
@@ -174,7 +174,7 @@ enabled,class,ability,description
 0,utility,BURROWDOWN_ULTRALISK,
 0,utility,BURROWDOWN_RAVAGER,
 0,utility,BURROWDOWN_SWARMHOST,
-2,utility,BURROWDOWN_WIDOWMINE,
+2,utility,BURROWDOWN_WIDOWMINE,Burrow this Widow Mine underground.
 0,utility,BURROWDOWN_BANELING,
 1,utility,BURROWUP_WIDOWMINE,Enables the Widow Mine to emerge from the ground and regain mobility.
 1,economy,CALLDOWNMULE_CALLDOWNMULE,"Calls down a MULE, a temporary unit with a timed life of 64 seconds that can mine minerals and repair for the Terran forces."
@@ -184,7 +184,7 @@ enabled,class,ability,description
 1,combat,EFFECT_INTERFERENCEMATRIX,Disables a target unit rendering it unable to attack or use abilities for 11 seconds. Reveals Cloaked units. Can only target mechanical and psionic units.
 1,combat,EFFECT_MEDIVACIGNITEAFTERBURNERS,Speed boost that increases Medivac's movement speed to 5.95 and acceleration to 1400 for 4.3 seconds.
 0,support,EFFECT_REPAIR_MULE,Repair some unit or strcture.
-2,support,EFFECT_REPAIR_SCV,Repair some unit or strcture.
+2,support,EFFECT_REPAIR_SCV,Repair the target friendly unit or structure.
 0,combat,EFFECT_SALVAGE,"Destroy a Bunker, returning 75 minerals."
 0,combat,EFFECT_SPRAY_TERRAN,Spray a marker.
 0,combat,EFFECT_SPRAY_PROTOSS,Spray a marker.
@@ -205,7 +205,7 @@ enabled,class,ability,description
 1,production,FACTORYTRAIN_SIEGETANK,"Train a Siege Tank, a transforming artillery unit that bombards ground targets from long range with devastating area-of-effect damage."
 1,production,FACTORYTRAIN_THOR,"Train a Thor, a heavily-armored combat walker that excels against massive ground units and light air fleets."
 1,production,FACTORYTRAIN_WIDOWMINE,"Train a Widow Mine, a burrowing trap that launches a devastating missile at the first enemy ground or air unit to cross its path."
-2,control,HALT,
+2,control,HALT,Stop this unit's current action.
 0,utility,HALT_BUILDING,
 0,utility,HALT_TERRANBUILD,
 0,economy,HARVEST_GATHER,
@@ -228,7 +228,7 @@ enabled,class,ability,description
 1,technology,MORPH_HELLION,"Transforms the Hellbat into its Hellion form, remote support mode."
 1,technology,MORPH_LIBERATORAAMODE,"Reverts to Fighter Mode. In this mode, Liberators can move, but they can only target air units."
 1,technology,MORPH_LIBERATORAGMODE,"Deploys into Defender Mode. In this mode, Liberators inflict single target damage to ground units. Liberators in this mode cannot move."
-2,control,MORPH_SUPPLYDEPOT_LOWER,
+2,control,MORPH_SUPPLYDEPOT_LOWER,Lower this Supply Depot so ground units can pass.
 0,technology,MORPH_SUPPLYDEPOT_RAISE,
 1,technology,MORPH_THOREXPLOSIVEMODE,"Arms the Thor's Javelin missile launchers, which deal splash damage to nearby air units and additional damage to Light units."
 1,technology,MORPH_THORHIGHIMPACTMODE,"Activates the Thor's 250mm Punisher Cannons, which strike a single air target for heavy damage."
@@ -262,7 +262,7 @@ enabled,class,ability,description
 1,build,TERRANBUILD_BARRACKS,"Build a Barracks to produce infantry units (Marine, Reaper, Marauder, Ghost)."
 1,build,TERRANBUILD_BUNKER,"Build a Bunker, a static defense building."
 1,build,TERRANBUILD_COMMANDCENTER,"Build a Command Center, the Terran base."
-2,build,TERRANBUILD_ENGINEERINGBAY,"Build an Engineer Bay to unlock Missile Turret, Sensor Tower and Planetary Fortress."
+2,build,TERRANBUILD_ENGINEERINGBAY,Build an Engineering Bay to unlock Missile Turrets and upgrades.
 1,build,TERRANBUILD_FACTORY,"Build a Factory to produce mechanical ground units (Hellion, Widow Mine, Siege Tank, Hellbat, Thor) and unlock the Starport and Armory."
 1,build,TERRANBUILD_FUSIONCORE,Build a Fusion Core to unlock Battlecruiser.
 1,build,TERRANBUILD_GHOSTACADEMY,Build a Ghost Academy to unlock the Ghost unit.

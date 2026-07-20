@@ -25,7 +25,7 @@ class TargetType:
 
 
 def load_knowledge():
-    TerranAbilityData = pd.read_csv("knowledge/TerranAbility.csv")
+    TerranAbilityData = pd.read_csv("knowledge/TerranAbility_v1.csv")
     with open("knowledge/data.json", "r") as f:
         game_data = json.load(f)
 
@@ -39,7 +39,7 @@ def load_knowledge():
         else:
             target = ability_data[0]["target"]
         if not isinstance(target, str):
-            if "Build" in target:
+            if "Build" in target or "MorphPlace" in target:
                 target = TargetType.POINT
             elif "BuildOnUnit" in target or "Unit" in target:
                 target = TargetType.UNIT
