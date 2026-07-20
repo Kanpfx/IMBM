@@ -20,6 +20,7 @@ map_choices = [
     "Simple64",
     "Simple96",
     "Simple128",
+    "PylonAIE_v4",
 ]
 
 ai_build_choices = ["RandomBuild", "Rush", "Timing", "Power", "Macro", "Air"]

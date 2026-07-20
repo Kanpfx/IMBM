@@ -199,8 +199,8 @@ class ImBmPlayer(LLMPlayer):
             decision_iteration = random.randint(24, 36)
             decision_minerals = random.randint(130, 200)
         else:
-            decision_iteration = 30
-            decision_minerals = 170
+            decision_iteration = 10
+            decision_minerals = 150
 
         if (
             iteration % decision_iteration == 0
