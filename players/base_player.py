@@ -83,6 +83,7 @@ class BasePlayer(BotAI):
         self.next_id = 1
 
         self.last_action = []
+        self.last_validation_error = ""
         self.trace = {}
         self.tag_to_health = {}
 
@@ -195,7 +196,10 @@ class BasePlayer(BotAI):
             errors.append(">>>> Total actions error: supply is not enough for executing all actions")
 
         if errors:
-            return False, "\n\n".join(errors)
+            self.last_validation_error = "\n\n".join(errors)
+            return False, self.last_validation_error
+        if actions:
+            self.last_validation_error = ""
         return True, ""
 
     def check_action(self, action: dict):
@@ -455,11 +459,16 @@ class BasePlayer(BotAI):
                 action["error"] = str(e)
 
         valid_actions = [action for action in actions if action.get("is_valid", True)]
+        failed_actions = [action for action in actions if not action.get("is_valid", True)]
         self.logging("valid_actions", valid_actions, save_trace=True, print_log=False)
         self.logging("valid_actions", "\n" + json.dumps(valid_actions, indent=2, ensure_ascii=False))
 
-        valid_actions = [json.dumps(action, ensure_ascii=False) for action in valid_actions]
-        self.last_action.extend(valid_actions)
+        action_history = [json.dumps(action, ensure_ascii=False) for action in valid_actions]
+        action_history.extend(
+            "Failed action: " + json.dumps(action, ensure_ascii=False)
+            for action in failed_actions
+        )
+        self.last_action.extend(action_history)
 
     ################ obs to text
     async def obs_to_text(self):
@@ -514,9 +523,12 @@ class BasePlayer(BotAI):
         return text.strip()
 
     def action_history_to_text(self):
-        if len(self.last_action) == 0:
+        history = self.last_action[-10:]
+        if self.last_validation_error:
+            history = history + ["Previous validation error: " + self.last_validation_error]
+        if not history:
             return "[Empty]"
-        return "\n".join(self.last_action[-10:])
+        return "\n".join(history)
 
     async def units_to_text(self, units: Units):
         if len(units) == 0:
@@ -611,7 +623,9 @@ class BasePlayer(BotAI):
     async def abilities_to_text(self, units: Units):
         units = [unit for unit in units if unit.build_progress == 1.0]
         n_units = len(units)
-        units_ability_ids = await self.get_available_abilities(units, ignore_resource_requirements=True)
+        units_ability_ids = await self.get_available_abilities(
+            units, ignore_resource_requirements=False
+        )
         units_ability_names = [[ability_id.name for ability_id in units_ability_ids[i]] for i in range(n_units)]
         unit_hash_table = {}
         for i in range(n_units):
