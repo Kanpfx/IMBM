@@ -44,9 +44,13 @@ done
 
 echo "vLLM ready."
 
+export IM_MODEL_NAME="qwen35-2b-sc2-lora"
+export IM_BASE_URL="http://127.0.0.1:12001/v1"
+export IM_API_KEY="EMPTY"
+
 python main.py \
-  --player_name qwen35_2b_sc2_lora_flat48 \
-  --map_name Flat48 \
+  --player_name qwen35_2b_sc2_lora_PylonAIE_v4 \
+  --map_name PylonAIE_v4 \
   --difficulty VeryHard \
   --ai_build RandomBuild \
   --own_race Terran \
