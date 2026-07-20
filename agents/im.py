@@ -10,6 +10,10 @@ role_prompt = """
 As a top-tier StarCraft II executor, your task is to give some actions to finish the given task as possible as you can. You must also predict the near-future game state and request strategic guidance from the background model when facing strategic uncertainty.
 """.strip()
 
+role_prompt_without_prediction = """
+As a top-tier StarCraft II executor, your task is to give some actions to finish the given task as possible as you can. Request strategic guidance from the background model when facing strategic uncertainty.
+""".strip()
+
 
 # ── Executor rules (from SunTzu action_agent, unchanged) ──
 executor_rules = [
@@ -38,6 +42,10 @@ background_request_rule = (
 
 all_rules = executor_rules + [prediction_rule, background_request_rule]
 rules_prompt = "Rule checklist:\n" + "\n".join([f"{i+1}. {rule}" for i, rule in enumerate(all_rules)])
+rules_without_prediction = executor_rules + [background_request_rule]
+rules_prompt_without_prediction = "Rule checklist:\n" + "\n".join(
+    [f"{i+1}. {rule}" for i, rule in enumerate(rules_without_prediction)]
+)
 
 
 # ── Output format ──
@@ -82,6 +90,45 @@ Example:
 """.strip()
 
 
+action_format_prompt_without_prediction = """
+```
+{
+    "actions": [
+        {
+            "action": "<action_name>",
+            "units": [1, 2],
+            "target_unit": 3
+        }
+    ],
+    "request_background": true,
+    "background_reason": "<reason why we request updated strategic tasks>"
+}
+```
+""".strip()
+
+
+action_example_prompt_without_prediction = """
+Example:
+```
+{
+  "actions": [
+    {
+      "action": "TERRANBUILD_SUPPLYDEPOT",
+      "units": [1],
+      "target_position": [24, 30]
+    },
+    {
+      "action": "COMMANDCENTERTRAIN_SCV",
+      "units": [2]
+    }
+  ],
+  "request_background": true,
+  "background_reason": "We are under heavy attack and need updated strategic tasks."
+}
+```
+""".strip()
+
+
 required_predicted_observation_sections = [
     "# Round state",
     "# Own units",
@@ -97,10 +144,30 @@ required_predicted_observation_sections = [
 
 
 # ── Prompt builder ──
-def create_im_prompt(obs_text: str, plan_text: str | None):
+def create_im_prompt(
+    obs_text: str,
+    plan_text: str | None,
+    enable_predicted_observation: bool = False,
+):
     plan_section = plan_text or "[No active tasks — act based on the current game state]"
+    active_role_prompt = (
+        role_prompt if enable_predicted_observation else role_prompt_without_prediction
+    )
+    active_rules_prompt = (
+        rules_prompt if enable_predicted_observation else rules_prompt_without_prediction
+    )
+    active_action_format_prompt = (
+        action_format_prompt
+        if enable_predicted_observation
+        else action_format_prompt_without_prediction
+    )
+    active_action_example_prompt = (
+        action_example_prompt
+        if enable_predicted_observation
+        else action_example_prompt_without_prediction
+    )
     return f"""
-{role_prompt}
+{active_role_prompt}
 
 ### Current Game State
 {obs_text}
@@ -109,13 +176,13 @@ def create_im_prompt(obs_text: str, plan_text: str | None):
 {plan_section}
 
 ### Rules
-{rules_prompt}
+{active_rules_prompt}
 
 ### Required JSON Output
-{action_format_prompt}
+{active_action_format_prompt}
 
 ### Example JSON Output
-{action_example_prompt}
+{active_action_example_prompt}
 
 Please output only the well-formed JSON object that you have decided on, wrapped with triple backticks, with no extra text.
     """.strip()
@@ -123,9 +190,16 @@ Please output only the well-formed JSON object that you have decided on, wrapped
 
 # ── ImAgent ──
 class ImAgent(BaseAgent):
-    def __init__(self, race: str, *args, **kwargs):
+    def __init__(
+        self,
+        race: str,
+        *args,
+        enable_predicted_observation: bool = False,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.race = race
+        self.enable_predicted_observation = enable_predicted_observation
         self.max_retry_attempts = 3
         self.think = []
         self.chat_history = []
@@ -137,29 +211,29 @@ class ImAgent(BaseAgent):
                 raise ValueError("Response must contain a JSON code block wrapped with triple backticks.")
             payload = json.loads(code)
             if not isinstance(payload, dict):
-                raise ValueError(
-                    "IM response must be a JSON object with predicted_observation, actions, request_background, and background_reason."
-                )
-            if "predicted_observation" not in payload:
-                raise ValueError("Missing required key: predicted_observation.")
-            predicted_observation = payload["predicted_observation"]
-            if isinstance(predicted_observation, (dict, list)):
-                predicted_observation = json.dumps(predicted_observation, ensure_ascii=False)
-            else:
-                predicted_observation = str(predicted_observation)
-            if not predicted_observation.strip():
-                raise ValueError("`predicted_observation` must be a non-empty observation snapshot.")
-            missing_sections = [
-                section
-                for section in required_predicted_observation_sections
-                if section not in predicted_observation
-            ]
-            if missing_sections:
-                raise ValueError(
-                    "`predicted_observation` must be formatted as a formal observation snapshot. "
-                    + "Missing sections: "
-                    + ", ".join(missing_sections)
-                )
+                raise ValueError("IM response must be a JSON object.")
+            predicted_observation = ""
+            if self.enable_predicted_observation:
+                if "predicted_observation" not in payload:
+                    raise ValueError("Missing required key: predicted_observation.")
+                predicted_observation = payload["predicted_observation"]
+                if isinstance(predicted_observation, (dict, list)):
+                    predicted_observation = json.dumps(predicted_observation, ensure_ascii=False)
+                else:
+                    predicted_observation = str(predicted_observation)
+                if not predicted_observation.strip():
+                    raise ValueError("`predicted_observation` must be a non-empty observation snapshot.")
+                missing_sections = [
+                    section
+                    for section in required_predicted_observation_sections
+                    if section not in predicted_observation
+                ]
+                if missing_sections:
+                    raise ValueError(
+                        "`predicted_observation` must be formatted as a formal observation snapshot. "
+                        + "Missing sections: "
+                        + ", ".join(missing_sections)
+                    )
             actions = payload.get("actions", [])
             if not isinstance(actions, list):
                 raise ValueError("`actions` must be a list.")
@@ -193,7 +267,11 @@ class ImAgent(BaseAgent):
             "The previous IM response failed JSON syntax/schema validation:\n"
             + error
             + "\nReturn only a complete IM JSON object wrapped with triple backticks in this schema:\n"
-            + action_format_prompt
+            + (
+                action_format_prompt
+                if self.enable_predicted_observation
+                else action_format_prompt_without_prediction
+            )
         )
 
     def _refine_actions_prompt(self, verification_message: str) -> str:
@@ -201,14 +279,22 @@ class ImAgent(BaseAgent):
             "The previous IM actions failed validation:\n"
             + verification_message
             + "\nAnalyze the issue silently and return only a complete refined IM JSON object wrapped with triple backticks in this schema:\n"
-            + action_format_prompt
+            + (
+                action_format_prompt
+                if self.enable_predicted_observation
+                else action_format_prompt_without_prediction
+            )
         )
 
     def run(self, obs_text: str, plan_text: str | None = None, verifier=None):
         self.think = []
         self.chat_history = []
 
-        prompt = create_im_prompt(obs_text, plan_text)
+        prompt = create_im_prompt(
+            obs_text,
+            plan_text,
+            enable_predicted_observation=self.enable_predicted_observation,
+        )
         response, messages = self.llm_client.call(
             prompt=prompt,
             **self.generation_config,

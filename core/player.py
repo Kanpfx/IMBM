@@ -34,7 +34,12 @@ class ImBmPlayer(LLMPlayer):
             "generation_config": self.generation_config,
             "llm_client": self.llm_client,
         }
-        self.im_agent = ImAgent(config.own_race, **im_agent_config)
+        self.enable_predicted_observation = getattr(config, "obs", False)
+        self.im_agent = ImAgent(
+            config.own_race,
+            enable_predicted_observation=self.enable_predicted_observation,
+            **im_agent_config,
+        )
 
         # ── BM Agent (optional, replaces PlanVerifier's role) ──
         self.enable_bm = enable_bm
@@ -232,7 +237,8 @@ class ImBmPlayer(LLMPlayer):
                 verifier=self.verify_actions,
             )
             self.logging("im_latency", round(time.time() - im_start_time, 4), save_trace=True)
-            self.logging("predicted_observation", predicted_observation, save_trace=True, print_log=False)
+            if self.enable_predicted_observation:
+                self.logging("predicted_observation", predicted_observation, save_trace=True, print_log=False)
             self.logging("request_background", request_background, save_trace=True)
             self.logging("background_reason", background_reason, save_trace=True)
             self.logging("actions", actions, save_trace=True)

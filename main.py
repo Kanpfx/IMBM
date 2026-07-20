@@ -56,6 +56,11 @@ def parse_args():
         help="Enable background model (BM) for async strategic planning",
     )
     parser.add_argument(
+        "--obs",
+        action="store_true",
+        help="Enable IM predicted_observation output (disabled by default)",
+    )
+    parser.add_argument(
         "--enable_random_decision_interval",
         action="store_true",
         help="Randomize decision interval for data collection",
@@ -124,6 +129,7 @@ def main():
         "own_race": args.own_race,
         "enemy_race": args.enemy_race,
         "enable_bm": args.bm,
+        "enable_predicted_observation": args.obs,
         "enable_random_decision_interval": args.enable_random_decision_interval,
         "im_model_name": im_model_name,
         "im_base_url": os.getenv("IM_BASE_URL", ""),
