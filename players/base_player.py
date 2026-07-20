@@ -38,6 +38,9 @@ def load_knowledge():
             target = TargetType.NONE
         else:
             target = ability_data[0]["target"]
+        accept_legacy_point_target = (
+            not isinstance(target, str) and "BuildOnUnit" in target
+        )
         if not isinstance(target, str):
             if "Build" in target or "MorphPlace" in target:
                 target = TargetType.POINT
@@ -49,6 +52,7 @@ def load_knowledge():
             "enabled": item["enabled"],
             "description": description,
             "target": target,  # None, Point, Unit, PointOrUnit
+            "accept_legacy_point_target": accept_legacy_point_target,
         }
     return TerranAbility
 
@@ -202,6 +206,48 @@ class BasePlayer(BotAI):
             self.last_validation_error = ""
         return True, ""
 
+    def _normalise_legacy_point_target(self, action: dict):
+        """Adapt coordinate-based BuildOnUnit actions from the sampled Why traces.
+
+        The original trajectories express Refinery placement with a geyser
+        coordinate. python-sc2 executes the ability against the geyser unit, so
+        resolve that coordinate before the normal action validation path.
+        """
+        action_name = action.get("action")
+        if (
+            action_name not in TerranAbility
+            or not TerranAbility[action_name].get("accept_legacy_point_target")
+            or "target_position" not in action
+            or "target_unit" in action
+        ):
+            return None
+
+        target_position = action["target_position"]
+        if not (
+            isinstance(target_position, list)
+            and len(target_position) == 2
+            and all(isinstance(value, int) for value in target_position)
+        ):
+            return "`target_position` must be a list of two integers"
+
+        geysers = [gas for gas in self.vespene_geyser if gas.vespene_contents > 0]
+        if not geysers:
+            return "No vespene geyser is available for this action"
+
+        requested_position = Point2(target_position)
+        geyser = min(
+            geysers, key=lambda gas: gas.position.distance_to(requested_position)
+        )
+        if geyser.position.distance_to(requested_position) > 3:
+            return (
+                "`target_position` for this action must match a visible "
+                "Vespene Geyser"
+            )
+
+        action["target_unit"] = self.tag_to_id(geyser.tag)
+        del action["target_position"]
+        return None
+
     def check_action(self, action: dict):
         if not isinstance(action, dict):
             return False, "Action must be a dictionary"
@@ -215,6 +261,9 @@ class BasePlayer(BotAI):
         action_name = action["action"]
         if action_name not in TerranAbility:
             return False, f"Unknown action: {action['action']}"
+        legacy_target_error = self._normalise_legacy_point_target(action)
+        if legacy_target_error:
+            return False, legacy_target_error
         # target check
         target_type = TerranAbility[action_name]["target"]
         if target_type == TargetType.NONE:
@@ -496,6 +545,11 @@ class BasePlayer(BotAI):
             if TerranAbility[action].get("enabled", False) and action in text:
                 action_desc = TerranAbility[action]["description"]
                 action_keys = TerranAbility[action]["target"]
+                if TerranAbility[action].get("accept_legacy_point_target"):
+                    action_keys = (
+                        "Point (visible Vespene Geyser coordinates; "
+                        "target_unit also accepted)"
+                    )
                 desc.append(f"{action}(target: {action_keys}): {action_desc}")
                 try:
                     cost = self.units[0]._bot_object.game_data.calculate_ability_cost(AbilityId[action])
