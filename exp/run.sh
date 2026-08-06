@@ -5,7 +5,7 @@
 #SBATCH -p compute
 #SBATCH -N 1
 #SBATCH -t 01:00:00
-#SBATCH --gres=gpu:tesla_v100s-pcie-32gb:1
+#SBATCH --gres=gpu:a100-pcie-40gb:1
 
 set -e
 
@@ -14,7 +14,7 @@ mkdir -p logs
 export SC2PATH="/home/zrshan/apps/StarCraftII"
 
 . /home/zrshan/apps/miniconda3/etc/profile.d/conda.sh
-conda activate sc2
+conda activate why
 
-cd /home/zrshan/projects/IMBM
+cd /home/zrshan/projects/why_ares
 bash exp/run_exp.sh
