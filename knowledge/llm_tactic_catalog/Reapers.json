@@ -1,0 +1,42 @@
+{
+  "id": "Reapers",
+  "concept": "Maintain constant Reaper harassment to exploit weak targets and scouting information while using Hellions, upgrades, and expanding production to turn early mobility into a sustained army.",
+  "rules": [
+    "Check emergency_defence first, then reaper_harass. Otherwise use opening, reaper_harass, reaper_macro, late_pressure.",
+    "Keep Reapers in mobile squads and retreat damaged squads instead of donating them to enemy ground forces.",
+    "Attack only favorable local fights; prefer workers, isolated units, proxies, unfinished structures, and exposed expansions.",
+    "Keep SCV, Supply Depot, gas, and production growth running behind harassment. Hellions support map pressure."
+  ],
+  "phases": [
+    {
+      "id": "opening",
+      "enter_when": ["The first Reaper production infrastructure is not yet active."],
+      "goal": "Reach the Reaper production and Factory foundation quickly.",
+      "guidance": ["Build a Supply Depot, Barracks, two Refineries, Reaper, Orbital Command, additional Barracks, and Factory.", "Continue Reaper production and make supply before becoming blocked."]
+    },
+    {
+      "id": "reaper_harass",
+      "enter_when": ["At least one Reaper is available.", "The early army is mainly Reapers."],
+      "goal": "Gain worker damage and information without losing mobility.",
+      "guidance": ["Send Reaper squads to the enemy main or best visible target, prioritizing workers, isolated forces, proxies, and unfinished defences.", "Against a rush, retarget Reapers to defend the main base or intercept the closest ground threat.", "Against Terran proxy bunkers, identify and clear the forward position only when the fight is favorable."]
+    },
+    {
+      "id": "reaper_macro",
+      "enter_when": ["The opening build is complete.", "The bot is adding normal production, Hellions, upgrades, or expansions."],
+      "goal": "Grow the harassment into a supported mobile army.",
+      "guidance": ["Keep a Reaper-heavy composition, add Hellions, and begin infantry weapons and armor upgrades once three gas buildings support them.", "Expand normally and add production; if minerals are high but gas is scarce, temporarily use Marines.", "Regroup Reapers before a major direct fight."]
+    },
+    {
+      "id": "late_pressure",
+      "enter_when": ["The game is advanced and enemy town halls or structures have been identified."],
+      "goal": "Choose high-value targets rather than blindly attacking the starting location.",
+      "guidance": ["Choose the enemy town hall or structure location with the best expected fight, preferring closer equally safe targets.", "If no town halls are visible, sweep known structure locations and the map.", "Avoid entrenched armies and use mobility to pull the opponent apart."]
+    },
+    {
+      "id": "emergency_defence",
+      "enter_when": ["Enemy ground units threaten workers or the main town hall."],
+      "goal": "Use Reaper mobility to stabilize the home base.",
+      "guidance": ["Retarget the nearest Reaper squad to the threat and fight on favorable terrain.", "Keep enough units home before resuming harassment."]
+    }
+  ]
+}

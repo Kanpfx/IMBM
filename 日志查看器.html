@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IMBM 日志查看器</title>
+  <style>
+    :root { --page:#f5f7fb; --card:#fff; --ink:#182235; --muted:#667085; --line:#dce3ef; --blue:#175cd3; --purple:#6938ef; --green:#027a48; --red:#b42318; --code:#101828; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--page); color:var(--ink); font:14px/1.55 Inter,"Segoe UI",Arial,sans-serif; }
+    main { max-width:1280px; margin:auto; padding:30px 20px 56px; }
+    h1 { margin:0; font-size:27px; letter-spacing:-.5px; }
+    h2 { margin:0; font-size:16px; }
+    p { margin:0; }
+    .sub { color:var(--muted); margin:4px 0 20px; }
+    .toolbar,.card { background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:0 1px 2px #10182808; }
+    .toolbar { padding:16px; display:grid; gap:12px; }
+    .controls { display:flex; flex-wrap:wrap; align-items:center; gap:9px; }
+    button,.file-label { border:1px solid #b7c5df; border-radius:7px; background:#fff; color:#182235; padding:7px 11px; font:inherit; cursor:pointer; }
+    button.primary { background:var(--blue); border-color:var(--blue); color:#fff; }
+    button:disabled { cursor:not-allowed; opacity:.45; }
+    input[type=file] { display:none; }
+    input[type=range] { width:100%; accent-color:var(--blue); }
+    .tick-row { display:grid; grid-template-columns:92px 1fr 120px; gap:12px; align-items:center; }
+    .tick { font-variant-numeric:tabular-nums; color:var(--blue); font-weight:700; }
+    .status { color:var(--muted); min-height:22px; }
+    .summary { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin:16px 0; }
+    .metric { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:11px 13px; min-width:0; }
+    .metric b { display:block; font-size:18px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .metric span { color:var(--muted); font-size:12px; }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .card { overflow:hidden; min-width:0; }
+    .head { display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line); }
+    .tag { color:#fff; border-radius:99px; padding:2px 8px; font-size:11px; font-weight:700; letter-spacing:.4px; }
+    .im { background:var(--purple); } .bm { background:#0b6e99; } .ok { background:var(--green); } .event { background:#7a5af8; }
+    .body { padding:13px 14px; }
+    .muted { color:var(--muted); }
+    .guidance { margin:0; padding-left:20px; }
+    .guidance li + li { margin-top:5px; }
+    pre { margin:0; overflow:auto; border-radius:8px; padding:11px; background:var(--code); color:#e6edf7; font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; max-height:330px; }
+    .events { grid-column:1 / -1; }
+    .event-row { padding:8px 0; border-bottom:1px solid var(--line); }
+    .event-row:last-child { border:0; padding-bottom:0; }
+    details { margin-top:14px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 13px; }
+    summary { cursor:pointer; color:#344054; font-weight:600; }
+    details pre { margin-top:10px; max-height:420px; }
+    .empty { color:var(--muted); padding:18px 0; }
+    .hidden { display:none; }
+    @media (max-width:840px) { .summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .grid { grid-template-columns:1fr; } .events { grid-column:auto; } .tick-row { grid-template-columns:76px 1fr; } .tick-row span:last-child { grid-column:1 / -1; } }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>IMBM 日志查看器</h1>
+    <p class="sub">选择一个 <code>logs/时间戳</code> 目录；所有解析均在本地浏览器中完成。</p>
+
+    <section class="toolbar">
+      <div class="controls">
+        <button class="primary" id="directory-picker">选择日志目录</button>
+        <label class="file-label" for="directory-input">兼容方式：选择文件夹</label>
+        <input id="directory-input" type="file" webkitdirectory multiple>
+        <button id="previous" disabled>上一决策</button>
+        <button id="next" disabled>下一决策</button>
+      </div>
+      <div class="tick-row">
+        <span class="tick" id="tick-label">tick —</span>
+        <input id="tick-slider" type="range" min="0" max="0" value="0" disabled>
+        <span class="status" id="status">尚未加载日志。</span>
+      </div>
+    </section>
+
+    <section class="summary hidden" id="summary"></section>
+
+    <section class="grid hidden" id="viewer">
+      <article class="card">
+        <header class="head"><span class="tag im">IM</span><h2>IM 输出</h2></header>
+        <div class="body" id="im-panel"></div>
+      </article>
+      <article class="card">
+        <header class="head"><span class="tag bm">BM</span><h2>最近完成的 BM 输出</h2></header>
+        <div class="body" id="bm-panel"></div>
+      </article>
+      <article class="card">
+        <header class="head"><span class="tag ok">ACTION</span><h2>最终接受动作</h2></header>
+        <div class="body" id="action-panel"></div>
+      </article>
+      <article class="card">
+        <header class="head"><span class="tag event">EVENT</span><h2>本 tick 事件</h2></header>
+        <div class="body" id="event-panel"></div>
+      </article>
+    </section>
+
+    <details class="hidden" id="observation-details">
+      <summary>当前观测文本</summary>
+      <pre id="observation-panel"></pre>
+    </details>
+  </main>
+
+  <script>
+    const wantedFiles = new Set([
+      "metadata.json", "obs.jsonl", "im.jsonl", "bm.jsonl",
+      "accepted_actions.jsonl", "events.jsonl",
+    ]);
+    const state = { metadata: {}, observations: [], im: [], bm: [], decisions: [], events: [], ticks: [] };
+    const byTick = rows => new Map(rows.map(row => [Number(row.tick ?? row.loop), row]));
+    let indexes = {};
+
+    const $ = id => document.getElementById(id);
+    const text = (node, value) => { node.textContent = value; return node; };
+    const formatJson = value => JSON.stringify(value ?? {}, null, 2);
+    const compactJson = value => JSON.stringify(value ?? [], null, 0);
+    const noData = message => Object.assign(document.createElement("p"), { className: "empty", textContent: message });
+
+    function parseJsonl(content, filename) {
+      const rows = [];
+      content.split(/\r?\n/).forEach((line, index) => {
+        if (!line.trim()) return;
+        try { rows.push(JSON.parse(line)); }
+        catch (error) { throw new Error(`${filename} 第 ${index + 1} 行不是合法 JSON：${error.message}`); }
+      });
+      return rows;
+    }
+
+    async function loadFiles(files) {
+      const selected = new Map();
+      for (const file of files) if (wantedFiles.has(file.name)) selected.set(file.name, file);
+      if (!selected.has("accepted_actions.jsonl")) throw new Error("未找到 accepted_actions.jsonl；请选择一局日志的直接目录。");
+      const read = async name => selected.has(name) ? selected.get(name).text() : "";
+      const [metadata, obs, im, bm, decisions, events] = await Promise.all([
+        read("metadata.json"), read("obs.jsonl"), read("im.jsonl"), read("bm.jsonl"), read("accepted_actions.jsonl"), read("events.jsonl"),
+      ]);
+      state.metadata = metadata ? JSON.parse(metadata) : {};
+      state.observations = obs ? parseJsonl(obs, "obs.jsonl") : [];
+      state.im = im ? parseJsonl(im, "im.jsonl") : [];
+      state.bm = bm ? parseJsonl(bm, "bm.jsonl") : [];
+      state.decisions = parseJsonl(decisions, "accepted_actions.jsonl");
+      state.events = events ? parseJsonl(events, "events.jsonl") : [];
+      state.ticks = [...new Set(state.decisions.map(row => Number(row.tick)).filter(Number.isFinite))].sort((a, b) => a - b);
+      if (!state.ticks.length) throw new Error("accepted_actions.jsonl 中没有可浏览的 tick。");
+      indexes = {
+        observation: byTick(state.observations),
+        decision: byTick(state.decisions),
+        im: groupByTick(state.im),
+        event: groupByTick(state.events, row => Number(row.loop ?? row.tick)),
+      };
+      state.bm.sort((a, b) => Number(a.tick) - Number(b.tick));
+      $("tick-slider").min = "0";
+      $("tick-slider").max = String(state.ticks.length - 1);
+      $("tick-slider").value = "0";
+      $("tick-slider").disabled = false;
+      $("previous").disabled = false;
+      $("next").disabled = false;
+      $("summary").classList.remove("hidden");
+      $("viewer").classList.remove("hidden");
+      $("observation-details").classList.remove("hidden");
+      renderSummary();
+      renderCurrent();
+    }
+
+    function groupByTick(rows, key = row => Number(row.tick)) {
+      const grouped = new Map();
+      rows.forEach(row => {
+        const tick = key(row);
+        if (!Number.isFinite(tick)) return;
+        if (!grouped.has(tick)) grouped.set(tick, []);
+        grouped.get(tick).push(row);
+      });
+      return grouped;
+    }
+
+    function renderSummary() {
+      const meta = state.metadata;
+      const metrics = [
+        [state.decisions.length, "IM 决策"],
+        [state.im.length, "IM 回复"],
+        [state.bm.length, "BM 回复"],
+        [meta.map_name || "未知地图", "地图"],
+        [meta.model || "未知模型", "模型"],
+      ];
+      const container = $("summary");
+      container.replaceChildren(...metrics.map(([value, label]) => {
+        const item = document.createElement("div"); item.className = "metric";
+        item.innerHTML = `<b></b><span></span>`;
+        text(item.querySelector("b"), value); text(item.querySelector("span"), label);
+        return item;
+      }));
+    }
+
+    function renderCurrent() {
+      const position = Number($("tick-slider").value);
+      const tick = state.ticks[position];
+      const decision = indexes.decision.get(tick);
+      const observation = indexes.observation.get(tick);
+      $("tick-label").textContent = `tick ${tick}`;
+      $("status").textContent = `${position + 1} / ${state.ticks.length} · ${decision?.time || "--:--"} · ${decision?.phase || "unknown"}`;
+      $("previous").disabled = position === 0;
+      $("next").disabled = position === state.ticks.length - 1;
+      renderIm(tick);
+      renderBm(tick);
+      renderActions(decision);
+      renderEvents(tick);
+      $("observation-panel").textContent = observation?.observation || "该 tick 没有保存观测文本。";
+    }
+
+    function replacePanel(id, children) { $(id).replaceChildren(...children); }
+    function pre(value) { return text(document.createElement("pre"), value); }
+    function line(label, value) {
+      const paragraph = document.createElement("p");
+      const strong = document.createElement("strong"); text(strong, `${label}：`);
+      paragraph.append(strong, document.createTextNode(value)); return paragraph;
+    }
+
+    function renderIm(tick) {
+      const rows = indexes.im.get(tick) || [];
+      if (!rows.length) return replacePanel("im-panel", [noData("该 tick 没有 IM 对话记录。")] );
+      const nodes = [];
+      rows.forEach((row, index) => {
+        if (rows.length > 1) nodes.push(line("尝试", String((row.attempt ?? index) + 1)));
+        nodes.push(line("结果", row.valid ? "通过 IM JSON 格式检查" : `无效：${row.validation || "未知原因"}`));
+        if (row.reply) nodes.push(pre(row.reply));
+      });
+      replacePanel("im-panel", nodes);
+    }
+
+    function renderBm(tick) {
+      const latest = [...state.bm].reverse().find(row => Number(row.tick) <= tick);
+      if (!latest) return replacePanel("bm-panel", [noData("此时尚无已完成的 BM 输出。")] );
+      const nodes = [
+        line("BM tick", String(latest.tick ?? "?")),
+        line("阶段", String(latest.phase || "unknown")),
+        line("触发", String(latest.trigger_reason || "unknown")),
+        line("耗时", latest.latency_ms == null ? "未知" : `${latest.latency_ms} ms`),
+      ];
+      if (latest.valid === false) nodes.push(line("结果", `无效：${latest.validation || "未知原因"}`));
+      else if (Array.isArray(latest.guidance)) {
+        const list = document.createElement("ol"); list.className = "guidance";
+        latest.guidance.forEach(item => list.append(text(document.createElement("li"), item)));
+        nodes.push(list);
+      }
+      replacePanel("bm-panel", nodes);
+    }
+
+    function renderActions(decision) {
+      if (!decision) return replacePanel("action-panel", [noData("没有最终动作记录。")] );
+      const nodes = [
+        line("指导来源", decision.guidance_source === "BM" ? "BM（具体内容见 BM 面板）" : "无"),
+        line("IM 耗时", decision.latency_ms == null ? "未知" : `${decision.latency_ms} ms`),
+        pre(compactJson({ actions: decision.actions || [], deferred_actions: decision.deferred_actions || [] })),
+      ];
+      replacePanel("action-panel", nodes);
+    }
+
+    function renderEvents(tick) {
+      const rows = indexes.event.get(tick) || [];
+      if (!rows.length) return replacePanel("event-panel", [noData("该 tick 没有额外事件。")] );
+      const nodes = rows.map(row => {
+        const section = document.createElement("div"); section.className = "event-row";
+        const name = document.createElement("strong"); text(name, String(row.event || "event"));
+        section.append(name, pre(formatJson(row)));
+        return section;
+      });
+      replacePanel("event-panel", nodes);
+    }
+
+    $("tick-slider").addEventListener("input", renderCurrent);
+    $("previous").addEventListener("click", () => { $("tick-slider").stepDown(); renderCurrent(); });
+    $("next").addEventListener("click", () => { $("tick-slider").stepUp(); renderCurrent(); });
+    $("directory-input").addEventListener("change", async event => {
+      try { await loadFiles([...event.target.files]); $("status").textContent = "日志加载成功。"; }
+      catch (error) { $("status").textContent = `加载失败：${error.message}`; }
+    });
+    $("directory-picker").addEventListener("click", async () => {
+      if (!window.showDirectoryPicker) { $("directory-input").click(); return; }
+      try {
+        const directory = await window.showDirectoryPicker({ mode: "read" });
+        const files = [];
+        for (const name of wantedFiles) {
+          try { files.push(await (await directory.getFileHandle(name)).getFile()); }
+          catch (_) { /* Optional log file is absent. */ }
+        }
+        await loadFiles(files);
+        $("status").textContent = "日志加载成功。";
+      } catch (error) {
+        if (error.name !== "AbortError") $("status").textContent = `加载失败：${error.message}`;
+      }
+    });
+  </script>
+</body>
+</html>

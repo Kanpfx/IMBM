@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "source": {
+    "ares_version": "3.10.1",
+    "git_commit": "a43ad5941b63c8e608a998830e649eb2ff180716"
+  },
+  "policy": "Documented entries are enabled by default; source-only entries are recorded and disabled pending review.",
+  "entries": [
+    {
+      "chapter": "Individual Combat Behaviors",
+      "entry_id": "combat.individual.auto_use_a_o_e_ability",
+      "api": "ares.behaviors.combat.individual.auto_use_aoe_ability.AutoUseAOEAbility",
+      "documentation_status": "source_only_nonpublic",
+      "action": "recorded_not_exposed_by_default"
+    },
+    {
+      "chapter": "Individual Combat Behaviors",
+      "entry_id": "combat.individual.nydus_path_unit_to_target",
+      "api": "ares.behaviors.combat.individual.nydus_path_unit_to_target.NydusPathUnitToTarget",
+      "documentation_status": "source_only_public",
+      "action": "recorded_not_exposed_by_default"
+    },
+    {
+      "chapter": "Macro Behaviors",
+      "entry_id": "macro.protoss_static_defence",
+      "api": "ares.behaviors.macro.protoss_static_defence.ProtossStaticDefence",
+      "documentation_status": "source_only_public",
+      "action": "recorded_not_exposed_by_default"
+    },
+    {
+      "chapter": "Macro Behaviors",
+      "entry_id": "macro.speed_mining",
+      "api": "ares.behaviors.macro.speed_mining.SpeedMining",
+      "documentation_status": "source_only_public",
+      "action": "recorded_not_exposed_by_default"
+    },
+    {
+      "chapter": "Macro Behaviors",
+      "entry_id": "macro.upgrade_c_cs",
+      "api": "ares.behaviors.macro.upgrade_ccs.UpgradeCCs",
+      "documentation_status": "source_only_public",
+      "action": "recorded_not_exposed_by_default"
+    }
+  ]
+}
+

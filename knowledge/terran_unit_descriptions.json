@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "scope": "Standard multiplayer Terran units and structures. Entries are static role facts for prompt-time lookup, not tactical recommendations or counter rules.",
+  "sources": [
+    "https://news.blizzard.com/en-us/article/5740263/game-guide-terran-basics",
+    "https://starcraft.fandom.com/wiki/List_of_StarCraft_II_units"
+  ],
+  "units": {
+    "SCV": {"movement": "ground", "role": "worker; constructs buildings and repairs Terran mechanical units and structures", "can_attack": "ground"},
+    "MULE": {"movement": "ground", "role": "temporary mining worker", "can_attack": "none"},
+    "MARINE": {"movement": "ground", "role": "basic ranged infantry", "can_attack": "ground and air"},
+    "MARAUDER": {"movement": "ground", "role": "armored-target infantry", "can_attack": "ground", "special": "attack slows targets"},
+    "REAPER": {"movement": "ground", "role": "fast scout and harass infantry", "can_attack": "ground", "special": "can jump cliffs"},
+    "GHOST": {"movement": "ground", "role": "stealth spellcaster and specialist", "can_attack": "ground", "special": "can cloak and use tactical abilities"},
+    "HELLION": {"movement": "ground", "role": "fast light-unit harassment vehicle", "can_attack": "ground", "special": "line splash attack"},
+    "HELLBAT": {"movement": "ground", "role": "close-range anti-light assault vehicle", "can_attack": "ground", "special": "area attack"},
+    "WIDOWMINE": {"movement": "ground", "role": "burrowing ambush and area-defense mine", "can_attack": "ground and air", "special": "fires while burrowed"},
+    "SIEGETANK": {"movement": "ground", "role": "long-range ground siege vehicle", "can_attack": "ground", "special": "siege mode gives long-range area damage"},
+    "CYCLONE": {"movement": "ground", "role": "mobile vehicle hunter", "can_attack": "ground and air", "special": "can lock on to a target"},
+    "THOR": {"movement": "ground", "role": "heavy assault and anti-air vehicle", "can_attack": "ground and air"},
+    "VIKINGFIGHTER": {"movement": "air", "role": "anti-air fighter", "can_attack": "air", "special": "can transform into ground assault mode"},
+    "VIKINGASSAULT": {"movement": "ground", "role": "long-range ground assault walker", "can_attack": "ground", "special": "can transform into fighter mode"},
+    "MEDIVAC": {"movement": "air", "role": "biological-unit healer and transport", "can_attack": "none", "special": "uses energy to heal"},
+    "LIBERATOR": {"movement": "air", "role": "air fighter and ground-zone siege aircraft", "can_attack": "ground and air", "special": "uses separate air and defender modes"},
+    "BANSHEE": {"movement": "air", "role": "ground-attack harass aircraft", "can_attack": "ground", "special": "can cloak"},
+    "RAVEN": {"movement": "air", "role": "detector and support spellcaster", "can_attack": "none", "special": "uses energy abilities"},
+    "BATTLECRUISER": {"movement": "air", "role": "heavy capital ship", "can_attack": "ground and air", "special": "uses Tactical Jump and Yamato Cannon"}
+  },
+  "structures": {
+    "COMMANDCENTER": {"movement": "static", "role": "main base; trains SCVs and processes resources"},
+    "ORBITALCOMMAND": {"movement": "static", "role": "upgraded main base; provides scans and MULEs"},
+    "PLANETARYFORTRESS": {"movement": "static", "role": "defensive main-base upgrade with ground attack"},
+    "SUPPLYDEPOT": {"movement": "static", "role": "increases supply and unlocks Barracks"},
+    "REFINERY": {"movement": "static", "role": "allows SCVs to collect vespene gas"},
+    "BARRACKS": {"movement": "static", "role": "produces infantry units"},
+    "FACTORY": {"movement": "static", "role": "produces ground vehicles and unlocks Starport"},
+    "STARPORT": {"movement": "static", "role": "produces air units"},
+    "BARRACKSTECHLAB": {"movement": "static", "role": "Barracks add-on for advanced infantry"},
+    "FACTORYTECHLAB": {"movement": "static", "role": "Factory add-on for advanced vehicles"},
+    "STARPORTTECHLAB": {"movement": "static", "role": "Starport add-on for advanced air units including Battlecruisers"},
+    "BARRACKSREACTOR": {"movement": "static", "role": "Barracks add-on that enables two simultaneous unit-production slots"},
+    "FACTORYREACTOR": {"movement": "static", "role": "Factory add-on that enables two simultaneous unit-production slots"},
+    "STARPORTREACTOR": {"movement": "static", "role": "Starport add-on that enables two simultaneous unit-production slots"},
+    "FUSIONCORE": {"movement": "static", "role": "technology building that unlocks Battlecruisers"},
+    "ENGINEERINGBAY": {"movement": "static", "role": "researches infantry and structure upgrades"},
+    "ARMORY": {"movement": "static", "role": "researches vehicle and ship upgrades; unlocks advanced mechanical units"},
+    "GHOSTACADEMY": {"movement": "static", "role": "unlocks Ghost technology and upgrades"},
+    "BUNKER": {"movement": "static", "role": "garrison defense for infantry"},
+    "MISSILETURRET": {"movement": "static", "role": "anti-air defense and detector"},
+    "SENSORTOWER": {"movement": "static", "role": "reveals distant movement on the minimap"}
+  }
+}

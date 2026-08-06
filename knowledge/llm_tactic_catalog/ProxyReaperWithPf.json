@@ -1,0 +1,48 @@
+{
+  "id": "ProxyReaperWithPf",
+  "concept": "Use two forward Barracks for early Reaper harassment, then establish a forward Command Center that becomes a Planetary Fortress while transitioning into Reaper-Cyclone pressure.",
+  "rules": [
+    "Check emergency_defence first, then forward_fortress. Otherwise use opening, proxy_barracks, reaper_pressure, forward_fortress, cyclone_transition.",
+    "Keep two workers on the proxy only until the two forward Barracks are complete; preserve the designated Command Center builder afterward.",
+    "Use Reapers for harassment and scouting, not losing fights against static defence. Add Cyclones when the army and resources are sufficient.",
+    "The forward Command Center is an aggressive anchor, not a reason to abandon SCVs, Supply Depots, and safe production at home."
+  ],
+  "phases": [
+    {
+      "id": "opening",
+      "enter_when": ["The first two forward Barracks are not yet under construction."],
+      "goal": "Establish early forward Reaper production.",
+      "guidance": ["Train two early SCVs, build a Supply Depot, and send both workers to a forward proxy location.", "Keep the opening light on optional technology."]
+    },
+    {
+      "id": "proxy_barracks",
+      "enter_when": ["Forward Barracks are under construction or only one is ready."],
+      "goal": "Complete the Reaper production anchor and protect it.",
+      "guidance": ["Complete two forward Barracks and start Reapers from every ready Barracks.", "Use the first Reapers to protect builders and harass without committing into static defence."]
+    },
+    {
+      "id": "reaper_pressure",
+      "enter_when": ["Two proxy Barracks are complete.", "The forward Command Center is not yet complete near the enemy."],
+      "goal": "Use mobility to buy time and space for the forward Command Center.",
+      "guidance": ["Harass workers and weak production while keeping Reapers able to escape.", "Send one SCV to an enemy-side expansion location and start a Command Center when resources allow.", "Use Reapers to deny enemy workers and vulnerable units around the construction site."]
+    },
+    {
+      "id": "forward_fortress",
+      "enter_when": ["A forward Command Center is under construction or complete near the enemy side.", "It is not yet a finished Planetary Fortress."],
+      "goal": "Turn the forward Command Center into a durable pressure point.",
+      "guidance": ["Protect the Command Center with Reapers and supporting units.", "If it must fly, move it to the intended location and land safely; upgrade it to a Planetary Fortress when resources permit."]
+    },
+    {
+      "id": "cyclone_transition",
+      "enter_when": ["The forward fortress is established, the game is past the early timing, or resources support Cyclones."],
+      "goal": "Sustain pressure with Reaper-Cyclone while growing the economy.",
+      "guidance": ["Transition toward Cyclones as the main fighting unit and Reapers as mobile harassment.", "Expand when the army is large enough or resources are high, and add Engineering Bay upgrades after a second base.", "Keep the forward Planetary Fortress useful but retreat from unfavorable fights."]
+    },
+    {
+      "id": "emergency_defence",
+      "enter_when": ["Enemy forces directly threaten the main base, workers, or essential production."],
+      "goal": "Preserve the main economy over an unsalvageable forward position.",
+      "guidance": ["Defend first with nearby Reapers, Cyclones, and necessary SCVs.", "If the forward Command Center cannot be saved safely, treat it as expendable and resume from the stable home economy."]
+    }
+  ]
+}

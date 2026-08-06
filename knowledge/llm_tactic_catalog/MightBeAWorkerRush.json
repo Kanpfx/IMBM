@@ -1,0 +1,42 @@
+{
+  "id": "MightBeAWorkerRush",
+  "concept": "Launch a delayed SCV pressure with a hidden Barracks near the enemy main, then let Marines and a small one-base economy continue the attack if the worker rush does not decide the game.",
+  "rules": [
+    "Check emergency_defence first, then worker_pressure. Otherwise use opening, approach, worker_pressure, proxy_marine_followup.",
+    "Send only one SCV to build the forward Barracks; the remaining attacking SCVs are the pressure group. Do not abandon all home mining.",
+    "Keep the strategy on one base with Marines and no gas, upgrades, expansion, or optional technology unless a later strategic instruction replaces it.",
+    "Use damaged SCVs as a repair group and return them to the fighting group when healthy enough."
+  ],
+  "phases": [
+    {
+      "id": "opening",
+      "enter_when": ["The delayed worker attack has not yet been assigned."],
+      "goal": "Prepare a compact worker force and a hidden forward Barracks plan.",
+      "guidance": ["Train two SCVs, build one Supply Depot, and keep mining until the delayed attack timing begins.", "Do not build a normal home Barracks before the proxy plan is underway."]
+    },
+    {
+      "id": "approach",
+      "enter_when": ["The attack timing has begun.", "The forward Barracks is not yet complete and the worker group has not fully engaged."],
+      "goal": "Move the pressure group across the map and start the proxy Barracks.",
+      "guidance": ["Send the worker group toward the enemy; use one designated SCV as the proxy builder.", "Keep workers together while crossing and briefly compact them with nearby minerals if needed.", "Start the forward Barracks at a buildable location near the enemy main and protect its builder when possible."]
+    },
+    {
+      "id": "worker_pressure",
+      "enter_when": ["Attacking SCVs are at the enemy base or fighting enemy workers and early units."],
+      "goal": "Win local worker fights while keeping the group repairable.",
+      "guidance": ["Attack exposed workers and weak units with the main group.", "If the enemy wall is closed, threaten exposed workers or regroup around the best target instead of endlessly attacking the wall.", "Move low-health SCVs behind the healthy frontline so they can be repaired and returned."]
+    },
+    {
+      "id": "proxy_marine_followup",
+      "enter_when": ["The forward Barracks is complete or Marines are available to support worker pressure."],
+      "goal": "Use Marines to preserve pressure after the first SCV clash.",
+      "guidance": ["Produce Marines from the proxy and send them to the attack target.", "Continue a small one-base Marine economy with about fourteen workers and do not add gas or expansion.", "If worker pressure loses momentum, use Marines to cover surviving SCVs while they repair or retreat."]
+    },
+    {
+      "id": "emergency_defence",
+      "enter_when": ["Enemy forces threaten the main base before the worker pressure has gained a decisive advantage."],
+      "goal": "Avoid losing the game to a counterattack.",
+      "guidance": ["Preserve enough SCVs and nearby Marines to prevent immediate loss at home.", "Do not keep feeding the forward worker group if the counterattack is more dangerous than the current pressure."]
+    }
+  ]
+}

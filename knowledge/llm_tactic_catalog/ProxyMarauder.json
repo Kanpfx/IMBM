@@ -1,0 +1,57 @@
+{
+  "id": "ProxyMarauder",
+  "concept": "Hide forward Barracks, mass early Marauders to force a fast defensive response, then transition into a compact bio army if the proxy does not end the game.",
+  "rules": [
+    "Check emergency_defence first, then proxy_assault. Otherwise use opening, proxy_construction, proxy_assault, bio_transition.",
+    "Use two SCVs to establish two forward Barracks at a pathable proxy location and do not sacrifice both builders needlessly.",
+    "Favor Marauders before roughly 26 workers; add Marines and Medivacs only after the initial all-in creates room to grow.",
+    "Engage defended positions only when the local fight is at least close. Retreat, regroup, or hit a weaker location rather than trading into static defence."
+  ],
+  "phases": [
+    {
+      "id": "opening",
+      "enter_when": ["The proxy workers have not yet reached the forward build location."],
+      "goal": "Start the two-Barracks proxy while preserving enough home income for immediate production.",
+      "guidance": [
+        "Train the earliest SCVs, build a Supply Depot at 13 supply, and send two workers toward a forward location.",
+        "Do not spend on early expansion or nonessential technology before the forward Barracks are active."
+      ]
+    },
+    {
+      "id": "proxy_construction",
+      "enter_when": ["One or both forward Barracks are being built.", "Two ready proxy Barracks do not yet exist."],
+      "goal": "Complete the production anchor and start the Marauder timing.",
+      "guidance": [
+        "Complete two forward Barracks and begin Marauder production from every ready Barracks.",
+        "Start Concussive Shells when Marauder production is underway and resources permit.",
+        "Use early Marauders to protect the proxy and deny enemy workers that try to stop it."
+      ]
+    },
+    {
+      "id": "proxy_assault",
+      "enter_when": ["Two proxy Barracks are ready.", "A usable Marauder force is near the enemy or moving across the map."],
+      "goal": "Exploit the forward production advantage before the opponent stabilizes.",
+      "guidance": [
+        "Pressure workers, production, or unfinished defences and reinforce continuously with Marauders.",
+        "Use Concussive Shells to chase vulnerable targets or disengage from stronger forces.",
+        "If a wall blocks the main entrance, attack an exposed expansion, production building, or worker line instead of forcing the choke."
+      ]
+    },
+    {
+      "id": "bio_transition",
+      "enter_when": ["The initial proxy has not ended the game.", "Resources allow normal supporting production or a second base."],
+      "goal": "Convert surviving pressure into a functional bio economy.",
+      "guidance": [
+        "Expand when the mineral bank is above the aggressive threshold and the army can protect the timing.",
+        "Add Refineries, transition toward Marauder, Marine, and Medivac, and start infantry upgrades.",
+        "Keep the forward Barracks as reinforcement production while the main base develops normal infrastructure."
+      ]
+    },
+    {
+      "id": "emergency_defence",
+      "enter_when": ["Enemy forces threaten the main base or worker line before the proxy force has gained control."],
+      "goal": "Prevent a counterattack from ending the game.",
+      "guidance": ["Defend at home with nearby units and necessary SCVs.", "If the proxy is isolated, regroup the army toward a safe position rather than continuing a losing attack."]
+    }
+  ]
+}

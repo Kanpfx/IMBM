@@ -1,0 +1,596 @@
+{
+  "schema_version": "1.0",
+  "chapter": {
+    "id": "api_reference",
+    "title": "API Reference",
+    "documentation_url": "https://aressc2.github.io/ares-sc2/api_reference/index.html"
+  },
+  "source": {
+    "ares_version": "3.10.1",
+    "git_commit": "a43ad5941b63c8e608a998830e649eb2ff180716"
+  },
+  "entries": [
+    {
+      "id": "api_reference.aresbot.calculate_cost",
+      "name": "calculate_cost",
+      "kind": "runtime_method",
+      "description": "Public `AresBot` method `calculate_cost`.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "calculate_cost",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "item_id",
+          "type": "unit_type_id",
+          "python_type": "Union[UnitTypeId, UpgradeId, AbilityId]",
+          "input": "runtime",
+          "required": true,
+          "description": "Item id."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.do_unload_container",
+      "name": "do_unload_container",
+      "kind": "executable_command",
+      "description": "Public `AresBot` method `do_unload_container`.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "do_unload_container",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "container_tag",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": true,
+          "description": "Container tag."
+        },
+        {
+          "name": "index",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": false,
+          "description": "Index.",
+          "default": 0
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "api_reference.aresbot.get_build_structures",
+      "name": "get_build_structures",
+      "kind": "observation_query",
+      "description": "Get all structures (or units) where we can spawn unit_type. Takes into account techlabs and reactors. And Gateway / warp gate",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "get_build_structures",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "structure_unit_types",
+          "type": "unit_type_id",
+          "python_type": "set[UnitID]",
+          "input": "runtime",
+          "required": true,
+          "description": "Structure unit types."
+        },
+        {
+          "name": "unit_type",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
+          "input": "runtime",
+          "required": true,
+          "description": "Unit type."
+        },
+        {
+          "name": "build_dict",
+          "type": "json_value",
+          "python_type": "Any",
+          "input": "runtime",
+          "required": false,
+          "description": "Build dict.",
+          "default": null
+        },
+        {
+          "name": "ignored_build_from_tags",
+          "type": "json_value",
+          "python_type": "Any",
+          "input": "runtime",
+          "required": false,
+          "description": "Ignored build from tags.",
+          "default": null
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.give_same_action",
+      "name": "give_same_action",
+      "kind": "runtime_method",
+      "description": "Public `AresBot` method `give_same_action`.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "give_same_action",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "order",
+          "type": "ability_id",
+          "python_type": "AbilityId",
+          "input": "runtime",
+          "required": true,
+          "description": "Order."
+        },
+        {
+          "name": "unit_tags",
+          "type": "json_value",
+          "python_type": "Union[List[int], set[int]]",
+          "input": "runtime",
+          "required": true,
+          "description": "Unit tags."
+        },
+        {
+          "name": "target",
+          "type": "point_ref",
+          "python_type": "Optional[Union[Point2, int]]",
+          "input": "runtime",
+          "required": false,
+          "description": "Target unit or map position.",
+          "default": null
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.on_before_start",
+      "name": "on_before_start",
+      "kind": "lifecycle",
+      "description": "Train a drone and split workers before managers are set up",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "on_before_start",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.on_building_construction_complete",
+      "name": "on_building_construction_complete",
+      "kind": "lifecycle",
+      "description": "On structure completion event (own units)",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "on_building_construction_complete",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "unit",
+          "type": "unit_ref",
+          "python_type": "Unit",
+          "input": "runtime",
+          "required": true,
+          "description": "Acting unit."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.on_building_construction_started",
+      "name": "on_building_construction_started",
+      "kind": "lifecycle",
+      "description": "On structure starting",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "on_building_construction_started",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "unit",
+          "type": "unit_ref",
+          "python_type": "Unit",
+          "input": "runtime",
+          "required": true,
+          "description": "Acting unit."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.on_end",
+      "name": "on_end",
+      "kind": "lifecycle",
+      "description": "Output game info to the log and save data (if enabled)",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "on_end",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "game_result",
+          "type": "json_value",
+          "python_type": "Result",
+          "input": "runtime",
+          "required": true,
+          "description": "Game result."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.on_start",
+      "name": "on_start",
+      "kind": "lifecycle",
+      "description": "Set up game step, managers, and information that requires game data",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "on_start",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.on_step",
+      "name": "on_step",
+      "kind": "lifecycle",
+      "description": "Play the game",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "on_step",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "iteration",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": true,
+          "description": "Iteration."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.on_unit_created",
+      "name": "on_unit_created",
+      "kind": "lifecycle",
+      "description": "On unit created event (own units)",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "on_unit_created",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "unit",
+          "type": "unit_ref",
+          "python_type": "Unit",
+          "input": "runtime",
+          "required": true,
+          "description": "Acting unit."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.on_unit_destroyed",
+      "name": "on_unit_destroyed",
+      "kind": "lifecycle",
+      "description": "On unit or structure destroyed event",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "on_unit_destroyed",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "unit_tag",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": true,
+          "description": "Unit tag."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.on_unit_took_damage",
+      "name": "on_unit_took_damage",
+      "kind": "lifecycle",
+      "description": "On unit or structure taking damage",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "on_unit_took_damage",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "unit",
+          "type": "unit_ref",
+          "python_type": "Unit",
+          "input": "runtime",
+          "required": true,
+          "description": "Acting unit."
+        },
+        {
+          "name": "amount_damage_taken",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": true,
+          "description": "Amount damage taken."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.register_behavior",
+      "name": "register_behavior",
+      "kind": "execution_gateway",
+      "description": "Register behavior.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "register_behavior",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "behavior",
+          "type": "json_value",
+          "python_type": "Behavior",
+          "input": "runtime",
+          "required": true,
+          "description": "Behavior."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.register_managers",
+      "name": "register_managers",
+      "kind": "lifecycle",
+      "description": "Register standard and custom managers.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "register_managers",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.request_archon_morph",
+      "name": "request_archon_morph",
+      "kind": "executable_command",
+      "description": "Public `AresBot` method `request_archon_morph`.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "request_archon_morph",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "templar",
+          "type": "unit_refs",
+          "python_type": "list[Unit]",
+          "input": "runtime",
+          "required": true,
+          "description": "Templar."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "api_reference.aresbot.request_zerg_placement",
+      "name": "request_zerg_placement",
+      "kind": "executable_command",
+      "description": "Public `AresBot` method `request_zerg_placement`.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "request_zerg_placement",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "base_location",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Base location used by the behavior."
+        },
+        {
+          "name": "structure_type",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
+          "input": "runtime",
+          "required": true,
+          "description": "Structure type."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "api_reference.aresbot.structure_pending",
+      "name": "structure_pending",
+      "kind": "runtime_method",
+      "description": "Checks pending structures, includes workers on route. Alternative and faster version of `self.already_pending`",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "structure_pending",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "structure_type",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
+          "input": "runtime",
+          "required": true,
+          "description": "Structure type."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.structure_present_or_pending",
+      "name": "structure_present_or_pending",
+      "kind": "runtime_method",
+      "description": "Checks presence of a structure, or if worker is on route to build structure.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "structure_present_or_pending",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "structure_type",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
+          "input": "runtime",
+          "required": true,
+          "description": "Structure type."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "api_reference.aresbot.unit_pending",
+      "name": "unit_pending",
+      "kind": "runtime_method",
+      "description": "Checks pending units. Alternative and faster version of `self.already_pending`",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.main.AresBot",
+        "member": "unit_pending",
+        "source_path": "ares/src/ares/main.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "unit_type",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
+          "input": "runtime",
+          "required": true,
+          "description": "Unit type."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    }
+  ]
+}
+

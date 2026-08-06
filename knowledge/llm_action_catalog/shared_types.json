@@ -1,0 +1,53 @@
+{
+  "schema_version": "1.0",
+  "types": {
+    "unit_ref": {
+      "json": "string",
+      "meaning": "A runtime unit alias, for example `u12` or `e4`."
+    },
+    "unit_refs": {
+      "json": "array<string>",
+      "meaning": "A non-empty list of runtime unit aliases."
+    },
+    "point_ref": {
+      "json": "{\"x\": number, \"y\": number}",
+      "meaning": "A map position."
+    },
+    "point_or_unit_ref": {
+      "json": "point_ref | unit_ref",
+      "meaning": "Either a map position or a runtime unit alias."
+    },
+    "grid_ref": {
+      "json": "string",
+      "allowed_values": [
+        "ground",
+        "air",
+        "ground_avoidance",
+        "air_avoidance",
+        "tactical_ground"
+      ],
+      "meaning": "A named influence/pathing grid resolved from the current mediator."
+    },
+    "unit_type_id": {
+      "json": "string",
+      "meaning": "A `UnitTypeId` enum name, for example `BARRACKS`."
+    },
+    "ability_id": {
+      "json": "string",
+      "meaning": "An `AbilityId` enum name, validated against the acting unit at runtime."
+    },
+    "upgrade_id": {
+      "json": "string",
+      "meaning": "An `UpgradeId` enum name."
+    },
+    "unit_role": {
+      "json": "string",
+      "meaning": "An Ares `UnitRole` enum name."
+    },
+    "json_value": {
+      "json": "object | array | string | number | boolean | null",
+      "meaning": "A source-specific value that needs a custom resolver before exposure."
+    }
+  }
+}
+

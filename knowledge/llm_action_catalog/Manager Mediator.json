@@ -1,0 +1,1139 @@
+{
+  "schema_version": "1.0",
+  "chapter": {
+    "id": "manager_mediator",
+    "title": "Manager Mediator",
+    "documentation_url": "https://aressc2.github.io/ares-sc2/api_reference/manager_mediator.html"
+  },
+  "source": {
+    "ares_version": "3.10.1",
+    "git_commit": "a43ad5941b63c8e608a998830e649eb2ff180716"
+  },
+  "entries": [
+    {
+      "id": "manager_mediator.managermediator.add_managers",
+      "name": "add_managers",
+      "kind": "executable_command",
+      "description": "Generate manager dictionary.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "add_managers",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "managers",
+          "type": "json_array",
+          "python_type": "list['Manager']",
+          "input": "runtime",
+          "required": true,
+          "description": "List of all Managers capable of handling ManagerRequests."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.add_to_nydus_travellers",
+      "name": "add_to_nydus_travellers",
+      "kind": "executable_command",
+      "description": "Add a unit to the nydus travellers.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "add_to_nydus_travellers",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.assign_role",
+      "name": "assign_role",
+      "kind": "executable_command",
+      "description": "Assign a unit a role.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "assign_role",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.batch_assign_role",
+      "name": "batch_assign_role",
+      "kind": "executable_command",
+      "description": "Assign a given role to a List of unit tags.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "batch_assign_role",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.build_with_specific_worker",
+      "name": "build_with_specific_worker",
+      "kind": "executable_command",
+      "description": "Build a structure with a specific worker.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "build_with_specific_worker",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.building_position_blocked_by_burrowed_unit",
+      "name": "building_position_blocked_by_burrowed_unit",
+      "kind": "runtime_method",
+      "description": "See if the building position is blocked by a burrowed unit.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "building_position_blocked_by_burrowed_unit",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.can_place_structure",
+      "name": "can_place_structure",
+      "kind": "observation_query",
+      "description": "Check if structure can be placed at a given position.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "can_place_structure",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.can_win_fight",
+      "name": "can_win_fight",
+      "kind": "observation_query",
+      "description": "Get the predicted engagement result between two forces.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "can_win_fight",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.cancel_structure",
+      "name": "cancel_structure",
+      "kind": "executable_command",
+      "description": "Cancel a structure and remove from internal ares bookkeeping.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "cancel_structure",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.clear_nydus_travellers",
+      "name": "clear_nydus_travellers",
+      "kind": "executable_command",
+      "description": "Clear the nydus travellers dictionary.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "clear_nydus_travellers",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.clear_role",
+      "name": "clear_role",
+      "kind": "executable_command",
+      "description": "Clear a unit's role.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "clear_role",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.find_closest_safe_spot",
+      "name": "find_closest_safe_spot",
+      "kind": "observation_query",
+      "description": "Find the closest point with the lowest cost on a grid.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "find_closest_safe_spot",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.find_low_priority_path",
+      "name": "find_low_priority_path",
+      "kind": "observation_query",
+      "description": "Find several points in a path.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "find_low_priority_path",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.find_lowest_cost_points",
+      "name": "find_lowest_cost_points",
+      "kind": "observation_query",
+      "description": "Find the point(s) with the lowest cost within `radius` from `from_pos`.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "find_lowest_cost_points",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.find_nearby_creep_edge_position",
+      "name": "find_nearby_creep_edge_position",
+      "kind": "observation_query",
+      "description": "Find the nearest position on the edge of the creep nearby a given point.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "find_nearby_creep_edge_position",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.find_nydus_at_location",
+      "name": "find_nydus_at_location",
+      "kind": "observation_query",
+      "description": "Given a location, find a potential nydus canal placement. Tries to avoid enemy visibility. Prioritizes locations that are already visible. Passing in a base location is recommended. But any position should work.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "find_nydus_at_location",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.find_nydus_path_next_point",
+      "name": "find_nydus_path_next_point",
+      "kind": "observation_query",
+      "description": "Find the next point in a path including via nyduses.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "find_nydus_path_next_point",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.find_path_next_point",
+      "name": "find_path_next_point",
+      "kind": "observation_query",
+      "description": "Find the next point in a path.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "find_path_next_point",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.find_raw_path",
+      "name": "find_raw_path",
+      "kind": "observation_query",
+      "description": "Used for finding a full path, mostly for distance checks.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "find_raw_path",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_air_avoidance_grid",
+      "name": "get_air_avoidance_grid",
+      "kind": "observation_query",
+      "description": "Get the air avoidance pathing grid. Any tile with a value greater than one will contain some dangerous effects or spells that should always be avoided. Such as storms, nukes, ravager biles etc...",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_air_avoidance_grid",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_air_grid",
+      "name": "get_air_grid",
+      "kind": "observation_query",
+      "description": "Get the air pathing grid.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_air_grid",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_air_vs_ground_grid",
+      "name": "get_air_vs_ground_grid",
+      "kind": "observation_query",
+      "description": "Get the air vs ground pa…17155 tokens truncated…d": "observation_query",
+      "description": "Get a `list` of `Unit` objects corresponding to the given tags.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_units_from_tags",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_units_in_range",
+      "name": "get_units_in_range",
+      "kind": "observation_query",
+      "description": "Get units in range of other units or points.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_units_in_range",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_whole_map_array",
+      "name": "get_whole_map_array",
+      "kind": "observation_query",
+      "description": "Get the list containing every point on the map.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_whole_map_array",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_whole_map_tree",
+      "name": "get_whole_map_tree",
+      "kind": "observation_query",
+      "description": "Get the KDTree of all points on the map.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_whole_map_tree",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_worker_tag_to_townhall_tag",
+      "name": "get_worker_tag_to_townhall_tag",
+      "kind": "observation_query",
+      "description": "Get a dictionary containing worker tag to townhall tag. Where the townhall is the place where worker returns resources",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_worker_tag_to_townhall_tag",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_worker_to_mineral_patch_dict",
+      "name": "get_worker_to_mineral_patch_dict",
+      "kind": "observation_query",
+      "description": "Get a dictionary containing worker tag to mineral patch tag.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_worker_to_mineral_patch_dict",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_worker_to_vespene_dict",
+      "name": "get_worker_to_vespene_dict",
+      "kind": "observation_query",
+      "description": "Get a dictionary containing worker tag to gas building tag.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_worker_to_vespene_dict",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.is_position_safe",
+      "name": "is_position_safe",
+      "kind": "observation_query",
+      "description": "Check if the given position is considered dangerous.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "is_position_safe",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.make_placement_available",
+      "name": "make_placement_available",
+      "kind": "executable_command",
+      "description": "Make a placement available again.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "make_placement_available",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.manager_request",
+      "name": "manager_request",
+      "kind": "runtime_method",
+      "description": "Function to request information from a manager.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "manager_request",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "receiver",
+          "type": "json_value",
+          "python_type": "ManagerName",
+          "input": "runtime",
+          "required": true,
+          "description": "Manager receiving the request."
+        },
+        {
+          "name": "request",
+          "type": "json_value",
+          "python_type": "ManagerRequestType",
+          "input": "runtime",
+          "required": true,
+          "description": "Requested attribute/function call."
+        },
+        {
+          "name": "reason",
+          "type": "string",
+          "python_type": "str",
+          "input": "runtime",
+          "required": false,
+          "description": "Why the request is being made.",
+          "default": null
+        },
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Keyword arguments (if any) to be passed to the requested function."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.move_structure",
+      "name": "move_structure",
+      "kind": "executable_command",
+      "description": "Request a structure to move via flight.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "move_structure",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.remove_from_nydus_travellers",
+      "name": "remove_from_nydus_travellers",
+      "kind": "executable_command",
+      "description": "Remove a unit from the nydus travellers dictionary.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "remove_from_nydus_travellers",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.remove_gas_building",
+      "name": "remove_gas_building",
+      "kind": "executable_command",
+      "description": "Request for a gas building to be removed from bookkeeping.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "remove_gas_building",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.remove_mineral_field",
+      "name": "remove_mineral_field",
+      "kind": "executable_command",
+      "description": "Request for a mineral field to be removed from bookkeeping.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "remove_mineral_field",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.remove_tag_from_squads",
+      "name": "remove_tag_from_squads",
+      "kind": "executable_command",
+      "description": "SquadManager",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "remove_tag_from_squads",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.remove_worker_from_mineral",
+      "name": "remove_worker_from_mineral",
+      "kind": "executable_command",
+      "description": "Remove worker from internal data structures.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "remove_worker_from_mineral",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.request_building_placement",
+      "name": "request_building_placement",
+      "kind": "executable_command",
+      "description": "Request a building placement from the precalculated building formation.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "request_building_placement",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.request_warp_in",
+      "name": "request_warp_in",
+      "kind": "executable_command",
+      "description": "Request a warp in spot, without making a query to the game client.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "request_warp_in",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.select_worker",
+      "name": "select_worker",
+      "kind": "runtime_method",
+      "description": "Select a worker via the ResourceManager.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "select_worker",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.set_workers_per_gas",
+      "name": "set_workers_per_gas",
+      "kind": "executable_command",
+      "description": "Give all units in a role a different role.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "set_workers_per_gas",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.switch_roles",
+      "name": "switch_roles",
+      "kind": "executable_command",
+      "description": "Give all units in a role a different role.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "switch_roles",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.update_unit_to_ability_dict",
+      "name": "update_unit_to_ability_dict",
+      "kind": "executable_command",
+      "description": "Update tracking to reflect ability usage.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "update_unit_to_ability_dict",
+        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "kwargs",
+          "type": "json_object",
+          "python_type": "**kwargs",
+          "input": "runtime",
+          "required": false,
+          "description": "Additional source-defined keyword arguments."
+        }
+      ],
+      "parser": {
+        "mode": "call_method"
+      },
+      "llm_exposure": "runtime_only"
+    }
+  ]
+}
+

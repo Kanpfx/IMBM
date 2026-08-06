@@ -1,0 +1,1063 @@
+{
+  "schema_version": "1.0",
+  "chapter": {
+    "id": "behavior.macro",
+    "title": "Macro Behaviors",
+    "documentation_url": "https://aressc2.github.io/ares-sc2/api_reference/behaviors/macro_behaviors.html"
+  },
+  "source": {
+    "ares_version": "3.10.1",
+    "git_commit": "a43ad5941b63c8e608a998830e649eb2ff180716"
+  },
+  "entries": [
+    {
+      "id": "macro.addon_swap",
+      "name": "AddonSwap",
+      "kind": "executable_behavior",
+      "description": "For Terran only, swap 3x3 structures. Pass in two structures and they will swap positions.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.behaviors.macro.addon_swap.AddonSwap",
+        "source_path": "ares/src/ares/behaviors/macro/addon_swap.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "structure_needing_addon",
+          "type": "unit_type_id",
+          "python_type": "Unit | UnitID",
+          "input": "model",
+          "required": true,
+          "description": "The structure type we want the addon for."
+        },
+        {
+          "name": "addon_required",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
+          "input": "model",
+          "required": true,
+          "description": "Type of addon required."
+        },
+        {
+          "name": "precise_addon_structure_id",
+          "type": "unit_type_id",
+          "python_type": "UnitID | None",
+          "input": "model",
+          "required": false,
+          "description": "Precise addon structure id.",
+          "default": null
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    },
+    {
+      "id": "macro.auto_supply",
+      "name": "AutoSupply",
+      "kind": "executable_behavior",
+      "description": "Automatically build supply, works for all races.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.behaviors.macro.auto_supply.AutoSupply",
+        "source_path": "ares/src/ares/behaviors/macro/auto_supply.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "base_location",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "model",
+          "required": true,
+          "description": "The base location where supply should be built."
+        },
+        {
+          "name": "return_true_if_supply_required",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "If supply can't be afforded but is required, return true. Useful for creating a `MacroPlan`.",
+          "default": true
+        },
+        {
+          "name": "closest_to",
+          "type": "point_ref",
+          "python_type": "Point2 | None",
+          "input": "model",
+          "required": false,
+          "description": "Find available supply placement closest to this location. Only applicable to Terran or Protoss.",
+          "default": null
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    },
+    {
+      "id": "macro.build_structure",
+      "name": "BuildStructure",
+      "kind": "executable_behavior",
+      "description": "Handy convenience building structure behavior. Especially combined with `Mining` and ares built in placement solver. Finds an ideal mining worker, and an available precalculated placement. Then removes worker from mining records and provides a new role.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.behaviors.macro.build_structure.BuildStructure",
+        "source_path": "ares/src/ares/behaviors/macro/build_structure.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "base_location",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "model",
+          "required": true,
+          "description": "The base location to build near."
+        },
+        {
+          "name": "structure_id",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
+          "input": "model",
+          "required": true,
+          "description": "The structure type we want to build."
+        },
+        {
+          "name": "max_on_route",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": false,
+          "description": "The max number of workers on route to build this. Defaults to 1.",
+          "default": 1
+        },
+        {
+          "name": "first_pylon",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Will look for the first pylon in placements dict. Defaults to False.",
+          "default": false
+        },
+        {
+          "name": "static_defence",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Will look for static defense in placements dict. Defaults to False.",
+          "default": false
+        },
+        {
+          "name": "wall",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Find wall placement if possible. Only the main base is currently supported. Defaults to False.",
+          "default": false
+        },
+        {
+          "name": "closest_to",
+          "type": "point_ref",
+          "python_type": "Point2 | None",
+          "input": "model",
+          "required": false,
+          "description": "Find placement at this base closest to the given point. Optional.",
+          "default": null
+        },
+        {
+          "name": "to_count",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": false,
+          "description": "Prevent going over this amount in total. Defaults to 0, turning this check off.",
+          "default": 0
+        },
+        {
+          "name": "to_count_per_base",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": false,
+          "description": "Prevent going over this amount at this base location. Defaults to 0, turning this check off.",
+          "default": 0
+        },
+        {
+          "name": "tech_progress_check",
+          "type": "number",
+          "python_type": "float",
+          "input": "model",
+          "required": false,
+          "description": "Check if tech is ready before trying to build. Defaults to 0.85; setting it to 0.0 turns this check off.",
+          "default": 0.85
+        },
+        {
+          "name": "supply_depot",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Choose a predefined supply depot location. Defaults to False.",
+          "default": false
+        },
+        {
+          "name": "missile_turret",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Choose a predefined missile turret location. Defaults to False.",
+          "default": false
+        },
+        {
+          "name": "sensor_tower",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Choose a predefined sensor tower location. Defaults to False.",
+          "default": false
+        },
+        {
+          "name": "upgrade_structure",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Choose a predefined upgrade-structure location. Defaults to False.",
+          "default": false
+        },
+        {
+          "name": "production",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Choose a predefined production location. Defaults to True.",
+          "default": true
+        },
+        {
+          "name": "bunker",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Choose a predefined bunker location. Defaults to False.",
+          "default": false
+        },
+        {
+          "name": "reaper_wall",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Choose a predefined reaper wall location. Defaults to False.",
+          "default": false
+        },
+        {
+          "name": "find_alternative",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "If no placements are available at this base, optionally search nearby bases. Defaults to True.",
+          "default": true
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    },
+    {
+      "id": "macro.build_workers",
+      "name": "BuildWorkers",
+      "kind": "executable_behavior",
+      "description": "Finds idle townhalls / larvae and build workers.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.behaviors.macro.build_workers.BuildWorkers",
+        "source_path": "ares/src/ares/behaviors/macro/build_workers.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "to_count",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": true,
+          "description": "The target count of workers we want to hit."
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    },
+    {
+      "id": "macro.expansion_controller",
+      "name": "ExpansionController",
+      "kind": "executable_behavior",
+      "description": "Manage expanding.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.behaviors.macro.expansion_controller.ExpansionController",
+        "source_path": "ares/src/ares/behaviors/macro/expansion_controller.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "to_count",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": true,
+          "description": "The target base count."
+        },
+        {
+          "name": "can_afford_check",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Check if we can afford expansion. Setting this to False will allow the worker to move to a location ready to build the expansion. Defaults to True.",
+          "default": true
+        },
+        {
+          "name": "check_location_is_safe",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Check if we don't knowingly expand at a dangerous location. Defaults to True.",
+          "default": true
+        },
+        {
+          "name": "max_pending",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": false,
+          "description": "Maximum pending townhalls at any time. Defaults to 1.",
+          "default": 1
+        },
+        {
+          "name": "prioritize",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Will return True for this behavior if we can't afford expansion. Default is False",
+          "default": false
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    },
+    {
+      "id": "macro.gas_building_controller",
+      "name": "GasBuildingController",
+      "kind": "executable_behavior",
+      "description": "Maintain gas building count. Finds an ideal mining worker, and an available geyser. Then removes worker from mining records and provides a new role.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.behaviors.macro.gas_building_controller.GasBuildingController",
+        "source_path": "ares/src/ares/behaviors/macro/gas_building_controller.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "to_count",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": true,
+          "description": "How many gas buildings would we like?"
+        },
+        {
+          "name": "max_pending",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": false,
+          "description": "How many gas buildings can be pending at any time? Defaults to 1.",
+          "default": 1
+        },
+        {
+          "name": "closest_to",
+          "type": "point_ref",
+          "python_type": "Optional[Point2]",
+          "input": "model",
+          "required": false,
+          "description": "Find available geyser closest to this location. Optional, defaults to `None`",
+          "default": null
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    },
+    {
+      "id": "macro.macro_plan",
+      "name": "MacroPlan",
+      "kind": "composite_behavior",
+      "description": "Execute macro behaviors sequentially.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.behaviors.macro.macro_plan.MacroPlan",
+        "source_path": "ares/src/ares/behaviors/macro/macro_plan.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "macros",
+          "type": "json_array",
+          "python_type": "list[Behavior]",
+          "input": "model",
+          "required": false,
+          "description": "A list of behaviors that should be executed. Defaults to an empty list.",
+          "default": {
+            "expression": "field(default_factory=list)"
+          }
+        }
+      ],
+      "parser": {
+        "mode": "manual_composition",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "disabled",
+      "llm_exposure_reason": "Contains nested behaviors and needs a dedicated composition instruction shape."
+    },
+    {
+      "id": "macro.mining",
+      "name": "Mining",
+      "kind": "executable_behavior",
+      "description": "Handle worker mining control.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.behaviors.macro.mining.Mining",
+        "source_path": "ares/src/ares/behaviors/macro/mining.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "flee_at_health_perc",
+          "type": "number",
+          "python_type": "float",
+          "input": "model",
+          "required": false,
+          "description": "If worker is in danger, at what health percentage should it flee? Defaults to 0.5.",
+          "default": 0.5
+        },
+        {
+          "name": "keep_safe",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Should workers flee if they are in danger? Defaults to True.",
+          "default": true
+        },
+        {
+          "name": "long_distance_mine",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Can the worker long distance mine if it has nothing to do? Defaults to True.",
+          "default": true
+        },
+        {
+          "name": "mineral_boost",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Turn mineral boosting on or off. Defaults to True.",
+          "default": true
+        },
+        {
+          "name": "vespene_boost",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Turn vespene boosting on or off (only active when workers_per_gas < 3).",
+          "default": false
+        },
+        {
+          "name": "workers_per_gas",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": false,
+          "description": "Control how many workers are assigned to each gas. Defaults to 3.",
+          "default": 3
+        },
+        {
+          "name": "self_defence_active",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "If set to True, workers will have some basic defence. Certain workers will attack enemy in range. Defaults to True.",
+          "default": true
+        },
+        {
+          "name": "safe_long_distance_mineral_fields",
+          "type": "unit_refs",
+          "python_type": "Optional[Units]",
+          "input": "model",
+          "required": false,
+          "description": "Used internally, set when a worker starts long distance mining. Defaults to None.",
+          "default": null
+        },
+        {
+          "name": "locked_action_tags",
+          "type": "json_object",
+          "python_type": "dict[int, float]",
+          "input": "model",
+          "required": false,
+          "description": "Locked action tags.",
+          "default": {
+            "expression": "field(default_factory=dict)"
+          }
+        },
+        {
+          "name": "weight_safety_limit",
+          "type": "number",
+          "python_type": "float",
+          "input": "model",
+          "required": false,
+          "description": "Workers will flee if enemy influence is above this number. Defaults to 12.0",
+          "default": 12.0
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    },
+    {
+      "id": "macro.production_controller",
+      "name": "ProductionController",
+      "kind": "executable_behavior",
+      "description": "Handle creating extra production facilities based on an army composition dictionary. This dictionary should be structured the same as the one passed into SpawnController",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.behaviors.macro.production_controller.ProductionController",
+        "source_path": "ares/src/ares/behaviors/macro/production_controller.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "army_composition_dict",
+          "type": "unit_type_id",
+          "python_type": "dict[UnitID, dict[str, float | int]]",
+          "input": "model",
+          "required": true,
+          "description": "A dictionary detailing how an army composition should be made up. The proportional values should all add up to 1.0, with a priority integer for unit emphasis."
+        },
+        {
+          "name": "base_location",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "model",
+          "required": true,
+          "description": "The location where production should be built."
+        },
+        {
+          "name": "add_production_at_bank",
+          "type": "json_value",
+          "python_type": "tuple[int, int]",
+          "input": "model",
+          "required": false,
+          "description": "When the bank reaches this size, calculate what extra production would be useful. Tuple: minerals, then vespene. Defaults to `(400, 400)`.",
+          "default": [
+            400,
+            400
+          ]
+        },
+        {
+          "name": "alpha",
+          "type": "number",
+          "python_type": "float",
+          "input": "model",
+          "required": false,
+          "description": "Controls how much production to add when the bank is higher than `add_production_at_bank`. Defaults to `0.9`.",
+          "default": 0.9
+        },
+        {
+          "name": "unit_pending_progress",
+          "type": "number",
+          "python_type": "float",
+          "input": "model",
+          "required": false,
+          "description": "Count production structures that are nearly complete before adding more. Defaults to `0.75`.",
+          "default": 0.75
+        },
+        {
+          "name": "ignore_below_proportion",
+          "type": "number",
+          "python_type": "float",
+          "input": "model",
+          "required": false,
+          "description": "Accepted for API compatibility; currently ignored by the implementation.",
+          "default": 0.05
+        },
+        {
+          "name": "should_repower_structures",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Search for unpowered structures and build a new pylon if needed. Defaults to `True`.",
+          "default": true
+        },
+        {
+          "name": "max_production_structures",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": false,
+          "description": "Stop adding production at this number Defaults to 12",
+          "default": 12
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    },
+    {
+      "id": "macro.protoss_static_defence",
+      "name": "ProtossStaticDefence",
+      "kind": "executable_behavior",
+      "description": "Build protoss static defence at all bases with a Nexus.",
+      "documentation_status": "source_only_public",
+      "api": {
+        "import": "ares.behaviors.macro.protoss_static_defence.ProtossStaticDefence",
+        "source_path": "ares/src/ares/behaviors/macro/protoss_static_defence.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "pylons_per_base",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": false,
+          "description": "Number of pylons to maintain per base.",
+          "default": 1
+        },
+        {
+          "name": "photon_cannons_per_base",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": false,
+          "description": "Number of photon cannons to maintain per base.",
+          "default": 1
+        },
+        {
+          "name": "shield_batteries_per_base",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": false,
+          "description": "Number of shield batteries to maintain per base.",
+          "default": 1
+        },
+        {
+          "name": "exclude_base_locations",
+          "type": "point_ref",
+          "python_type": "set[Point2]",
+          "input": "model",
+          "required": false,
+          "description": "Base locations to skip when placing defence.",
+          "default": {
+            "expression": "field(default_factory=set)"
+          }
+        },
+        {
+          "name": "max_on_route",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": false,
+          "description": "Max number of workers on route per structure type.",
+          "default": 1
+        },
+        {
+          "name": "tech_base_location",
+          "type": "point_ref",
+          "python_type": "Point2 | None",
+          "input": "model",
+          "required": false,
+          "description": "Where to build tech requirements (forge/core).",
+          "default": null
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "disabled",
+      "llm_exposure_reason": "Requires review because it is not listed by the current documentation chapter."
+    },
+    {
+      "id": "macro.restore_power",
+      "name": "RestorePower",
+      "kind": "executable_behavior",
+      "description": "Restore power for protoss structures.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.behaviors.macro.restore_power.RestorePower",
+        "source_path": "ares/src/ares/behaviors/macro/restore_power.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    },
+    {
+      "id": "macro.spawn_controller",
+      "name": "SpawnController",
+      "kind": "executable_behavior",
+      "description": "Handle spawning army compositions.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.behaviors.macro.spawn_controller.SpawnController",
+        "source_path": "ares/src/ares/behaviors/macro/spawn_controller.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "army_composition_dict",
+          "type": "unit_type_id",
+          "python_type": "dict[UnitID, dict[str, float | int]]",
+          "input": "model",
+          "required": true,
+          "description": "A dictionary detailing how an army composition should be made up. The proportional values should all add up to 1.0, with a priority integer for unit emphasis."
+        },
+        {
+          "name": "freeflow_mode",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "If set to True, army composition proportions are ignored, and resources will be spent freely. Defaults to `False`.",
+          "default": false
+        },
+        {
+          "name": "ignore_proportions_below_unit_count",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": false,
+          "description": "In early game, units affect the army proportions significantly. This allows some units to be freely built before proportions are respected. Defaults to `0`.",
+          "default": 0
+        },
+        {
+          "name": "over_produce_on_low_tech",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "If only one tech is available for a unit, this allows that unit to be constantly produced. Defaults to `True`.",
+          "default": true
+        },
+        {
+          "name": "ignored_build_from_tags",
+          "type": "json_value",
+          "python_type": "set[int]",
+          "input": "model",
+          "required": false,
+          "description": "A set of tags to prevent the spawn controller from morphing from these tags.",
+          "default": {
+            "expression": "field(default_factory=set)"
+          }
+        },
+        {
+          "name": "maximum",
+          "type": "integer",
+          "python_type": "int",
+          "input": "model",
+          "required": false,
+          "description": "The maximum number of a unit type that can be produced in a single step. Defaults to `20`.",
+          "default": 20
+        },
+        {
+          "name": "spawn_target",
+          "type": "point_ref",
+          "python_type": "Point2 | None",
+          "input": "model",
+          "required": false,
+          "description": "A location to prioritize spawning units near. Defaults to `None`.",
+          "default": null
+        },
+        {
+          "name": "__build_dict",
+          "type": "unit_type_id",
+          "python_type": "dict[Unit, UnitID]",
+          "input": "model",
+          "required": false,
+          "description": "  build dict.",
+          "default": {
+            "expression": "field(default_factory=dict)"
+          }
+        },
+        {
+          "name": "__excluded_structure_tags",
+          "type": "json_value",
+          "python_type": "set[int]",
+          "input": "model",
+          "required": false,
+          "description": "  excluded structure tags.",
+          "default": {
+            "expression": "field(default_factory=set)"
+          }
+        },
+        {
+          "name": "__supply_available",
+          "type": "number",
+          "python_type": "float",
+          "input": "model",
+          "required": false,
+          "description": "  supply available.",
+          "default": 0.0
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    },
+    {
+      "id": "macro.speed_mining",
+      "name": "SpeedMining",
+      "kind": "executable_behavior",
+      "description": "Speed mine worker at provided townhall and target resource.",
+      "documentation_status": "source_only_public",
+      "api": {
+        "import": "ares.behaviors.macro.speed_mining.SpeedMining",
+        "source_path": "ares/src/ares/behaviors/macro/speed_mining.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "worker",
+          "type": "unit_ref",
+          "python_type": "Unit",
+          "input": "model",
+          "required": true,
+          "description": "The worker to mine with."
+        },
+        {
+          "name": "target",
+          "type": "point_or_unit_ref",
+          "python_type": "Union[Point2, Unit]",
+          "input": "model",
+          "required": true,
+          "description": "The resource to mine."
+        },
+        {
+          "name": "worker_position",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "model",
+          "required": true,
+          "description": "Position of worker."
+        },
+        {
+          "name": "resource_target_pos",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "model",
+          "required": true,
+          "description": "Position in front or resource to move to before queueing a mine command."
+        },
+        {
+          "name": "distance_to_townhall_factor",
+          "type": "number",
+          "python_type": "float",
+          "input": "model",
+          "required": false,
+          "description": "How far away from th to move command. Default is 1.08",
+          "default": 1.08
+        },
+        {
+          "name": "townhall",
+          "type": "json_value",
+          "python_type": "Optional[Unit]",
+          "input": "model",
+          "required": false,
+          "description": "Townhall worker is assigned to. Default to None (will calculate closest if so)",
+          "default": null
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "disabled",
+      "llm_exposure_reason": "Requires review because it is not listed by the current documentation chapter."
+    },
+    {
+      "id": "macro.tech_up",
+      "name": "TechUp",
+      "kind": "executable_behavior",
+      "description": "Automatically tech up so desired upgrade/unit can be built.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.behaviors.macro.tech_up.TechUp",
+        "source_path": "ares/src/ares/behaviors/macro/tech_up.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "desired_tech",
+          "type": "unit_type_id",
+          "python_type": "Union[UpgradeId, UnitID]",
+          "input": "model",
+          "required": true,
+          "description": "The desired upgrade or unit type."
+        },
+        {
+          "name": "base_location",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "model",
+          "required": true,
+          "description": "The main building location to make tech."
+        },
+        {
+          "name": "ignore_existing_techlabs",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "If set to `True`, will keep building techlabs even if others exist. Defaults to `False`.",
+          "default": false
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    },
+    {
+      "id": "macro.upgrade_c_cs",
+      "name": "UpgradeCCs",
+      "kind": "executable_behavior",
+      "description": "Upgrade an idle Terran Command Center to an Orbital Command or Planetary Fortress.",
+      "documentation_status": "source_only_public",
+      "api": {
+        "import": "ares.behaviors.macro.upgrade_ccs.UpgradeCCs",
+        "source_path": "ares/src/ares/behaviors/macro/upgrade_ccs.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "to",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
+          "input": "model",
+          "required": true,
+          "description": "The desired Command Center upgrade: ORBITALCOMMAND or PLANETARYFORTRESS."
+        },
+        {
+          "name": "prioritize",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "If True and there is a CC waiting to upgrade, but we can't afford it yet, this behavior will return True This is useful in a MacroPlan as it will prevent other spending actions occurring. Default is False",
+          "default": false
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible",
+      "llm_exposure_reason": "Reviewed for the BC Rush IM contract despite source-only documentation status."
+    },
+    {
+      "id": "macro.upgrade_controller",
+      "name": "UpgradeController",
+      "kind": "executable_behavior",
+      "description": "Research upgrades, if the upgrade is not currently researchable this behavior will automatically make the tech buildings required.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.behaviors.macro.upgrade_controller.UpgradeController",
+        "source_path": "ares/src/ares/behaviors/macro/upgrade_controller.py",
+        "dispatch": "register_behavior"
+      },
+      "params": [
+        {
+          "name": "upgrade_list",
+          "type": "upgrade_id",
+          "python_type": "list[UpgradeId]",
+          "input": "model",
+          "required": true,
+          "description": "List of desired upgrades."
+        },
+        {
+          "name": "base_location",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "model",
+          "required": true,
+          "description": "Location to build upgrade buildings."
+        },
+        {
+          "name": "auto_tech_up_enabled",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "Whether to automatically build missing tech structures required for the requested upgrade. Defaults to True.",
+          "default": true
+        },
+        {
+          "name": "prioritize",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "model",
+          "required": false,
+          "description": "If True and there is an Upgrade ready to go, but we can't afford it yet, this behavior will return True. This is useful in a MacroPlan as it will prevent other spending actions occurring. Default is False",
+          "default": false
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    }
+  ]
+}
