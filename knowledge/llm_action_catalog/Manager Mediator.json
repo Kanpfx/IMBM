@@ -6,8 +6,8 @@
     "documentation_url": "https://aressc2.github.io/ares-sc2/api_reference/manager_mediator.html"
   },
   "source": {
-    "ares_version": "3.10.1",
-    "git_commit": "a43ad5941b63c8e608a998830e649eb2ff180716"
+    "ares_version": "3.9.6",
+    "git_commit": "0ac34b87f9471979f8de19a77020eed2d8693b26"
   },
   "entries": [
     {
@@ -19,7 +19,7 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "add_managers",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
@@ -46,17 +46,45 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "add_to_nydus_travellers",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "unit",
+          "type": "unit_ref",
+          "python_type": "Unit",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "The unit to be added to the nydus travellers.",
+          "via_kwargs": true
+        },
+        {
+          "name": "entry_nydus_tag",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": true,
+          "description": "The tag of the nydus we are entering.",
+          "via_kwargs": true
+        },
+        {
+          "name": "exit_nydus_tag",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": true,
+          "description": "The tag of the nydus we are exiting.",
+          "via_kwargs": true
+        },
+        {
+          "name": "exit_towards",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "The direction out of the exit nydus.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -73,17 +101,37 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "assign_role",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "tag",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": true,
+          "description": "Tag of the unit to be assigned.",
+          "via_kwargs": true
+        },
+        {
+          "name": "role",
+          "type": "unit_role",
+          "python_type": "UnitRole",
+          "input": "runtime",
+          "required": true,
+          "description": "What role the unit should have.",
+          "via_kwargs": true
+        },
+        {
+          "name": "remove_from_squad",
+          "type": "boolean",
+          "python_type": "bool",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "Attempt to remove this unit from squad bookkeeping. Default is True.",
+          "via_kwargs": true,
+          "default": true
         }
       ],
       "parser": {
@@ -100,17 +148,27 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "batch_assign_role",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "tags",
+          "type": "integer_list",
+          "python_type": "Union[List[int], Set[int]]",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "Tags of the units to assign to a role.",
+          "via_kwargs": true
+        },
+        {
+          "name": "role",
+          "type": "unit_role",
+          "python_type": "UnitRole",
+          "input": "runtime",
+          "required": true,
+          "description": "The role the units should be assigned to.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -127,17 +185,58 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "build_with_specific_worker",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "worker",
+          "type": "unit_ref",
+          "python_type": "Unit",
+          "input": "runtime",
+          "required": true,
+          "description": "The chosen worker.",
+          "via_kwargs": true
+        },
+        {
+          "name": "structure_type",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
+          "input": "runtime",
+          "required": true,
+          "description": "What type of structure to build.",
+          "via_kwargs": true
+        },
+        {
+          "name": "pos",
+          "type": "point_or_unit_ref",
+          "python_type": "Union[Point2, Unit]",
+          "input": "runtime",
+          "required": true,
+          "description": "Where the structure should be placed.",
+          "via_kwargs": true
+        },
+        {
+          "name": "assign_role",
+          "type": "boolean",
+          "python_type": "bool",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "Assign role.",
+          "via_kwargs": true,
+          "default": true
+        },
+        {
+          "name": "building_purpose",
+          "type": "json_value",
+          "python_type": "BuildingPurpose",
+          "input": "runtime",
+          "required": false,
+          "description": "Why the structure is being placed.",
+          "via_kwargs": true,
+          "default": {
+            "expression": "BuildingPurpose.NORMAL_BUILDING"
+          }
         }
       ],
       "parser": {
@@ -148,23 +247,33 @@
     {
       "id": "manager_mediator.managermediator.building_position_blocked_by_burrowed_unit",
       "name": "building_position_blocked_by_burrowed_unit",
-      "kind": "runtime_method",
+      "kind": "observation_query",
       "description": "See if the building position is blocked by a burrowed unit.",
       "documentation_status": "documented",
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "building_position_blocked_by_burrowed_unit",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "worker_tag",
+          "type": "integer",
+          "python_type": "int",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "The worker attempting to build the structure.",
+          "via_kwargs": true
+        },
+        {
+          "name": "position",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Where the structure is attempting to be placed.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -181,17 +290,37 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "can_place_structure",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "position",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "The intended building position.",
+          "via_kwargs": true
+        },
+        {
+          "name": "structure_type",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
+          "input": "runtime",
+          "required": true,
+          "description": "Structure type we want to place.",
+          "via_kwargs": true
+        },
+        {
+          "name": "include_addon",
+          "type": "boolean",
+          "python_type": "bool",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "For Terran structures, check addon will place too.",
+          "via_kwargs": true,
+          "default": false
         }
       ],
       "parser": {
@@ -208,17 +337,57 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "can_win_fight",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "own_units",
+          "type": "unit_refs",
+          "python_type": "Units",
+          "input": "runtime",
+          "required": true,
+          "description": "Our units involved in the battle.",
+          "via_kwargs": true
+        },
+        {
+          "name": "enemy_units",
+          "type": "unit_refs",
+          "python_type": "Units",
+          "input": "runtime",
+          "required": true,
+          "description": "The enemy units.",
+          "via_kwargs": true
+        },
+        {
+          "name": "timing_adjust",
+          "type": "boolean",
+          "python_type": "bool",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "Whether to consider the distance between units.",
+          "via_kwargs": true,
+          "default": true
+        },
+        {
+          "name": "good_positioning",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Whether to assume units are decently split.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "workers_do_no_damage",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Whether to ignore workers' damage.",
+          "via_kwargs": true,
+          "default": false
         }
       ],
       "parser": {
@@ -235,17 +404,18 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "cancel_structure",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "structure",
+          "type": "unit_ref",
+          "python_type": "Unit",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "The actual structure to cancel.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -262,19 +432,10 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "clear_nydus_travellers",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
-      "params": [
-        {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
-          "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
-        }
-      ],
+      "params": [],
       "parser": {
         "mode": "call_method"
       },
@@ -289,17 +450,18 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "clear_role",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "tag",
+          "type": "integer",
+          "python_type": "int",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "Tag of the unit to clear the role of.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -316,17 +478,37 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "find_closest_safe_spot",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "from_pos",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Where the search starts from.",
+          "via_kwargs": true
+        },
+        {
+          "name": "grid",
+          "type": "grid_ref",
+          "python_type": "np.ndarray",
+          "input": "runtime",
+          "required": true,
+          "description": "The grid to find the low-cost point on.",
+          "via_kwargs": true
+        },
+        {
+          "name": "radius",
+          "type": "integer",
+          "python_type": "int",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "How far away the safe point can be.",
+          "via_kwargs": true,
+          "default": 11
         }
       ],
       "parser": {
@@ -343,17 +525,36 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "find_low_priority_path",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "start",
+          "type": "point_ref",
+          "python_type": "Point2",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "Start point of the path.",
+          "via_kwargs": true
+        },
+        {
+          "name": "target",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Desired end point of the path.",
+          "via_kwargs": true
+        },
+        {
+          "name": "grid",
+          "type": "grid_ref",
+          "python_type": "np.ndarray",
+          "input": "runtime",
+          "required": true,
+          "description": "The grid that should be used for pathing.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -370,17 +571,36 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "find_lowest_cost_points",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "from_pos",
+          "type": "point_ref",
+          "python_type": "Point2",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "Point to start the search from.",
+          "via_kwargs": true
+        },
+        {
+          "name": "radius",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": true,
+          "description": "How far away the returned points can be.",
+          "via_kwargs": true
+        },
+        {
+          "name": "grid",
+          "type": "grid_ref",
+          "python_type": "np.ndarray",
+          "input": "runtime",
+          "required": true,
+          "description": "Which grid to query for lowest cost points.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -397,17 +617,78 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "find_nearby_creep_edge_position",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "position",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Where to search from",
+          "via_kwargs": true
+        },
+        {
+          "name": "search_radius",
+          "type": "number",
+          "python_type": "float",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "How far to search for creep edge position.",
+          "via_kwargs": true,
+          "default": 15.0
+        },
+        {
+          "name": "closest_valid",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "If True find the closest valid edge tile from `position`. Else find the furthest Default is True.",
+          "via_kwargs": true,
+          "default": true
+        },
+        {
+          "name": "spread_dist",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": false,
+          "description": "How much distance between existing tumors? Default is 4.0",
+          "via_kwargs": true,
+          "default": 3.0
+        },
+        {
+          "name": "townhall_avoid_dist",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": false,
+          "description": "Townhall avoid dist.",
+          "via_kwargs": true,
+          "default": 15.0
+        },
+        {
+          "name": "unit_tag",
+          "type": "json_value",
+          "python_type": "int | None",
+          "input": "runtime",
+          "required": false,
+          "description": "Unit tag to check if queen ability is available, by default None",
+          "via_kwargs": true,
+          "default": null
+        },
+        {
+          "name": "cache_result",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Should we cache the result to save computation? unit_tag should be set if this is True by default False",
+          "via_kwargs": true,
+          "default": false
         }
       ],
       "parser": {
@@ -424,17 +705,48 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "find_nydus_at_location",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "base_location",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Base location.",
+          "via_kwargs": true
+        },
+        {
+          "name": "min_base_distance",
+          "type": "number",
+          "python_type": "float",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "Min base distance.",
+          "via_kwargs": true,
+          "default": 15.0
+        },
+        {
+          "name": "max_nydus_distance",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": false,
+          "description": "Max nydus distance.",
+          "via_kwargs": true,
+          "default": 25.0
+        },
+        {
+          "name": "max_cost",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": false,
+          "description": "Max cost.",
+          "via_kwargs": true,
+          "default": 20
         }
       ],
       "parser": {
@@ -451,17 +763,66 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "find_nydus_path_next_point",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "start",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Start point of the path.",
+          "via_kwargs": true
+        },
+        {
+          "name": "target",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Desired end point of the path.",
+          "via_kwargs": true
+        },
+        {
+          "name": "grid",
+          "type": "grid_ref",
+          "python_type": "np.ndarray",
+          "input": "runtime",
+          "required": true,
+          "description": "The grid that should be used for pathing.",
+          "via_kwargs": true
+        },
+        {
+          "name": "large",
+          "type": "boolean",
+          "python_type": "bool",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "Large.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "sensitivity",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": false,
+          "description": "Amount of points that should be skipped in the full path between tiles that are returned. Default value is 5.",
+          "via_kwargs": true,
+          "default": 5
+        },
+        {
+          "name": "smoothing",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Optional path smoothing where nodes are removed if it's possible to jump ahead some tiles in a straight line with a lower cost. Default value is False.",
+          "via_kwargs": true,
+          "default": false
         }
       ],
       "parser": {
@@ -478,17 +839,86 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "find_path_next_point",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "start",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Start point of the path.",
+          "via_kwargs": true
+        },
+        {
+          "name": "target",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Desired end point of the path.",
+          "via_kwargs": true
+        },
+        {
+          "name": "grid",
+          "type": "grid_ref",
+          "python_type": "np.ndarray",
+          "input": "runtime",
+          "required": true,
+          "description": "The grid that should be used for pathing.",
+          "via_kwargs": true
+        },
+        {
+          "name": "sensitivity",
+          "type": "integer",
+          "python_type": "int",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "Amount of points that should be skipped in the full path between tiles that are returned. Default value is 5.",
+          "via_kwargs": true,
+          "default": 5
+        },
+        {
+          "name": "smoothing",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Optional path smoothing where nodes are removed if it's possible to jump ahead some tiles in a straight line with a lower cost. Default value is False.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "sense_danger",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Check to see if there are any dangerous tiles near the starting point. If this is True and there are no dangerous tiles near the starting point, the pathing query is skipped and the target is returned. Default value is True.",
+          "via_kwargs": true,
+          "default": true
+        },
+        {
+          "name": "danger_distance",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": false,
+          "description": "How far away from the start to look for danger. Default value is 20.",
+          "via_kwargs": true,
+          "default": 20.0
+        },
+        {
+          "name": "danger_threshold",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": false,
+          "description": "Minimum value for a tile to be considered dangerous. Default value is 5.",
+          "via_kwargs": true,
+          "default": 5.0
         }
       ],
       "parser": {
@@ -505,17 +935,45 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "find_raw_path",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "start",
+          "type": "point_ref",
+          "python_type": "Point2",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "Start point of the path.",
+          "via_kwargs": true
+        },
+        {
+          "name": "target",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Desired end point of the path.",
+          "via_kwargs": true
+        },
+        {
+          "name": "grid",
+          "type": "grid_ref",
+          "python_type": "np.ndarray",
+          "input": "runtime",
+          "required": true,
+          "description": "The grid that should be used for pathing.",
+          "via_kwargs": true
+        },
+        {
+          "name": "sensitivity",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": true,
+          "description": "Amount of points that should be skipped in the full path between tiles that are returned.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -532,7 +990,7 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "get_air_avoidance_grid",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "read_property"
       },
       "params": [],
@@ -550,7 +1008,7 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "get_air_grid",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "read_property"
       },
       "params": [],
@@ -563,23 +1021,2088 @@
       "id": "manager_mediator.managermediator.get_air_vs_ground_grid",
       "name": "get_air_vs_ground_grid",
       "kind": "observation_query",
-      "description": "Get the air vs ground pa…17155 tokens truncated…d": "observation_query",
+      "description": "Get the air vs ground pathing grid. (air grid)",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_air_vs_ground_grid",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_all_enemy",
+      "name": "get_all_enemy",
+      "kind": "observation_query",
+      "description": "Get all enemy units.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_all_enemy",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_all_from_roles_except",
+      "name": "get_all_from_roles_except",
+      "kind": "observation_query",
+      "description": "Get all units from the given roles except for unit types in excluded.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_all_from_roles_except",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "roles",
+          "type": "unit_roles",
+          "python_type": "Set[UnitRole]",
+          "input": "runtime",
+          "required": true,
+          "description": "Roles to get units from.",
+          "via_kwargs": true
+        },
+        {
+          "name": "excluded",
+          "type": "unit_type_ids",
+          "python_type": "Set[UnitID]",
+          "input": "runtime",
+          "required": true,
+          "description": "Unit types that should not be included.",
+          "via_kwargs": true
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_any_enemies_in_range",
+      "name": "get_any_enemies_in_range",
+      "kind": "observation_query",
+      "description": "Check various positions for any enemy units in range.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_any_enemies_in_range",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "positions",
+          "type": "point_refs",
+          "python_type": "Union[List[Point2], List[List[float]]]",
+          "input": "runtime",
+          "required": true,
+          "description": "list[Point2]",
+          "via_kwargs": true
+        },
+        {
+          "name": "radius",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": true,
+          "description": "Radius.",
+          "via_kwargs": true
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_banned_nydus_travellers",
+      "name": "get_banned_nydus_travellers",
+      "kind": "observation_query",
+      "description": "Get the nydus travellers dictionary.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_banned_nydus_travellers",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_behind_mineral_positions",
+      "name": "get_behind_mineral_positions",
+      "kind": "observation_query",
+      "description": "Finds 3 spots behind the mineral line",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_behind_mineral_positions",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "th_pos",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Position of townhall to find points behind the mineral line of.",
+          "via_kwargs": true
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_building_counter",
+      "name": "get_building_counter",
+      "kind": "observation_query",
+      "description": "Get a dictionary containing the number of each type of building in progress.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_building_counter",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_building_tracker_dict",
+      "name": "get_building_tracker_dict",
+      "kind": "observation_query",
+      "description": "Get the building tracker dictionary.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_building_tracker_dict",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_cached_enemy_army",
+      "name": "get_cached_enemy_army",
+      "kind": "observation_query",
+      "description": "Get the Units object for the enemy army.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_cached_enemy_army",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_cached_enemy_workers",
+      "name": "get_cached_enemy_workers",
+      "kind": "observation_query",
+      "description": "Get the Units object for the enemy workers.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_cached_enemy_workers",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_cached_ground_grid",
+      "name": "get_cached_ground_grid",
+      "kind": "observation_query",
+      "description": "Get a non-influence ground pathing grid.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_cached_ground_grid",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_climber_grid",
+      "name": "get_climber_grid",
+      "kind": "observation_query",
+      "description": "Get the climber ground pathing grid for reapers and colossus. Pathable tiles have a value of 1.0 Pathable tiles with enemy influence have a value > 1.0 The higher the value, the more influence there is. Non-pathable tiles have a value of np.inf",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_climber_grid",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_closest_creep_tile",
+      "name": "get_closest_creep_tile",
+      "kind": "observation_query",
+      "description": "Get closest creep tile to `pos`",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_closest_creep_tile",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "pos",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "The position to search for closest creep tile.",
+          "via_kwargs": true
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_closest_overlord_spot",
+      "name": "get_closest_overlord_spot",
+      "kind": "observation_query",
+      "description": "Given a position, find the closest high ground overlord spot.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_closest_overlord_spot",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "from_pos",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Position the Overlord spot should be closest to.",
+          "via_kwargs": true
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_creep_coverage",
+      "name": "get_creep_coverage",
+      "kind": "observation_query",
+      "description": "How much of the map is covered by creep?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_creep_coverage",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_creep_edges",
+      "name": "get_creep_edges",
+      "kind": "observation_query",
+      "description": "Fetches the edges of the detected creep on the map.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_creep_edges",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_creep_grid",
+      "name": "get_creep_grid",
+      "kind": "observation_query",
+      "description": "Get the creep grid. Creep tiles have a value of 1.0 Non creep tiles have any other value.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_creep_grid",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_creep_tiles",
+      "name": "get_creep_tiles",
+      "kind": "observation_query",
+      "description": "Get creep tiles.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_creep_tiles",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_defensive_third",
+      "name": "get_defensive_third",
+      "kind": "observation_query",
+      "description": "Get the third furthest from enemy.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_defensive_third",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_did_enemy_rush",
+      "name": "get_did_enemy_rush",
+      "kind": "observation_query",
+      "description": "Determines whether the enemy executed a rush strategy based on the intel manager's evaluation.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_did_enemy_rush",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_army_dict",
+      "name": "get_enemy_army_dict",
+      "kind": "observation_query",
+      "description": "Get the dictionary of enemy army unit types to the units themselves.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_army_dict",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_expanded",
+      "name": "get_enemy_expanded",
+      "kind": "observation_query",
+      "description": "Has the enemy expanded?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_expanded",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_expansions",
+      "name": "get_enemy_expansions",
+      "kind": "observation_query",
+      "description": "Get the expansions, as ordered from the enemy's point of view.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_expansions",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_fliers",
+      "name": "get_enemy_fliers",
+      "kind": "observation_query",
+      "description": "Get enemy flying units.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_fliers",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_four_gate",
+      "name": "get_enemy_four_gate",
+      "kind": "observation_query",
+      "description": "Has the enemy gone four gate?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_four_gate",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_fourth",
+      "name": "get_enemy_fourth",
+      "kind": "observation_query",
+      "description": "Get the enemy fourth base.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_fourth",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_ground",
+      "name": "get_enemy_ground",
+      "kind": "observation_query",
+      "description": "Get enemy ground units.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_ground",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_has_base_outside_natural",
+      "name": "get_enemy_has_base_outside_natural",
+      "kind": "observation_query",
+      "description": "Has the enemy expanded outside of their natural?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_has_base_outside_natural",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_ling_rushed",
+      "name": "get_enemy_ling_rushed",
+      "kind": "observation_query",
+      "description": "Has the enemy ling rushed?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_ling_rushed",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_main_nydus_points",
+      "name": "get_enemy_main_nydus_points",
+      "kind": "observation_query",
+      "description": "Get the optimal position for a nydus in enemy main, considering distance from base and ramp.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_main_nydus_points",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_marauder_rush",
+      "name": "get_enemy_marauder_rush",
+      "kind": "observation_query",
+      "description": "Is the enemy currently marauder rushing?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_marauder_rush",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_marine_rush",
+      "name": "get_enemy_marine_rush",
+      "kind": "observation_query",
+      "description": "Is the enemy currently marine rushing?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_marine_rush",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_nat",
+      "name": "get_enemy_nat",
+      "kind": "observation_query",
+      "description": "Get the enemy natural expansion.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_nat",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_ramp",
+      "name": "get_enemy_ramp",
+      "kind": "observation_query",
+      "description": "Get the enemy main base ramp.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_ramp",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_ravager_rush",
+      "name": "get_enemy_ravager_rush",
+      "kind": "observation_query",
+      "description": "Has the enemy ravager rushed?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_ravager_rush",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_roach_rushed",
+      "name": "get_enemy_roach_rushed",
+      "kind": "observation_query",
+      "description": "Did the enemy roach rush?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_roach_rushed",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_third",
+      "name": "get_enemy_third",
+      "kind": "observation_query",
+      "description": "Get the enemy third base.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_third",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_tree",
+      "name": "get_enemy_tree",
+      "kind": "observation_query",
+      "description": "Get the KDTree representing all enemy unit positions.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_tree",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_was_greedy",
+      "name": "get_enemy_was_greedy",
+      "kind": "observation_query",
+      "description": "Was the enemy greedy?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_was_greedy",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_went_four_gate",
+      "name": "get_enemy_went_four_gate",
+      "kind": "observation_query",
+      "description": "The enemy went four gate this game?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_went_four_gate",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_went_marauder_rush",
+      "name": "get_enemy_went_marauder_rush",
+      "kind": "observation_query",
+      "description": "The enemy went marauder rush this game?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_went_marauder_rush",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_went_marine_rush",
+      "name": "get_enemy_went_marine_rush",
+      "kind": "observation_query",
+      "description": "The enemy went marine rush this game?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_went_marine_rush",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_went_reaper",
+      "name": "get_enemy_went_reaper",
+      "kind": "observation_query",
+      "description": "The enemy opened with reaper this game?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_went_reaper",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_enemy_worker_rushed",
+      "name": "get_enemy_worker_rushed",
+      "kind": "observation_query",
+      "description": "The enemy went for a worker rush this game?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_enemy_worker_rushed",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_flood_fill_area",
+      "name": "get_flood_fill_area",
+      "kind": "observation_query",
+      "description": "Given a point, flood fill outward from it and return the valid points.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_flood_fill_area",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "start_point",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Where to start the flood fill.",
+          "via_kwargs": true
+        },
+        {
+          "name": "max_dist",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": false,
+          "description": "Only include points closer than this distance to the start point.",
+          "via_kwargs": true,
+          "default": 25
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_flying_enemy_near_bases",
+      "name": "get_flying_enemy_near_bases",
+      "kind": "observation_query",
+      "description": "Get dictionary containing flying enemy near townhalls.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_flying_enemy_near_bases",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_flying_structure_tracker",
+      "name": "get_flying_structure_tracker",
+      "kind": "observation_query",
+      "description": "Get the current information stored by FlyingStructureManager.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_flying_structure_tracker",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_forcefield_positions",
+      "name": "get_forcefield_positions",
+      "kind": "observation_query",
+      "description": "Get positions of forcefields.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_forcefield_positions",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_gatekeeper_positions",
+      "name": "get_gatekeeper_positions",
+      "kind": "observation_query",
+      "description": "Return the mapping of expansion locations to their calculated gatekeeper positions.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_gatekeeper_positions",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_ground_avoidance_grid",
+      "name": "get_ground_avoidance_grid",
+      "kind": "observation_query",
+      "description": "Get the ground avoidance pathing grid. Any tile with a value greater than one will contain some dangerous effects or spells that should always be avoided. Such as storms, nukes, ravager biles etc...",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_ground_avoidance_grid",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_ground_enemy_near_bases",
+      "name": "get_ground_enemy_near_bases",
+      "kind": "observation_query",
+      "description": "Get dictionary containing ground enemy near townhalls.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_ground_enemy_near_bases",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_ground_grid",
+      "name": "get_ground_grid",
+      "kind": "observation_query",
+      "description": "Get the ground pathing grid. Pathable tiles have a value of 1.0 Pathable tiles with enemy influence have a value > 1.0 The higher the value, the more influence there is. Non-pathable tiles have a value of np.inf",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_ground_grid",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_ground_to_air_grid",
+      "name": "get_ground_to_air_grid",
+      "kind": "observation_query",
+      "description": "Get an air grid that contains influence for ground dangers that can shoot air. This can be useful for keeping air units safe that can't attack ground units.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_ground_to_air_grid",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_initial_pathing_grid",
+      "name": "get_initial_pathing_grid",
+      "kind": "observation_query",
+      "description": "Get the pathing grid as it was on the first iteration.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_initial_pathing_grid",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_is_detected",
+      "name": "get_is_detected",
+      "kind": "observation_query",
+      "description": "Get if the enemy currently is revealing a cloaked or burrowed unit.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_is_detected",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "unit",
+          "type": "point_or_unit_ref",
+          "python_type": "Unit | Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Unit.",
+          "via_kwargs": true
+        },
+        {
+          "name": "by_enemy",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "By enemy.",
+          "via_kwargs": true,
+          "default": true
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_is_free_expansion",
+      "name": "get_is_free_expansion",
+      "kind": "observation_query",
+      "description": "Check all bases for a free expansion.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_is_free_expansion",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_is_proxy_zealot",
+      "name": "get_is_proxy_zealot",
+      "kind": "observation_query",
+      "description": "There is currently proxy zealot attempt from enemy?",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_is_proxy_zealot",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_main_air_threats_near_townhall",
+      "name": "get_main_air_threats_near_townhall",
+      "kind": "observation_query",
+      "description": "Get the main enemy air force near one of our bases.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_main_air_threats_near_townhall",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_main_ground_threats_near_townhall",
+      "name": "get_main_ground_threats_near_townhall",
+      "kind": "observation_query",
+      "description": "Get the main enemy ground force near one of our bases.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_main_ground_threats_near_townhall",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_map_choke_points",
+      "name": "get_map_choke_points",
+      "kind": "observation_query",
+      "description": "All the points on the map that compose choke points.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_map_choke_points",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_map_data_object",
+      "name": "get_map_data_object",
+      "kind": "observation_query",
+      "description": "Get the MapAnalyzer.MapData object being used.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_map_data_object",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_mineral_patch_to_list_of_workers",
+      "name": "get_mineral_patch_to_list_of_workers",
+      "kind": "observation_query",
+      "description": "Get a dictionary containing mineral tag to worker tags",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_mineral_patch_to_list_of_workers",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_mineral_target_dict",
+      "name": "get_mineral_target_dict",
+      "kind": "observation_query",
+      "description": "Get position in front of each mineral.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_mineral_target_dict",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_next_tumor_on_path",
+      "name": "get_next_tumor_on_path",
+      "kind": "observation_query",
+      "description": "Determines the next tumor position on the path, using vectorized operations to find positions along the creep edge that maintain proper separation.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_next_tumor_on_path",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "grid",
+          "type": "grid_ref",
+          "python_type": "np.ndarray",
+          "input": "runtime",
+          "required": true,
+          "description": "A 2D array to path on.",
+          "via_kwargs": true
+        },
+        {
+          "name": "from_pos",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "The starting position from which the path is evaluated.",
+          "via_kwargs": true
+        },
+        {
+          "name": "to_pos",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "The target position on the grid where the path leads.",
+          "via_kwargs": true
+        },
+        {
+          "name": "max_distance",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": false,
+          "description": "The maximum allowable distance from the `from_pos` to the next tumor position. Default is 999.9.",
+          "via_kwargs": true,
+          "default": 999.9
+        },
+        {
+          "name": "min_distance",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": false,
+          "description": "The minimum allowable distance from the `from_pos` to the next tumor position. Default is 0.0.",
+          "via_kwargs": true,
+          "default": 0.0
+        },
+        {
+          "name": "min_separation",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": false,
+          "description": "The minimum distance required between the new tumor and existing tumors/queen routes. Default is 3.0.",
+          "via_kwargs": true,
+          "default": 5.0
+        },
+        {
+          "name": "find_alternative",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Find an alternative position if the closest position is too close to existing tumors Switch to False if possible to avoid unnecessary checks. Default is True.",
+          "via_kwargs": true,
+          "default": true
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_num_available_mineral_patches",
+      "name": "get_num_available_mineral_patches",
+      "kind": "observation_query",
+      "description": "Get the number available mineral fields.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_num_available_mineral_patches",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_nydus_travellers_dict",
+      "name": "get_nydus_travellers_dict",
+      "kind": "observation_query",
+      "description": "Get the nydus travellers dictionary.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_nydus_travellers_dict",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_ol_spot_near_enemy_nat",
+      "name": "get_ol_spot_near_enemy_nat",
+      "kind": "observation_query",
+      "description": "Get the overlord spot nearest to the enemy natural.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_ol_spot_near_enemy_nat",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_ol_spots",
+      "name": "get_ol_spots",
+      "kind": "observation_query",
+      "description": "High ground Overlord hiding spots.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_ol_spots",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_old_own_army_dict",
+      "name": "get_old_own_army_dict",
+      "kind": "observation_query",
+      "description": "Get the previous iteration's `own_army` dict.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_old_own_army_dict",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_overlord_creep_spotter_positions",
+      "name": "get_overlord_creep_spotter_positions",
+      "kind": "observation_query",
+      "description": "Find optimal positions for overlords to provide vision for creep spread.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_overlord_creep_spotter_positions",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "overlords",
+          "type": "unit_refs",
+          "python_type": "Units | list[Unit]",
+          "input": "runtime",
+          "required": true,
+          "description": "The overlords that will be positioned for creep vision",
+          "via_kwargs": true
+        },
+        {
+          "name": "target_pos",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Target pos.",
+          "via_kwargs": true
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_own_army",
+      "name": "get_own_army",
+      "kind": "observation_query",
+      "description": "Get the Units object for our own army.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_own_army",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_own_army_dict",
+      "name": "get_own_army_dict",
+      "kind": "observation_query",
+      "description": "Get the dictionary of own army unit types to the units themselves.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_own_army_dict",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_own_expansions",
+      "name": "get_own_expansions",
+      "kind": "observation_query",
+      "description": "Get the expansions.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_own_expansions",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_own_nat",
+      "name": "get_own_nat",
+      "kind": "observation_query",
+      "description": "Get our natural expansion.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_own_nat",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_own_structures_dict",
+      "name": "get_own_structures_dict",
+      "kind": "observation_query",
+      "description": "Get the dictionary of own structure types to the units themselves.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_own_structures_dict",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_own_tree",
+      "name": "get_own_tree",
+      "kind": "observation_query",
+      "description": "Get the KDTree representing all friendly unit positions.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_own_tree",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_own_unit_count",
+      "name": "get_own_unit_count",
+      "kind": "observation_query",
+      "description": "Get the dictionary of own structure types to the units themselves.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_own_unit_count",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "unit_type_id",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
+          "input": "runtime",
+          "required": true,
+          "description": "Unit type to count.",
+          "via_kwargs": true
+        },
+        {
+          "name": "include_alias",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Check aliases. (default=True)",
+          "via_kwargs": true,
+          "default": true
+        },
+        {
+          "name": "include_pending",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Include pending.",
+          "via_kwargs": true,
+          "default": true
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_placements_dict",
+      "name": "get_placements_dict",
+      "kind": "observation_query",
+      "description": "Get the placement dict ares calculated at beginning of the game.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_placements_dict",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_position_blocks_expansion",
+      "name": "get_position_blocks_expansion",
+      "kind": "observation_query",
+      "description": "See if a position blocks an expansion.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_position_blocks_expansion",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "position",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "The position to check.",
+          "via_kwargs": true
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_position_of_main_squad",
+      "name": "get_position_of_main_squad",
+      "kind": "observation_query",
+      "description": "Given a unit role, find where the main squad is.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_position_of_main_squad",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "role",
+          "type": "unit_role",
+          "python_type": "UnitRole",
+          "input": "runtime",
+          "required": true,
+          "description": "Get the squads for this unit role.",
+          "via_kwargs": true
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_positions_blocked_by_burrowed_enemy",
+      "name": "get_positions_blocked_by_burrowed_enemy",
+      "kind": "observation_query",
+      "description": "Build positions that are blocked by a burrowed enemy unit.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_positions_blocked_by_burrowed_enemy",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_primary_nydus_enemy_main",
+      "name": "get_primary_nydus_enemy_main",
+      "kind": "observation_query",
+      "description": "Get the optimal position for a nydus in enemy main, considering distance from base and ramp.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_primary_nydus_enemy_main",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_primary_nydus_own_main",
+      "name": "get_primary_nydus_own_main",
+      "kind": "observation_query",
+      "description": "Get the optimal position for a nydus in own main. Could be useful scouting position.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_primary_nydus_own_main",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_priority_ground_avoidance_grid",
+      "name": "get_priority_ground_avoidance_grid",
+      "kind": "observation_query",
+      "description": "Get the pathing grid containing things ground units should always avoid.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_priority_ground_avoidance_grid",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_pvz_nat_gatekeeping_pos",
+      "name": "get_pvz_nat_gatekeeping_pos",
+      "kind": "observation_query",
+      "description": "Get the gatekeeper position in a PvZ natural wall if available.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_pvz_nat_gatekeeping_pos",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_random_creep_position",
+      "name": "get_random_creep_position",
+      "kind": "observation_query",
+      "description": "Find a random valid creep position within tumor range.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_random_creep_position",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "position",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "The position to search from.",
+          "via_kwargs": true
+        },
+        {
+          "name": "max_attempts",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": false,
+          "description": "Maximum attempts to find a valid position.",
+          "via_kwargs": true,
+          "default": 20
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_removed_units",
+      "name": "get_removed_units",
+      "kind": "observation_query",
+      "description": "Get the units removed from memory units.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_removed_units",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_squads",
+      "name": "get_squads",
+      "kind": "observation_query",
+      "description": "Given a unit role, get the updated squads.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_squads",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "role",
+          "type": "unit_role",
+          "python_type": "UnitRole",
+          "input": "runtime",
+          "required": true,
+          "description": "Get the squads for this unit role.",
+          "via_kwargs": true
+        },
+        {
+          "name": "squad_radius",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": false,
+          "description": "The threshold as to which separate squads are formed.",
+          "via_kwargs": true,
+          "default": 6.0
+        },
+        {
+          "name": "unit_type",
+          "type": "unit_type_ids",
+          "python_type": "Optional[Union[UnitID, set[UnitID]]]",
+          "input": "runtime",
+          "required": false,
+          "description": "If specified, only form squads with these unit types WARNING: Will not remove units that have already been assigned to a squad.",
+          "via_kwargs": true,
+          "default": null
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_tactical_ground_grid",
+      "name": "get_tactical_ground_grid",
+      "kind": "observation_query",
+      "description": "Get the tactical ground grid.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_tactical_ground_grid",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_th_tag_with_largest_ground_threat",
+      "name": "get_th_tag_with_largest_ground_threat",
+      "kind": "observation_query",
+      "description": "Get the tag of our townhall with the largest enemy ground force nearby.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_th_tag_with_largest_ground_threat",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_tumor_influence_lowest_cost_position",
+      "name": "get_tumor_influence_lowest_cost_position",
+      "kind": "observation_query",
+      "description": "Determines the lowest cost position influenced by the tumor through a request to the creep manager.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_tumor_influence_lowest_cost_position",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "position",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Tumor position.",
+          "via_kwargs": true
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_unit_role_dict",
+      "name": "get_unit_role_dict",
+      "kind": "observation_query",
+      "description": "Get the dictionary of `UnitRole` to the set of tags of units with that role.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_unit_role_dict",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_unit_to_ability_dict",
+      "name": "get_unit_to_ability_dict",
+      "kind": "observation_query",
+      "description": "Get a dictionary containing unit tag, to ability frame cooldowns.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_unit_to_ability_dict",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "read_property"
+      },
+      "params": [],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_units_from_role",
+      "name": "get_units_from_role",
+      "kind": "observation_query",
+      "description": "Get a Units object containing units with a given role.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_units_from_role",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "role",
+          "type": "unit_role",
+          "python_type": "UnitRole",
+          "input": "runtime",
+          "required": true,
+          "description": "Role to get units from.",
+          "via_kwargs": true
+        },
+        {
+          "name": "unit_type",
+          "type": "unit_type_ids",
+          "python_type": "Optional[Union[UnitID, Set[UnitID]]]",
+          "input": "runtime",
+          "required": false,
+          "description": "Type(s) of units that should be returned. If omitted, all units with the role will be returned.",
+          "via_kwargs": true,
+          "default": null
+        },
+        {
+          "name": "restrict_to",
+          "type": "unit_refs",
+          "python_type": "Optional[Units]",
+          "input": "runtime",
+          "required": false,
+          "description": "If supplied, only take Units with the given role and type if they also exist here.",
+          "via_kwargs": true,
+          "default": null
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_units_from_roles",
+      "name": "get_units_from_roles",
+      "kind": "observation_query",
+      "description": "Get the units matching `unit_type` from the given roles.",
+      "documentation_status": "documented",
+      "api": {
+        "import": "ares.managers.manager_mediator.ManagerMediator",
+        "member": "get_units_from_roles",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
+        "dispatch": "call_method"
+      },
+      "params": [
+        {
+          "name": "roles",
+          "type": "unit_roles",
+          "python_type": "Set[UnitRole]",
+          "input": "runtime",
+          "required": true,
+          "description": "Roles to get units from.",
+          "via_kwargs": true
+        },
+        {
+          "name": "unit_type",
+          "type": "unit_type_ids",
+          "python_type": "Union[None, UnitID, Set[UnitID]]",
+          "input": "runtime",
+          "required": false,
+          "description": "Type(s) of units that should be returned. If omitted, all units with the role will be returned.",
+          "via_kwargs": true,
+          "default": null
+        }
+      ],
+      "parser": {
+        "mode": "record_only"
+      },
+      "llm_exposure": "record_only"
+    },
+    {
+      "id": "manager_mediator.managermediator.get_units_from_tags",
+      "name": "get_units_from_tags",
+      "kind": "observation_query",
       "description": "Get a `list` of `Unit` objects corresponding to the given tags.",
       "documentation_status": "documented",
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "get_units_from_tags",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "tags",
+          "type": "integer_list",
+          "python_type": "Union[List[int], Set[int]]",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "Tags of the units to retrieve.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -596,17 +3119,46 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "get_units_in_range",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "start_points",
+          "type": "json_array",
+          "python_type": "List[Union[Unit, Tuple[float, float]]]",
+          "input": "runtime",
+          "required": true,
+          "description": "List of `Unit`s or positions to search for units from.",
+          "via_kwargs": true
+        },
+        {
+          "name": "distances",
+          "type": "json_value",
+          "python_type": "Union[float, List[float]]",
+          "input": "runtime",
+          "required": true,
+          "description": "How far away from each point to query. Must broadcast to the length of `start_points`.",
+          "via_kwargs": true
+        },
+        {
+          "name": "query_tree",
+          "type": "json_value",
+          "python_type": "UnitTreeQueryType",
+          "input": "runtime",
+          "required": true,
+          "description": "Which KDTree should be queried.",
+          "via_kwargs": true
+        },
+        {
+          "name": "return_as_dict",
+          "type": "boolean",
+          "python_type": "bool",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "Sets whether the returned units in range should be a dictionary or list. Default is False.",
+          "via_kwargs": true,
+          "default": false
         }
       ],
       "parser": {
@@ -623,7 +3175,7 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "get_whole_map_array",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "read_property"
       },
       "params": [],
@@ -641,7 +3193,7 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "get_whole_map_tree",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "read_property"
       },
       "params": [],
@@ -659,7 +3211,7 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "get_worker_tag_to_townhall_tag",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "read_property"
       },
       "params": [],
@@ -677,7 +3229,7 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "get_worker_to_mineral_patch_dict",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "read_property"
       },
       "params": [],
@@ -695,7 +3247,7 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "get_worker_to_vespene_dict",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "read_property"
       },
       "params": [],
@@ -713,17 +3265,37 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "is_position_safe",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "grid",
+          "type": "grid_ref",
+          "python_type": "np.ndarray",
+          "input": "runtime",
+          "required": true,
+          "description": "The grid to evaluate safety on.",
+          "via_kwargs": true
+        },
+        {
+          "name": "position",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "The position to check the safety of.",
+          "via_kwargs": true
+        },
+        {
+          "name": "weight_safety_limit",
+          "type": "number",
+          "python_type": "float",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "The maximum value the point can have on the grid to be considered safe. Default value is 1.0.",
+          "via_kwargs": true,
+          "default": 1.0
         }
       ],
       "parser": {
@@ -735,28 +3307,57 @@
       "id": "manager_mediator.managermediator.make_placement_available",
       "name": "make_placement_available",
       "kind": "executable_command",
-      "description": "Make a placement available again.",
+      "description": "Intended to release a reserved building placement. In v3.9.6 this wrapper ignores its arguments and dispatches the wrong manager request; do not call it directly.",
       "documentation_status": "documented",
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "make_placement_available",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "size",
+          "type": "json_value",
+          "python_type": "Any",
+          "input": "runtime",
+          "required": true,
+          "description": "The building size.",
+          "via_kwargs": true
+        },
+        {
+          "name": "base_location",
+          "type": "point_ref",
+          "python_type": "Any",
+          "input": "runtime",
+          "required": true,
+          "description": "Expansion location this placement is near.",
+          "via_kwargs": true
+        },
+        {
+          "name": "building_pos",
+          "type": "point_ref",
+          "python_type": "Any",
+          "input": "runtime",
+          "required": true,
+          "description": "Unique building placement.",
+          "via_kwargs": true
+        },
+        {
+          "name": "tag",
+          "type": "integer",
+          "python_type": "optional",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "Tag of existing structure.",
+          "via_kwargs": true
         }
       ],
       "parser": {
-        "mode": "call_method"
+        "mode": "record_only"
       },
-      "llm_exposure": "runtime_only"
+      "llm_exposure": "disabled",
+      "llm_exposure_reason": "The v3.9.6 wrapper ignores its arguments and dispatches GET_PVZ_NAT_GATEKEEPER_POS instead of releasing a placement."
     },
     {
       "id": "manager_mediator.managermediator.manager_request",
@@ -767,7 +3368,7 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "manager_request",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
@@ -819,17 +3420,37 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "move_structure",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "structure",
+          "type": "unit_ref",
+          "python_type": "Unit",
+          "input": "runtime",
+          "required": true,
+          "description": "The structure to be moved or landed.",
+          "via_kwargs": true
+        },
+        {
+          "name": "target",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "The target location for the structure.",
+          "via_kwargs": true
+        },
+        {
+          "name": "should_land",
+          "type": "boolean",
+          "python_type": "bool",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "Whether the structure should land after moving. Defaults to False.",
+          "via_kwargs": true,
+          "default": true
         }
       ],
       "parser": {
@@ -846,17 +3467,18 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "remove_from_nydus_travellers",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "unit_tag",
+          "type": "integer",
+          "python_type": "int",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "The unit tag to be removed from the nydus travellers.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -873,17 +3495,18 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "remove_gas_building",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "gas_building_tag",
+          "type": "json_value",
+          "python_type": "Any",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "The tag of the gas building to remove.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -900,17 +3523,18 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "remove_mineral_field",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "mineral_field_tag",
+          "type": "integer",
+          "python_type": "int",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "The tag of the mineral patch to remove.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -927,17 +3551,18 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "remove_tag_from_squads",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "tag",
+          "type": "integer",
+          "python_type": "int",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "Get the squads for this unit role.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -954,17 +3579,18 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "remove_worker_from_mineral",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "worker_tag",
+          "type": "integer",
+          "python_type": "int",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "Tag of the worker to be removed.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -981,17 +3607,177 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "request_building_placement",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "base_location",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "The general area where the placement should be near. This should be an expansion location.",
+          "via_kwargs": true
+        },
+        {
+          "name": "structure_type",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
+          "input": "runtime",
+          "required": true,
+          "description": "Structure type requested.",
+          "via_kwargs": true
+        },
+        {
+          "name": "first_pylon",
+          "type": "boolean",
+          "python_type": "bool",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "Try to take designated first pylon if available. Default value is False.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "static_defence",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Try to take designated static defence placements if available. Default value is False.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "wall",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Request a wall structure placement. Will find alternative if no wall placements available. Default value is False.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "find_alternative",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "If no placements available at base_location, find an alternative at a nearby base. Default value is True.",
+          "via_kwargs": true,
+          "default": true
+        },
+        {
+          "name": "reserve_placement",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Reserve this booking for a while, so another customer doesn't request it. Default value is True.",
+          "via_kwargs": true,
+          "default": true
+        },
+        {
+          "name": "within_psionic_matrix",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Protoss specific -> calculated position have power? Default value is False.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "pylon_build_progress",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": false,
+          "description": "Only relevant if `within_psionic_matrix = True`. Default value is 1.0.",
+          "via_kwargs": true,
+          "default": 1.0
+        },
+        {
+          "name": "closest_to",
+          "type": "point_ref",
+          "python_type": "Optional[Point2]",
+          "input": "runtime",
+          "required": false,
+          "description": "Find placement at base closest to this.",
+          "via_kwargs": true,
+          "default": null
+        },
+        {
+          "name": "supply_depot",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Supply depot.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "production",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Production.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "upgrade_structure",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Upgrade structure.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "missile_turret",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Missile turret.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "sensor_tower",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Sensor tower.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "bunker",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Bunker.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "reaper_wall",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "Reaper wall.",
+          "via_kwargs": true,
+          "default": false
         }
       ],
       "parser": {
@@ -1008,17 +3794,36 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "request_warp_in",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "build_from",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "Build from.",
+          "via_kwargs": true
+        },
+        {
+          "name": "unit_type",
+          "type": "unit_type_id",
+          "python_type": "UnitID",
+          "input": "runtime",
+          "required": true,
+          "description": "The unit we want to warp in.",
+          "via_kwargs": true
+        },
+        {
+          "name": "target",
+          "type": "point_ref",
+          "python_type": "Optional[Point2]",
+          "input": "runtime",
+          "required": true,
+          "description": "If provided, attempt to find spot closest to this location.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -1029,23 +3834,74 @@
     {
       "id": "manager_mediator.managermediator.select_worker",
       "name": "select_worker",
-      "kind": "runtime_method",
+      "kind": "observation_query",
       "description": "Select a worker via the ResourceManager.",
       "documentation_status": "documented",
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "select_worker",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "target_position",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "runtime",
+          "required": true,
+          "description": "Location to get the closest workers to.",
+          "via_kwargs": true
+        },
+        {
+          "name": "force_close",
+          "type": "boolean",
+          "python_type": "bool",
           "input": "runtime",
           "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "description": "Select the available worker closest to `target_position` if True.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "select_persistent_builder",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "If True, we can select the persistent_builder if it's available.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "only_select_persistent_builder",
+          "type": "boolean",
+          "python_type": "bool",
+          "input": "runtime",
+          "required": false,
+          "description": "If True, don't find an alternative worker.",
+          "via_kwargs": true,
+          "default": false
+        },
+        {
+          "name": "min_health_perc",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": false,
+          "description": "Only select workers above this health percentage.",
+          "via_kwargs": true,
+          "default": 0.0
+        },
+        {
+          "name": "min_shield_perc",
+          "type": "number",
+          "python_type": "float",
+          "input": "runtime",
+          "required": false,
+          "description": "Only select workers above this shield percentage.",
+          "via_kwargs": true,
+          "default": 0.0
         }
       ],
       "parser": {
@@ -1062,17 +3918,18 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "set_workers_per_gas",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "amount",
+          "type": "integer",
+          "python_type": "int",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "Num workers to assign to each gas building",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -1089,17 +3946,27 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "switch_roles",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "from_role",
+          "type": "unit_role",
+          "python_type": "UnitRole",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "Role the units currently have.",
+          "via_kwargs": true
+        },
+        {
+          "name": "to_role",
+          "type": "unit_role",
+          "python_type": "UnitRole",
+          "input": "runtime",
+          "required": true,
+          "description": "Role to assign to the units.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -1116,17 +3983,27 @@
       "api": {
         "import": "ares.managers.manager_mediator.ManagerMediator",
         "member": "update_unit_to_ability_dict",
-        "source_path": "ares/src/ares/managers/manager_mediator.py",
+        "source_path": "ares-sc2/src/ares/managers/manager_mediator.py",
         "dispatch": "call_method"
       },
       "params": [
         {
-          "name": "kwargs",
-          "type": "json_object",
-          "python_type": "**kwargs",
+          "name": "ability",
+          "type": "ability_id",
+          "python_type": "AbilityId",
           "input": "runtime",
-          "required": false,
-          "description": "Additional source-defined keyword arguments."
+          "required": true,
+          "description": "The AbilityId that was used.",
+          "via_kwargs": true
+        },
+        {
+          "name": "unit_tag",
+          "type": "integer",
+          "python_type": "int",
+          "input": "runtime",
+          "required": true,
+          "description": "The tag of the Unit that used the ability.",
+          "via_kwargs": true
         }
       ],
       "parser": {
@@ -1136,4 +4013,3 @@
     }
   ]
 }
-

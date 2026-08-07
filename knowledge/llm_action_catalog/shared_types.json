@@ -1,6 +1,30 @@
 {
   "schema_version": "1.0",
   "types": {
+    "boolean": {
+      "json": "boolean",
+      "meaning": "A JSON true/false value."
+    },
+    "integer": {
+      "json": "integer",
+      "meaning": "A JSON integer; booleans are not accepted as integers."
+    },
+    "number": {
+      "json": "number",
+      "meaning": "A finite JSON integer or floating-point number."
+    },
+    "string": {
+      "json": "string",
+      "meaning": "A JSON string."
+    },
+    "json_array": {
+      "json": "array",
+      "meaning": "A source-specific JSON array."
+    },
+    "json_object": {
+      "json": "object",
+      "meaning": "A source-specific JSON object."
+    },
     "unit_ref": {
       "json": "string",
       "meaning": "A runtime unit alias, for example `u12` or `e4`."
@@ -10,12 +34,12 @@
       "meaning": "A non-empty list of runtime unit aliases."
     },
     "point_ref": {
-      "json": "{\"x\": number, \"y\": number}",
-      "meaning": "A map position."
+      "json": "{\"x\": number, \"y\": number} | string",
+      "meaning": "A map position or a runtime landmark name."
     },
     "point_or_unit_ref": {
       "json": "point_ref | unit_ref",
-      "meaning": "Either a map position or a runtime unit alias."
+      "meaning": "Either a map position, landmark, or runtime unit alias."
     },
     "grid_ref": {
       "json": "string",
@@ -34,7 +58,7 @@
     },
     "ability_id": {
       "json": "string",
-      "meaning": "An `AbilityId` enum name, validated against the acting unit at runtime."
+      "meaning": "An `AbilityId` enum name."
     },
     "upgrade_id": {
       "json": "string",
@@ -46,8 +70,47 @@
     },
     "json_value": {
       "json": "object | array | string | number | boolean | null",
-      "meaning": "A source-specific value that needs a custom resolver before exposure."
+      "meaning": "A source-specific value that requires an action-specific resolver before model exposure."
+    },
+    "integer_list": {
+      "json": "array<integer>",
+      "meaning": "A JSON array of integer tags or identifiers."
+    },
+    "point_refs": {
+      "json": "array<point_ref>",
+      "meaning": "A JSON array of map positions or runtime landmark names."
+    },
+    "unit_type_ids": {
+      "json": "array<string>",
+      "meaning": "A JSON array of `UnitTypeId` enum names."
+    },
+    "unit_roles": {
+      "json": "array<string>",
+      "meaning": "A JSON array of Ares `UnitRole` enum names."
+    },
+    "army_composition": {
+      "json": "object<string, {\"proportion\": number, \"priority\": integer}>",
+      "meaning": "An army composition keyed by `UnitTypeId`; proportions must sum to 1.0."
+    },
+    "resource_pair": {
+      "json": "[integer, integer]",
+      "meaning": "A two-item `[minerals, vespene]` resource threshold."
+    },
+    "upgrade_ids": {
+      "json": "array<string>",
+      "meaning": "A JSON array of `UpgradeId` enum names."
+    },
+    "unit_or_unit_type_id": {
+      "json": "string",
+      "meaning": "Either a runtime unit alias or a `UnitTypeId` enum name, as required by the action."
+    },
+    "unit_or_upgrade_id": {
+      "json": "string",
+      "meaning": "Either a `UnitTypeId` or `UpgradeId` enum name."
+    },
+    "point_or_integer": {
+      "json": "point_ref | integer",
+      "meaning": "Either a map position/landmark or an integer unit tag."
     }
   }
 }
-

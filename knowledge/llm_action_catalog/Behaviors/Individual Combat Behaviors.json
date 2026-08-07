@@ -6,10 +6,104 @@
     "documentation_url": "https://aressc2.github.io/ares-sc2/api_reference/behaviors/combat_behaviors.html"
   },
   "source": {
-    "ares_version": "3.10.1",
-    "git_commit": "a43ad5941b63c8e608a998830e649eb2ff180716"
+    "ares_version": "3.9.6",
+    "git_commit": "0ac34b87f9471979f8de19a77020eed2d8693b26"
   },
   "entries": [
+    {
+      "id": "combat.bc.move_safely",
+      "name": "MoveSafely",
+      "kind": "imbm_adapter_action",
+      "description": "Move a Battlecruiser to a destination using safe air pathing.",
+      "documentation_status": "imbm_adapter",
+      "api": {
+        "import": "ares.behaviors.combat.individual.path_unit_to_target.PathUnitToTarget",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/path_unit_to_target.py",
+        "dispatch": "register_behavior"
+      },
+      "actor_unit_types": [
+        "BATTLECRUISER"
+      ],
+      "params": [
+        {
+          "name": "unit",
+          "type": "unit_ref",
+          "python_type": "Unit",
+          "input": "model",
+          "required": true,
+          "description": "The Battlecruiser to move."
+        },
+        {
+          "name": "target",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "model",
+          "required": true,
+          "description": "Safe destination for this Battlecruiser."
+        },
+        {
+          "name": "grid",
+          "type": "grid_ref",
+          "python_type": "np.ndarray",
+          "input": "runtime",
+          "required": true,
+          "value": "air",
+          "description": "Fixed safe air pathing grid."
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    },
+    {
+      "id": "combat.bc.tactical_jump",
+      "name": "TacticalJump",
+      "kind": "imbm_adapter_action",
+      "description": "Tactical Jump a ready Battlecruiser to a destination.",
+      "documentation_status": "imbm_adapter",
+      "api": {
+        "import": "ares.behaviors.combat.individual.use_ability.UseAbility",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/use_ability.py",
+        "dispatch": "register_behavior"
+      },
+      "actor_unit_types": [
+        "BATTLECRUISER"
+      ],
+      "params": [
+        {
+          "name": "unit",
+          "type": "unit_ref",
+          "python_type": "Unit",
+          "input": "model",
+          "required": true,
+          "description": "The Battlecruiser that will jump."
+        },
+        {
+          "name": "target",
+          "type": "point_ref",
+          "python_type": "Point2",
+          "input": "model",
+          "required": true,
+          "description": "Destination for Tactical Jump."
+        },
+        {
+          "name": "ability",
+          "type": "ability_id",
+          "python_type": "AbilityId",
+          "input": "runtime",
+          "required": true,
+          "value": "EFFECT_TACTICALJUMP",
+          "description": "Fixed Tactical Jump ability."
+        }
+      ],
+      "parser": {
+        "mode": "construct_and_register",
+        "instruction_shape": "{id, args}"
+      },
+      "llm_exposure": "eligible"
+    },
     {
       "id": "combat.individual.a_move",
       "name": "AMove",
@@ -18,7 +112,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.a_move.AMove",
-        "source_path": "ares/src/ares/behaviors/combat/individual/a_move.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/a_move.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -62,7 +156,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.attack_target.AttackTarget",
-        "source_path": "ares/src/ares/behaviors/combat/individual/attack_target.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/attack_target.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -106,7 +200,7 @@
       "documentation_status": "source_only_nonpublic",
       "api": {
         "import": "ares.behaviors.combat.individual.auto_use_aoe_ability.AutoUseAOEAbility",
-        "source_path": "ares/src/ares/behaviors/combat/individual/auto_use_aoe_ability.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/auto_use_aoe_ability.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -128,7 +222,7 @@
         },
         {
           "name": "bonus_tags",
-          "type": "json_value",
+          "type": "integer_list",
           "python_type": "Optional[set]",
           "input": "model",
           "required": false,
@@ -171,7 +265,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.combat_maneuver.CombatManeuver",
-        "source_path": "ares/src/ares/behaviors/combat/combat_maneuver.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/combat_maneuver.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -202,7 +296,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.drop_cargo.DropCargo",
-        "source_path": "ares/src/ares/behaviors/combat/individual/drop_cargo.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/drop_cargo.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -237,7 +331,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.ghost_snipe.GhostSnipe",
-        "source_path": "ares/src/ares/behaviors/combat/individual/ghost_snipe.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/ghost_snipe.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -272,7 +366,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.keep_unit_safe.KeepUnitSafe",
-        "source_path": "ares/src/ares/behaviors/combat/individual/keep_unit_safe.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/keep_unit_safe.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -307,7 +401,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.medivac_heal.MedivacHeal",
-        "source_path": "ares/src/ares/behaviors/combat/individual/medivac_heal.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/medivac_heal.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -359,7 +453,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.move_to_safe_target.MoveToSafeTarget",
-        "source_path": "ares/src/ares/behaviors/combat/individual/move_to_safe_target.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/move_to_safe_target.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -474,7 +568,7 @@
       "documentation_status": "source_only_public",
       "api": {
         "import": "ares.behaviors.combat.individual.nydus_path_unit_to_target.NydusPathUnitToTarget",
-        "source_path": "ares/src/ares/behaviors/combat/individual/nydus_path_unit_to_target.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/nydus_path_unit_to_target.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -565,7 +659,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.path_unit_to_target.PathUnitToTarget",
-        "source_path": "ares/src/ares/behaviors/combat/individual/path_unit_to_target.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/path_unit_to_target.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -662,7 +756,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.pick_up_and_drop_cargo.PickUpAndDropCargo",
-        "source_path": "ares/src/ares/behaviors/combat/individual/pick_up_and_drop_cargo.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/pick_up_and_drop_cargo.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -749,7 +843,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.pick_up_cargo.PickUpCargo",
-        "source_path": "ares/src/ares/behaviors/combat/individual/pick_up_cargo.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/pick_up_cargo.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -801,7 +895,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.place_predictive_aoe.PlacePredictiveAoE",
-        "source_path": "ares/src/ares/behaviors/combat/individual/place_predictive_aoe.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/place_predictive_aoe.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -869,7 +963,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.queen_spread_creep.QueenSpreadCreep",
-        "source_path": "ares/src/ares/behaviors/combat/individual/queen_spread_creep.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/queen_spread_creep.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -914,7 +1008,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.raven_auto_turret.RavenAutoTurret",
-        "source_path": "ares/src/ares/behaviors/combat/individual/raven_auto_turret.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/raven_auto_turret.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -949,7 +1043,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.reaper_grenade.ReaperGrenade",
-        "source_path": "ares/src/ares/behaviors/combat/individual/reaper_grenade.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/reaper_grenade.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -1018,7 +1112,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.shoot_and_move_to_target.ShootAndMoveToTarget",
-        "source_path": "ares/src/ares/behaviors/combat/individual/shoot_and_move_to_target.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/shoot_and_move_to_target.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -1087,7 +1181,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.shoot_target_in_range.ShootTargetInRange",
-        "source_path": "ares/src/ares/behaviors/combat/individual/shoot_target_in_range.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/shoot_target_in_range.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -1131,7 +1225,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.siege_tank_decision.SiegeTankDecision",
-        "source_path": "ares/src/ares/behaviors/combat/individual/siege_tank_decision.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/siege_tank_decision.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -1201,7 +1295,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.stutter_unit_back.StutterUnitBack",
-        "source_path": "ares/src/ares/behaviors/combat/individual/stutter_unit_back.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/stutter_unit_back.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -1254,7 +1348,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.stutter_unit_forward.StutterUnitForward",
-        "source_path": "ares/src/ares/behaviors/combat/individual/stutter_unit_forward.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/stutter_unit_forward.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -1289,7 +1383,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.tumor_spread_creep.TumorSpreadCreep",
-        "source_path": "ares/src/ares/behaviors/combat/individual/tumor_spread_creep.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/tumor_spread_creep.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -1324,7 +1418,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.use_aoe_ability.UseAOEAbility",
-        "source_path": "ares/src/ares/behaviors/combat/individual/use_aoe_ability.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/use_aoe_ability.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -1380,7 +1474,7 @@
         },
         {
           "name": "bonus_tags",
-          "type": "json_value",
+          "type": "integer_list",
           "python_type": "Optional[set]",
           "input": "model",
           "required": false,
@@ -1422,7 +1516,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.use_ability.UseAbility",
-        "source_path": "ares/src/ares/behaviors/combat/individual/use_ability.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/use_ability.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -1466,7 +1560,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.use_transfuse.UseTransfuse",
-        "source_path": "ares/src/ares/behaviors/combat/individual/use_transfuse.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/use_transfuse.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -1510,7 +1604,7 @@
       "documentation_status": "documented",
       "api": {
         "import": "ares.behaviors.combat.individual.worker_kite_back.WorkerKiteBack",
-        "source_path": "ares/src/ares/behaviors/combat/individual/worker_kite_back.py",
+        "source_path": "ares-sc2/src/ares/behaviors/combat/individual/worker_kite_back.py",
         "dispatch": "register_behavior"
       },
       "params": [
@@ -1538,96 +1632,6 @@
           "required": false,
           "description": "Whether to attack `target`. If False, will always try to retreat",
           "default": true
-        }
-      ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
-      "llm_exposure": "eligible"
-    },
-    {
-      "id": "combat.bc.move_safely",
-      "name": "MoveSafely",
-      "kind": "imbm_adapter_action",
-      "description": "Move a Battlecruiser to a destination using safe air pathing.",
-      "documentation_status": "imbm_adapter",
-      "api": {
-        "import": "ares.behaviors.combat.individual.path_unit_to_target.PathUnitToTarget",
-        "source_path": "ares/src/ares/behaviors/combat/individual/path_unit_to_target.py",
-        "dispatch": "register_behavior"
-      },
-      "actor_unit_types": ["BATTLECRUISER"],
-      "params": [
-        {
-          "name": "unit",
-          "type": "unit_ref",
-          "python_type": "Unit",
-          "input": "model",
-          "required": true,
-          "description": "The Battlecruiser to move."
-        },
-        {
-          "name": "target",
-          "type": "point_ref",
-          "python_type": "Point2",
-          "input": "model",
-          "required": true,
-          "description": "Safe destination for this Battlecruiser."
-        },
-        {
-          "name": "grid",
-          "type": "grid_ref",
-          "python_type": "np.ndarray",
-          "input": "runtime",
-          "required": true,
-          "value": "air",
-          "description": "Fixed safe air pathing grid."
-        }
-      ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
-      "llm_exposure": "eligible"
-    },
-    {
-      "id": "combat.bc.tactical_jump",
-      "name": "TacticalJump",
-      "kind": "imbm_adapter_action",
-      "description": "Tactical Jump a ready Battlecruiser to a destination.",
-      "documentation_status": "imbm_adapter",
-      "api": {
-        "import": "ares.behaviors.combat.individual.use_ability.UseAbility",
-        "source_path": "ares/src/ares/behaviors/combat/individual/use_ability.py",
-        "dispatch": "register_behavior"
-      },
-      "actor_unit_types": ["BATTLECRUISER"],
-      "params": [
-        {
-          "name": "unit",
-          "type": "unit_ref",
-          "python_type": "Unit",
-          "input": "model",
-          "required": true,
-          "description": "The Battlecruiser that will jump."
-        },
-        {
-          "name": "target",
-          "type": "point_ref",
-          "python_type": "Point2",
-          "input": "model",
-          "required": true,
-          "description": "Destination for Tactical Jump."
-        },
-        {
-          "name": "ability",
-          "type": "ability_id",
-          "python_type": "AbilityId",
-          "input": "runtime",
-          "required": true,
-          "value": "EFFECT_TACTICALJUMP",
-          "description": "Fixed Tactical Jump ability."
         }
       ],
       "parser": {
