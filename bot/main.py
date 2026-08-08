@@ -63,7 +63,7 @@ class MyBot(AresBot):
 
         if self.llm_controller is None:
             raise RuntimeError("IMBM controller was not initialized")
-        await self.llm_controller.tick(self, iteration)
+        await self.llm_controller.run_iteration(self, iteration)
         if not self.opening_chat_tag and self.time > 5.0:
             await self.chat_send("Tag: LLM-IMBM", team_only=True)
             await self.chat_send(f"Tag: {self.race.name}", team_only=True)

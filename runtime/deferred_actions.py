@@ -12,8 +12,8 @@ from knowledge.loader import ActionCatalog
 @dataclass(frozen=True)
 class DeferredAction:
     action: dict[str, Any]
-    queued_loop: int
-    expires_loop: int
+    queued_iteration: int
+    expires_iteration: int
 
 
 class DeferredActionQueue:
@@ -25,9 +25,9 @@ class DeferredActionQueue:
         "macro.upgrade_c_cs": "to",
     }
 
-    def __init__(self, catalog: ActionCatalog, ttl_loops: int):
+    def __init__(self, catalog: ActionCatalog, ttl_iterations: int):
         self.catalog = catalog
-        self.ttl_loops = ttl_loops
+        self.ttl_iterations = ttl_iterations
         self._items: list[DeferredAction] = []
 
     def should_defer(self, bot: Any, action: dict[str, Any]) -> bool:
@@ -40,19 +40,27 @@ class DeferredActionQueue:
         except (AttributeError, TypeError, ValueError):
             return False
 
-    def enqueue(self, action: dict[str, Any], loop: int) -> bool:
+    def enqueue(self, action: dict[str, Any], iteration: int) -> bool:
         key = self._key(action)
         if any(self._key(item.action) == key for item in self._items):
             return False
-        self._items.append(DeferredAction(action, loop, loop + self.ttl_loops))
+        self._items.append(
+            DeferredAction(
+                action,
+                iteration,
+                iteration + self.ttl_iterations,
+            )
+        )
         return True
 
-    def pop_ready(self, bot: Any, loop: int) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    def pop_ready(
+        self, bot: Any, iteration: int
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         ready: list[dict[str, Any]] = []
         expired: list[dict[str, Any]] = []
         remaining: list[DeferredAction] = []
         for item in self._items:
-            if loop > item.expires_loop:
+            if iteration > item.expires_iteration:
                 expired.append(item.action)
             elif self.should_defer(bot, item.action):
                 remaining.append(item)

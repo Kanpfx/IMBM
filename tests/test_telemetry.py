@@ -26,6 +26,6 @@ class TelemetryTests(unittest.TestCase):
             ):
                 self.assertTrue((telemetry.directory / filename).is_file())
 
-            telemetry.observation(tick=10, resources={"minerals": 50})
+            telemetry.observation(iteration=10, resources={"minerals": 50})
             row = json.loads((telemetry.directory / "obs.jsonl").read_text("utf-8"))
-            self.assertEqual(row["tick"], 10)
+            self.assertEqual(row["iteration"], 10)

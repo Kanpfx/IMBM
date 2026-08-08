@@ -16,6 +16,11 @@
       "kind": "executable_behavior",
       "description": "A-Move group to a target.",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_group",
+        "actor_unit_types": ["MARINE", "BATTLECRUISER"],
+        "minimum_actors": 2
+      },
       "api": {
         "import": "ares.behaviors.combat.group.a_move_group.AMoveGroup",
         "source_path": "ares-sc2/src/ares/behaviors/combat/group/a_move_group.py",
@@ -119,6 +124,14 @@
       "kind": "executable_behavior",
       "description": "Keep every unit in a group safe, optionally attacking a nearby enemy when its weapon is ready.",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_group",
+        "actor_unit_types": ["MARINE", "BATTLECRUISER"],
+        "minimum_actors": 2,
+        "requires_enemy": true,
+        "enemy_params": ["close_enemy"],
+        "grid_params": ["grid"]
+      },
       "api": {
         "import": "ares.behaviors.combat.group.keep_group_safe.KeepGroupSafe",
         "source_path": "ares-sc2/src/ares/behaviors/combat/group/keep_group_safe.py",
@@ -171,6 +184,12 @@
       "kind": "executable_behavior",
       "description": "Path a group to its target destination.",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_group",
+        "actor_unit_types": ["MARINE", "BATTLECRUISER"],
+        "minimum_actors": 2,
+        "grid_params": ["grid"]
+      },
       "api": {
         "import": "ares.behaviors.combat.group.path_group_to_target.PathGroupToTarget",
         "source_path": "ares-sc2/src/ares/behaviors/combat/group/path_group_to_target.py",

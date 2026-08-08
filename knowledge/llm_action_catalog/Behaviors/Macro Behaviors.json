@@ -105,6 +105,9 @@
       "kind": "executable_behavior",
       "description": "Handy convenience building structure behavior. Especially combined with `Mining` and ares built in placement solver. Finds an ideal mining worker, and an available precalculated placement. Then removes worker from mining records and provides a new role.",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_build_frontier"
+      },
       "api": {
         "import": "ares.behaviors.macro.build_structure.BuildStructure",
         "source_path": "ares-sc2/src/ares/behaviors/macro/build_structure.py",
@@ -311,6 +314,9 @@
       "kind": "executable_behavior",
       "description": "Manage expanding.",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_expansion"
+      },
       "api": {
         "import": "ares.behaviors.macro.expansion_controller.ExpansionController",
         "source_path": "ares-sc2/src/ares/behaviors/macro/expansion_controller.py",
@@ -374,6 +380,9 @@
       "kind": "executable_behavior",
       "description": "Maintain gas building count. Finds an ideal mining worker, and an available geyser. Then removes worker from mining records and provides a new role.",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_gas"
+      },
       "api": {
         "import": "ares.behaviors.macro.gas_building_controller.GasBuildingController",
         "source_path": "ares-sc2/src/ares/behaviors/macro/gas_building_controller.py",
@@ -561,6 +570,9 @@
       "kind": "executable_behavior",
       "description": "Handle creating extra production facilities based on an army composition dictionary. This dictionary should be structured the same as the one passed into SpawnController",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_production"
+      },
       "api": {
         "import": "ares.behaviors.macro.production_controller.ProductionController",
         "source_path": "ares-sc2/src/ares/behaviors/macro/production_controller.py",
@@ -747,6 +759,9 @@
       "kind": "executable_behavior",
       "description": "Handle spawning army compositions.",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_spawn"
+      },
       "api": {
         "import": "ares.behaviors.macro.spawn_controller.SpawnController",
         "source_path": "ares-sc2/src/ares/behaviors/macro/spawn_controller.py",
@@ -931,6 +946,9 @@
       "kind": "executable_behavior",
       "description": "Automatically tech up so desired upgrade/unit can be built.",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_tech_frontier"
+      },
       "api": {
         "import": "ares.behaviors.macro.tech_up.TechUp",
         "source_path": "ares-sc2/src/ares/behaviors/macro/tech_up.py",
@@ -975,6 +993,9 @@
       "kind": "executable_behavior",
       "description": "Upgrade an idle Terran Command Center to an Orbital Command or Planetary Fortress.",
       "documentation_status": "source_only_public",
+      "availability": {
+        "mode": "bc_upgrade_cc"
+      },
       "api": {
         "import": "ares.behaviors.macro.upgrade_ccs.UpgradeCCs",
         "source_path": "ares-sc2/src/ares/behaviors/macro/upgrade_ccs.py",

@@ -6,7 +6,7 @@ import json
 from typing import Any
 
 
-BM_ROLE = """You are an expert StarCraft II game-control model. Based on the observation and the fixed tactical guidance, formulate the 1-3 highest-impact strategic priorities for the next approximately 60 game seconds. Prefer priorities that are feasible now; do not repeat completed or already pending work. Give concise natural-language strategy only: do not output unit IDs, action IDs, executable actions, coordinates, grids, code, or JSON arguments. Return only the required JSON."""
+BM_ROLE = """You are an expert StarCraft II game-control model. Select the current phase from the complete fixed tactic card, then formulate the 1-3 highest-impact strategic priorities for the next approximately 30 game seconds. Use the action catalog to keep the priorities executable. Prefer priorities that are feasible now; do not repeat completed or already pending work. Give concrete natural-language strategy only: do not output unit IDs, executable action objects, coordinates, grids, code, or JSON arguments. Return only the required JSON."""
 
 IM_ROLE = """You are an expert StarCraft II game-control model. Based on the observation, strategic priorities, and available action information, give short-term concrete actions that can be executed now. Each submitted action is registered once and executes once; Action history records prior submissions, not persistent commands. Use the unit IDs from the observation and the exact action IDs and argument formats from the action information. Return only the required JSON."""
 
@@ -42,10 +42,15 @@ TYPE_LEGEND = {
 
 
 def bm_messages(
-    observation: str, tactic: dict[str, Any], phase: dict[str, Any], reason: str = ""
+    observation: str,
+    tactic: dict[str, Any],
+    action_entries: list[dict[str, Any]],
+    reason: str = "",
 ) -> list[dict[str, str]]:
     rules = "\n".join(f"- {rule}" for rule in tactic["rules"])
-    focus = "\n".join(f"- {item}" for item in phase["guidance"])
+    phases = "\n\n".join(_tactic_phase_card(phase) for phase in tactic["phases"])
+    action_cards = "\n\n".join(_action_card(entry) for entry in action_entries)
+    type_legend = _type_legend(action_entries) or "[No action arguments are available.]"
     task = _bm_task_text(reason)
     user = f"""# Your current task
 {task}
@@ -53,20 +58,38 @@ def bm_messages(
 # Observation
 {observation}
 
-# Phased tactical guidance
+# Complete tactical card
 ## Core idea
 {tactic['concept']}
 
 ## Constraint rules
 {rules}
 
-## Reference guidance
-{phase['goal']}
-{focus}
+## Phases
+{phases}
 
-# JSON output example
-{{"guidance":["priority 1","priority 2"]}}"""
+# Argument type legend
+{type_legend}
+
+# Available actions
+{action_cards or '[Empty]'}
+
+# JSON format and example
+Select exactly one phase ID listed above. Return that phase and 1-3 concrete tactical priorities.
+{{"phase":"opening_factory","guidance":["priority 1","priority 2"]}}"""
     return [{"role": "system", "content": BM_ROLE}, {"role": "user", "content": user}]
+
+
+def _tactic_phase_card(phase: dict[str, Any]) -> str:
+    enter_when = "\n".join(f"- {item}" for item in phase["enter_when"])
+    guidance = "\n".join(f"- {item}" for item in phase["guidance"])
+    return f"""### Phase `{phase['id']}`
+#### Enter when
+{enter_when}
+#### Goal
+{phase['goal']}
+#### Complete guidance
+{guidance}"""
 
 
 def _bm_task_text(reason: str) -> str:
@@ -92,6 +115,12 @@ def _action_card(entry: dict[str, Any]) -> str:
     required = [param["name"] for param in params]
     signature = f'{entry["name"]}({", ".join(required)})'
     lines = [f'`{signature}`: {entry["description"]}']
+    availability = entry.get("prompt_availability")
+    if availability:
+        status = str(availability["status"]).replace("_", " ")
+        lines.append(
+            f'- Availability [{status}]: {availability["note"].rstrip(".")}.'
+        )
     lines.extend(_parameter_card(param) for param in params)
     return "\n".join(lines)
 
@@ -100,7 +129,12 @@ def _parameter_card(param: dict[str, Any]) -> str:
     """Render the catalog description with its compact model-facing type label."""
     description = str(param.get("description", "")).strip().rstrip(".")
     label = TYPE_LEGEND.get(param["type"], (param["type"], ""))[0]
-    return f'- `{param["name"]}` [{label}]: {description}.'
+    constraints = ""
+    if allowed := param.get("allowed_values"):
+        constraints = f" Allowed now: {', '.join(map(str, allowed))}."
+    elif allowed := param.get("allowed_keys"):
+        constraints = f" Allowed object keys now: {', '.join(map(str, allowed))}."
+    return f'- `{param["name"]}` [{label}]: {description}.{constraints}'
 
 
 def _type_legend(entries: list[dict[str, Any]]) -> str:

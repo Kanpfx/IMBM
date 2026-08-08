@@ -31,7 +31,7 @@ class IMAgent(BaseAgent):
         action_entries: list[dict[str, Any]],
         verifier: Verifier,
         trace: Telemetry | None = None,
-        tick: int | None = None,
+        iteration: int | None = None,
     ) -> IMResult:
         messages = im_messages(observation, guidance, action_entries)
         error = ""
@@ -45,7 +45,7 @@ class IMAgent(BaseAgent):
             except Exception as exc:
                 if trace is not None:
                     trace.im_conversation(
-                        tick=tick,
+                        iteration=iteration,
                         attempt=attempt,
                         request=request_messages,
                         error=str(exc),
@@ -68,7 +68,7 @@ class IMAgent(BaseAgent):
                 accepted, error = verifier(actions)
                 if trace is not None:
                     trace.im_conversation(
-                        tick=tick,
+                        iteration=iteration,
                         attempt=attempt,
                         request=request_messages,
                         reply=response,
@@ -83,7 +83,7 @@ class IMAgent(BaseAgent):
                 error = str(exc)
                 if trace is not None:
                     trace.im_conversation(
-                        tick=tick,
+                        iteration=iteration,
                         attempt=attempt,
                         request=request_messages,
                         reply=response,

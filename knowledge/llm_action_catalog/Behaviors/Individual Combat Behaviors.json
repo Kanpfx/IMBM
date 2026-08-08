@@ -24,6 +24,11 @@
       "actor_unit_types": [
         "BATTLECRUISER"
       ],
+      "availability": {
+        "mode": "bc_actor",
+        "actor_param": "unit",
+        "actor_unit_types": ["BATTLECRUISER"]
+      },
       "params": [
         {
           "name": "unit",
@@ -71,6 +76,12 @@
       "actor_unit_types": [
         "BATTLECRUISER"
       ],
+      "availability": {
+        "mode": "bc_actor",
+        "actor_param": "unit",
+        "actor_unit_types": ["BATTLECRUISER"],
+        "required_ability": "EFFECT_TACTICALJUMP"
+      },
       "params": [
         {
           "name": "unit",
@@ -110,6 +121,11 @@
       "kind": "executable_behavior",
       "description": "A-Move a unit to a target.",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_actor",
+        "actor_param": "unit",
+        "actor_unit_types": ["MARINE", "BATTLECRUISER"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.a_move.AMove",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/a_move.py",
@@ -154,6 +170,13 @@
       "kind": "executable_behavior",
       "description": "Shoot a target.",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_actor",
+        "actor_param": "unit",
+        "actor_unit_types": ["MARINE", "BATTLECRUISER"],
+        "requires_enemy": true,
+        "enemy_params": ["target"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.attack_target.AttackTarget",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/attack_target.py",
@@ -1179,6 +1202,13 @@
       "kind": "executable_behavior",
       "description": "Find something to shoot at.",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_actor",
+        "actor_param": "unit",
+        "actor_unit_types": ["MARINE", "BATTLECRUISER"],
+        "requires_enemy": true,
+        "enemy_params": ["targets"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.shoot_target_in_range.ShootTargetInRange",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/shoot_target_in_range.py",
@@ -1293,6 +1323,13 @@
       "kind": "executable_behavior",
       "description": "Shoot at the target if possible, else move back.",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_actor",
+        "actor_param": "unit",
+        "actor_unit_types": ["MARINE", "BATTLECRUISER"],
+        "requires_enemy": true,
+        "enemy_params": ["target"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.stutter_unit_back.StutterUnitBack",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/stutter_unit_back.py",
@@ -1346,6 +1383,13 @@
       "kind": "executable_behavior",
       "description": "Shoot the target when ready; otherwise move toward it.",
       "documentation_status": "documented",
+      "availability": {
+        "mode": "bc_actor",
+        "actor_param": "unit",
+        "actor_unit_types": ["MARINE", "BATTLECRUISER"],
+        "requires_enemy": true,
+        "enemy_params": ["target"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.stutter_unit_forward.StutterUnitForward",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/stutter_unit_forward.py",

@@ -52,9 +52,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "-bm",
+        "--bm",
         "--enable_bm",
+        dest="enable_bm",
         action="store_true",
-        help="Enable the asynchronous Brain Module strategic adviser.",
+        help="Enable BM guidance (blocking first response, then async refreshes).",
     )
     return parser.parse_args()
 

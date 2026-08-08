@@ -40,4 +40,8 @@ The runtime is now LLM/IMBM-only; the original openings are not executed. Set
 conda run -n StarWM python run.py --map_name Flat64 --difficulty Hard --ai_build Macro --enemy_race Terran --enable_bm
 ```
 
+`--bm` and `-bm` are aliases for `--enable_bm`. With BM enabled, the first BM
+response is awaited before IM starts; later BM updates run asynchronously every
+240 python-sc2 iterations. Without the flag, IM runs with no BM guidance.
+
 Use `python run.py --help` for the complete explicit map/opponent/BM options.

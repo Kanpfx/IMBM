@@ -63,7 +63,7 @@
         <button id="next" disabled>下一决策</button>
       </div>
       <div class="tick-row">
-        <span class="tick" id="tick-label">tick —</span>
+        <span class="tick" id="tick-label">iteration —</span>
         <input id="tick-slider" type="range" min="0" max="0" value="0" disabled>
         <span class="status" id="status">尚未加载日志。</span>
       </div>
@@ -85,7 +85,7 @@
         <div class="body" id="action-panel"></div>
       </article>
       <article class="card">
-        <header class="head"><span class="tag event">EVENT</span><h2>本 tick 事件</h2></header>
+        <header class="head"><span class="tag event">EVENT</span><h2>本 iteration 事件</h2></header>
         <div class="body" id="event-panel"></div>
       </article>
     </section>
@@ -101,8 +101,9 @@
       "metadata.json", "obs.jsonl", "im.jsonl", "bm.jsonl",
       "accepted_actions.jsonl", "events.jsonl",
     ]);
-    const state = { metadata: {}, observations: [], im: [], bm: [], decisions: [], events: [], ticks: [] };
-    const byTick = rows => new Map(rows.map(row => [Number(row.tick ?? row.loop), row]));
+    const state = { metadata: {}, observations: [], im: [], bm: [], decisions: [], events: [], iterations: [] };
+    const rowIteration = row => Number(row.iteration ?? row.tick ?? row.loop);
+    const byIteration = rows => new Map(rows.map(row => [rowIteration(row), row]));
     let indexes = {};
 
     const $ = id => document.getElementById(id);
@@ -135,17 +136,17 @@
       state.bm = bm ? parseJsonl(bm, "bm.jsonl") : [];
       state.decisions = parseJsonl(decisions, "accepted_actions.jsonl");
       state.events = events ? parseJsonl(events, "events.jsonl") : [];
-      state.ticks = [...new Set(state.decisions.map(row => Number(row.tick)).filter(Number.isFinite))].sort((a, b) => a - b);
-      if (!state.ticks.length) throw new Error("accepted_actions.jsonl 中没有可浏览的 tick。");
+      state.iterations = [...new Set(state.decisions.map(rowIteration).filter(Number.isFinite))].sort((a, b) => a - b);
+      if (!state.iterations.length) throw new Error("accepted_actions.jsonl 中没有可浏览的 iteration。");
       indexes = {
-        observation: byTick(state.observations),
-        decision: byTick(state.decisions),
-        im: groupByTick(state.im),
-        event: groupByTick(state.events, row => Number(row.loop ?? row.tick)),
+        observation: byIteration(state.observations),
+        decision: byIteration(state.decisions),
+        im: groupByIteration(state.im),
+        event: groupByIteration(state.events),
       };
-      state.bm.sort((a, b) => Number(a.tick) - Number(b.tick));
+      state.bm.sort((a, b) => rowIteration(a) - rowIteration(b));
       $("tick-slider").min = "0";
-      $("tick-slider").max = String(state.ticks.length - 1);
+      $("tick-slider").max = String(state.iterations.length - 1);
       $("tick-slider").value = "0";
       $("tick-slider").disabled = false;
       $("previous").disabled = false;
@@ -157,13 +158,13 @@
       renderCurrent();
     }
 
-    function groupByTick(rows, key = row => Number(row.tick)) {
+    function groupByIteration(rows, key = rowIteration) {
       const grouped = new Map();
       rows.forEach(row => {
-        const tick = key(row);
-        if (!Number.isFinite(tick)) return;
-        if (!grouped.has(tick)) grouped.set(tick, []);
-        grouped.get(tick).push(row);
+        const iteration = key(row);
+        if (!Number.isFinite(iteration)) return;
+        if (!grouped.has(iteration)) grouped.set(iteration, []);
+        grouped.get(iteration).push(row);
       });
       return grouped;
     }
@@ -188,18 +189,18 @@
 
     function renderCurrent() {
       const position = Number($("tick-slider").value);
-      const tick = state.ticks[position];
-      const decision = indexes.decision.get(tick);
-      const observation = indexes.observation.get(tick);
-      $("tick-label").textContent = `tick ${tick}`;
-      $("status").textContent = `${position + 1} / ${state.ticks.length} · ${decision?.time || "--:--"} · ${decision?.phase || "unknown"}`;
+      const iteration = state.iterations[position];
+      const decision = indexes.decision.get(iteration);
+      const observation = indexes.observation.get(iteration);
+      $("tick-label").textContent = `iteration ${iteration}`;
+      $("status").textContent = `${position + 1} / ${state.iterations.length} · ${decision?.time || "--:--"} · ${decision?.phase || "unknown"}`;
       $("previous").disabled = position === 0;
-      $("next").disabled = position === state.ticks.length - 1;
-      renderIm(tick);
-      renderBm(tick);
+      $("next").disabled = position === state.iterations.length - 1;
+      renderIm(iteration);
+      renderBm(iteration);
       renderActions(decision);
-      renderEvents(tick);
-      $("observation-panel").textContent = observation?.observation || "该 tick 没有保存观测文本。";
+      renderEvents(iteration);
+      $("observation-panel").textContent = observation?.observation || "该 iteration 没有保存观测文本。";
     }
 
     function replacePanel(id, children) { $(id).replaceChildren(...children); }
@@ -210,9 +211,9 @@
       paragraph.append(strong, document.createTextNode(value)); return paragraph;
     }
 
-    function renderIm(tick) {
-      const rows = indexes.im.get(tick) || [];
-      if (!rows.length) return replacePanel("im-panel", [noData("该 tick 没有 IM 对话记录。")] );
+    function renderIm(iteration) {
+      const rows = indexes.im.get(iteration) || [];
+      if (!rows.length) return replacePanel("im-panel", [noData("该 iteration 没有 IM 对话记录。")] );
       const nodes = [];
       rows.forEach((row, index) => {
         if (rows.length > 1) nodes.push(line("尝试", String((row.attempt ?? index) + 1)));
@@ -222,11 +223,11 @@
       replacePanel("im-panel", nodes);
     }
 
-    function renderBm(tick) {
-      const latest = [...state.bm].reverse().find(row => Number(row.tick) <= tick);
+    function renderBm(iteration) {
+      const latest = [...state.bm].reverse().find(row => rowIteration(row) <= iteration);
       if (!latest) return replacePanel("bm-panel", [noData("此时尚无已完成的 BM 输出。")] );
       const nodes = [
-        line("BM tick", String(latest.tick ?? "?")),
+        line("BM iteration", String(rowIteration(latest))),
         line("阶段", String(latest.phase || "unknown")),
         line("触发", String(latest.trigger_reason || "unknown")),
         line("耗时", latest.latency_ms == null ? "未知" : `${latest.latency_ms} ms`),
@@ -250,9 +251,9 @@
       replacePanel("action-panel", nodes);
     }
 
-    function renderEvents(tick) {
-      const rows = indexes.event.get(tick) || [];
-      if (!rows.length) return replacePanel("event-panel", [noData("该 tick 没有额外事件。")] );
+    function renderEvents(iteration) {
+      const rows = indexes.event.get(iteration) || [];
+      if (!rows.length) return replacePanel("event-panel", [noData("该 iteration 没有额外事件。")] );
       const nodes = rows.map(row => {
         const section = document.createElement("div"); section.className = "event-row";
         const name = document.createElement("strong"); text(name, String(row.event || "event"));

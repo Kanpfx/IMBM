@@ -7,6 +7,7 @@ from typing import Any
 
 from config.game import GameConfig
 from config.policy import COMBAT_MICRO_ACTIONS, COMBAT_UNIT_TYPES, allowed_actions
+from core.action_exposure import ActionSurface
 from knowledge.loader import ActionCatalog
 from runtime.ares_adapter import AresActionAdapter, InstructionError
 from runtime.resolver import EntityContext
@@ -55,9 +56,10 @@ class PolicyValidator:
         actions: list[dict[str, Any]],
         context: EntityContext,
         phase: str,
+        surface: ActionSurface | None = None,
     ) -> tuple[bool, str]:
         """Compatibility wrapper for callers that need all-or-nothing status."""
-        review = self.review(bot, actions, context, phase)
+        review = self.review(bot, actions, context, phase, surface)
         return review.accepted, review.message
 
     def review(
@@ -66,6 +68,7 @@ class PolicyValidator:
         actions: list[dict[str, Any]],
         context: EntityContext,
         phase: str,
+        surface: ActionSurface | None = None,
     ) -> ActionReview:
         """Keep valid actions and report repairable failures individually.
 
@@ -105,6 +108,8 @@ class PolicyValidator:
                 normalized, notes = self._normalize_action(
                     entry, action, bot, phase, context
                 )
+                if surface is not None:
+                    surface.validate(entry, normalized["args"])
                 self.adapter._validate_shape(normalized)
                 self._validate_ares_behavior_constraints(action_id, normalized["args"])
                 provisional_seen = set(seen_own)

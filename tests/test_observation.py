@@ -68,7 +68,7 @@ class Bot:
 class ObservationTests(unittest.TestCase):
     def test_shared_observation_aggregates_workers_and_hides_internal_details(self):
         builder = ObservationBuilder(TagIdMapper())
-        observation = builder.build(Bot(), loop=0, _phase="opening_factory")
+        observation = builder.build(Bot(), iteration=0, _phase="opening_factory")
 
         self.assertEqual(observation.text, observation.strategy_text)
         self.assertEqual(observation.text, observation.action_text)
@@ -102,7 +102,7 @@ class ObservationTests(unittest.TestCase):
         bot.units.append(battlecruiser)
         bot.structures.append(starport)
         observation = ObservationBuilder(TagIdMapper()).build(
-            bot, loop=0, _phase="opening_factory"
+            bot, iteration=0, _phase="opening_factory"
         )
 
         self.assertIn("[333] Battlecruiser", observation.text)
@@ -124,7 +124,7 @@ class ObservationTests(unittest.TestCase):
             ]
         )
         builder.record_validation_error("2")
-        observation = builder.build(Bot(), loop=10, _phase="opening_factory")
+        observation = builder.build(Bot(), iteration=10, _phase="opening_factory")
 
         self.assertIn("Sent once: macro.build_structure (SUPPLYDEPOT near main)", observation.text)
         self.assertIn(
@@ -140,7 +140,7 @@ class ObservationTests(unittest.TestCase):
         bot.units.extend([near_main, near_enemy])
 
         observation = ObservationBuilder(TagIdMapper()).build(
-            bot, loop=0, _phase="opening_factory"
+            bot, iteration=0, _phase="opening_factory"
         )
 
         self.assertIn(
@@ -160,7 +160,7 @@ class ObservationTests(unittest.TestCase):
         bot.mediator.get_ground_enemy_near_bases = {bot.structures[0].tag: {88}}
 
         observation = ObservationBuilder(TagIdMapper()).build(
-            bot, loop=0, _phase="opening_factory"
+            bot, iteration=0, _phase="opening_factory"
         )
 
         self.assertIn("[88] Stalker\nStatus: visible; near our main.", observation.text)
@@ -171,25 +171,49 @@ class ObservationTests(unittest.TestCase):
         bot.enemy_units = []
 
         observation = ObservationBuilder(TagIdMapper()).build(
-            bot, loop=0, _phase="opening_factory"
+            bot, iteration=0, _phase="opening_factory"
         )
 
         self.assertIn("[Empty \u2014 no enemy units are visible now.]", observation.text)
         self.assertIn("[Empty \u2014 no enemy structures are visible now.]", observation.text)
 
-    def test_prompts_use_named_sections_and_hide_phase_identifier(self):
-        tactic = {"concept": "Build Battlecruisers.", "rules": ["Stay safe."]}
-        phase = {"id": "opening_factory", "goal": "Start production.", "guidance": ["Build a Depot."]}
-        bm = bm_messages("# Round state\n[Empty]", tactic, phase, "cold start")
+    def test_prompts_use_named_sections_and_give_bm_the_complete_tactic(self):
+        tactic = {
+            "concept": "Build Battlecruisers.",
+            "rules": ["Stay safe."],
+            "phases": [
+                {
+                    "id": "opening_factory",
+                    "enter_when": ["The Factory has not started."],
+                    "goal": "Start production.",
+                    "guidance": ["Build a Depot."],
+                },
+                {
+                    "id": "opening_air_tech",
+                    "enter_when": ["The Factory has started."],
+                    "goal": "Start air technology.",
+                    "guidance": ["Build a Starport."],
+                },
+            ],
+        }
+        catalog = ActionCatalog.load()
+        entries = catalog.prompt_entries(allowed_actions("opening_factory"))
+        bm = bm_messages("# Round state\n[Empty]", tactic, entries, "cold start")
         im = im_messages("# Round state\n[Empty]", ["Build a Depot."], [])
 
         self.assertIn("# Your current task", bm[-1]["content"])
         self.assertIn("The game has just started.", bm[-1]["content"])
         self.assertIn("# Observation", bm[-1]["content"])
-        self.assertIn("# Phased tactical guidance", bm[-1]["content"])
+        self.assertIn("# Complete tactical card", bm[-1]["content"])
         self.assertIn("## Core idea", bm[-1]["content"])
-        self.assertIn("# JSON output example", bm[-1]["content"])
-        self.assertNotIn("opening_factory", bm[-1]["content"])
+        self.assertIn("### Phase `opening_factory`", bm[-1]["content"])
+        self.assertIn("### Phase `opening_air_tech`", bm[-1]["content"])
+        self.assertIn("#### Enter when", bm[-1]["content"])
+        self.assertIn("#### Complete guidance", bm[-1]["content"])
+        self.assertIn("# Available actions", bm[-1]["content"])
+        self.assertIn("`BuildStructure(base_location, structure_id)`:", bm[-1]["content"])
+        self.assertIn("# JSON format and example", bm[-1]["content"])
+        self.assertIn('"phase":"opening_factory"', bm[-1]["content"])
         self.assertIn("# Objective", im[-1]["content"])
         self.assertIn("# Observation", im[-1]["content"])
         self.assertIn("# Strategic guidance to follow", im[-1]["content"])

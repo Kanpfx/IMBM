@@ -1,0 +1,148 @@
+import asyncio
+import unittest
+from unittest.mock import AsyncMock, patch
+
+from agents.bm_agent import BMResult
+from config.game import GameConfig
+from core.controller import LLMGameController
+from core.observation import Observation
+from runtime.directive import DirectiveStore
+from runtime.resolver import EntityContext
+
+
+class FakeTelemetry:
+    def __init__(self):
+        self.events = []
+
+    def event(self, name, **fields):
+        self.events.append((name, fields))
+
+
+class ImmediateBM:
+    def __init__(self):
+        self.calls = []
+
+    async def run(self, observation, tactic, action_entries, trigger_reason, **_kwargs):
+        self.calls.append((observation, tactic, action_entries, trigger_reason))
+        return BMResult("opening_factory", ("Build the opening infrastructure.",))
+
+
+class BlockingBM(ImmediateBM):
+    def __init__(self):
+        super().__init__()
+        self.release = asyncio.Event()
+
+    async def run(self, observation, tactic, action_entries, trigger_reason, **kwargs):
+        self.calls.append((observation, tactic, action_entries, trigger_reason))
+        await self.release.wait()
+        return BMResult("opening_factory", ("Build the opening infrastructure.",))
+
+
+class FlakyBM(ImmediateBM):
+    async def run(self, observation, tactic, action_entries, trigger_reason, **_kwargs):
+        self.calls.append((observation, tactic, action_entries, trigger_reason))
+        if len(self.calls) == 1:
+            raise ValueError("invalid first response")
+        return BMResult("opening_factory", ("Build the opening infrastructure.",))
+
+
+def make_controller(bm, *, enabled=True):
+    controller = object.__new__(LLMGameController)
+    controller.enable_bm = enabled
+    controller.game_config = GameConfig()
+    controller.directive_store = DirectiveStore()
+    controller.bm_pending = None
+    controller._last_bm_started_iteration = -(10**9)
+    controller.bm = bm
+    controller.tactic = {
+        "concept": "Build Battlecruisers.",
+        "rules": [],
+        "phases": [{"id": "opening_factory"}],
+    }
+    controller.bm_action_entries = [{"id": "macro.build_structure"}]
+    controller.telemetry = FakeTelemetry()
+    return controller
+
+
+def observation(iteration):
+    return Observation(iteration, {}, "# Round state\n[Empty]", EntityContext())
+
+
+class ControllerBMTests(unittest.IsolatedAsyncioTestCase):
+    async def test_cold_start_can_be_awaited_before_the_first_im_decision(self):
+        bm = ImmediateBM()
+        controller = make_controller(bm)
+
+        await controller._await_first_bm(
+            observation(0), 0, controller.bm_action_entries
+        )
+        directive = controller.directive_store.read(0)
+        self.assertIsNotNone(directive)
+        self.assertEqual(directive.phase, "opening_factory")
+        self.assertEqual(directive.guidance, ("Build the opening infrastructure.",))
+        self.assertEqual(bm.calls[0][2], controller.bm_action_entries)
+        self.assertEqual(bm.calls[0][3], "cold_start")
+
+    async def test_cold_start_retries_without_starting_im_after_invalid_bm(self):
+        bm = FlakyBM()
+        controller = make_controller(bm)
+
+        with patch("core.controller.asyncio.sleep", new=AsyncMock()):
+            await controller._await_first_bm(
+                observation(0), 0, controller.bm_action_entries
+            )
+
+        self.assertEqual(len(bm.calls), 2)
+        self.assertEqual(bm.calls[0][3], "cold_start")
+        self.assertEqual(bm.calls[1][3], "guidance_expired")
+        self.assertIsNotNone(controller.directive_store.read(0))
+
+    async def test_refresh_starts_at_240_iterations_and_keeps_the_old_directive(self):
+        bm = ImmediateBM()
+        controller = make_controller(bm)
+        await controller._maybe_start_bm(
+            observation(0), 0, controller.bm_action_entries
+        )
+        await controller._await_pending_bm(0)
+        original = controller.directive_store.read(0)
+
+        await controller._maybe_start_bm(
+            observation(239), 239, controller.bm_action_entries
+        )
+        self.assertIsNone(controller.bm_pending)
+        await controller._maybe_start_bm(
+            observation(240), 240, controller.bm_action_entries
+        )
+
+        self.assertIsNotNone(controller.bm_pending)
+        self.assertEqual(controller.directive_store.read(240), original)
+        await controller._await_pending_bm(240)
+        self.assertEqual(bm.calls[-1][3], "periodic_refresh")
+
+    async def test_an_inflight_bm_call_is_not_preempted(self):
+        bm = BlockingBM()
+        controller = make_controller(bm)
+        await controller._maybe_start_bm(
+            observation(0), 0, controller.bm_action_entries
+        )
+        original_task = controller.bm_pending.task
+
+        await controller._maybe_start_bm(
+            observation(240),
+            240,
+            controller.bm_action_entries,
+            trigger_reason="periodic_refresh",
+        )
+
+        self.assertIs(controller.bm_pending.task, original_task)
+        bm.release.set()
+        await controller._await_pending_bm(240)
+
+    async def test_disabled_bm_never_starts_a_task(self):
+        controller = make_controller(ImmediateBM(), enabled=False)
+
+        await controller._maybe_start_bm(
+            observation(0), 0, controller.bm_action_entries
+        )
+
+        self.assertIsNone(controller.bm_pending)

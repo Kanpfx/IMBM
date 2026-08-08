@@ -11,11 +11,11 @@ class LLMConfig:
     model: str = ""
     base_url: str = ""
     api_key: str = ""
-    temperature: float = 0.2
+    temperature: float = 0.1
     max_tokens: int = 900
     timeout_s: float = 20.0
     transport_retries: int = 2
-    max_refines: int = 3
+    max_refines: int = 2
 
     @classmethod
     def from_env(cls) -> "LLMConfig":
@@ -28,4 +28,3 @@ class LLMConfig:
     @property
     def configured(self) -> bool:
         return bool(self.model and self.base_url and self.api_key)
-

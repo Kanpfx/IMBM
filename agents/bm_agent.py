@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
 
@@ -11,23 +12,33 @@ from tools.json_tools import parse_json_object
 from tools.telemetry import Telemetry
 
 
+@dataclass(frozen=True)
+class BMResult:
+    phase: str
+    guidance: tuple[str, ...]
+
+
 class BMAgent(BaseAgent):
     async def run(
         self,
         observation: str,
         tactic: dict[str, Any],
-        phase: dict[str, Any],
+        action_entries: list[dict[str, Any]],
         trigger_reason: str = "",
         trace: Telemetry | None = None,
-        tick: int | None = None,
-    ) -> list[str]:
-        messages = bm_messages(observation, tactic, phase, trigger_reason)
+        iteration: int | None = None,
+    ) -> BMResult:
+        messages = bm_messages(observation, tactic, action_entries, trigger_reason)
         request_messages = self._request_messages(messages)
         response = ""
         started_at = perf_counter()
         try:
             response = await self.llm_client.complete(messages)
             payload = parse_json_object(response)
+            phase = payload.get("phase")
+            phase_ids = {item["id"] for item in tactic["phases"]}
+            if phase not in phase_ids:
+                raise ValueError("BM phase must be an ID from the tactical card")
             guidance = payload.get("guidance")
             if (
                 not isinstance(guidance, list)
@@ -38,20 +49,20 @@ class BMAgent(BaseAgent):
             cleaned = [item.strip() for item in guidance]
             if trace is not None:
                 trace.bm_conversation(
-                    tick=tick,
+                    iteration=iteration,
                     trigger_reason=trigger_reason,
                     request=request_messages,
                     reply=response,
                     valid=True,
-                    phase=phase["id"],
+                    phase=phase,
                     guidance=cleaned,
                     latency_ms=round((perf_counter() - started_at) * 1000),
                 )
-            return cleaned
+            return BMResult(phase, tuple(cleaned))
         except Exception as exc:
             if trace is not None:
                 trace.bm_conversation(
-                    tick=tick,
+                    iteration=iteration,
                     trigger_reason=trigger_reason,
                     request=request_messages,
                     reply=response,

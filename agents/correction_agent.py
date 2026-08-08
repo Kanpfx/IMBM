@@ -22,7 +22,7 @@ class CorrectionAgent(BaseAgent):
         proposed_actions: list[dict[str, Any]],
         errors: list[str],
         trace: Telemetry | None = None,
-        tick: int | None = None,
+        iteration: int | None = None,
     ) -> list[dict[str, Any]]:
         messages = correction_messages(
             observation, guidance, action_entries, proposed_actions, errors
@@ -39,7 +39,7 @@ class CorrectionAgent(BaseAgent):
             if trace is not None:
                 trace.event(
                     "im_correction",
-                    tick=tick,
+                    iteration=iteration,
                     request=request_messages,
                     reply=response,
                     valid=True,
@@ -52,7 +52,7 @@ class CorrectionAgent(BaseAgent):
             if trace is not None:
                 trace.event(
                     "im_correction",
-                    tick=tick,
+                    iteration=iteration,
                     request=request_messages,
                     reply=response,
                     valid=False,

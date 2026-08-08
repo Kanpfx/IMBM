@@ -17,6 +17,7 @@ class RuntimeTests(unittest.TestCase):
         for action_ids in PHASE_ACTIONS.values():
             for action_id in action_ids:
                 self.assertEqual(catalog.get(action_id)["llm_exposure"], "eligible")
+                self.assertIn("availability", catalog.get(action_id))
 
     def test_adapter_rejects_disabled_catalog_actions(self):
         catalog = ActionCatalog.load()
@@ -342,7 +343,7 @@ class RuntimeTests(unittest.TestCase):
 
     def test_resource_blocked_macro_action_is_deferred_and_retried(self):
         catalog = ActionCatalog.load()
-        queue = DeferredActionQueue(catalog, ttl_loops=10)
+        queue = DeferredActionQueue(catalog, ttl_iterations=10)
         bot = type("Bot", (), {"affordable": False})()
         bot.can_afford = lambda _target: bot.affordable
         action = {
@@ -351,7 +352,7 @@ class RuntimeTests(unittest.TestCase):
         }
 
         self.assertTrue(queue.should_defer(bot, action))
-        self.assertTrue(queue.enqueue(action, loop=10))
-        self.assertEqual(queue.pop_ready(bot, loop=11), ([], []))
+        self.assertTrue(queue.enqueue(action, iteration=10))
+        self.assertEqual(queue.pop_ready(bot, iteration=11), ([], []))
         bot.affordable = True
-        self.assertEqual(queue.pop_ready(bot, loop=12), ([action], []))
+        self.assertEqual(queue.pop_ready(bot, iteration=12), ([action], []))

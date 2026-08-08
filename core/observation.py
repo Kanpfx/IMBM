@@ -44,7 +44,7 @@ PRODUCTION_STRUCTURE_NAMES = {"BARRACKS", "FACTORY", "STARPORT"}
 
 @dataclass
 class Observation:
-    loop: int
+    iteration: int
     counts: dict[str, int]
     text: str
     context: EntityContext
@@ -98,7 +98,7 @@ class ObservationBuilder:
         if error:
             self._last_validation_error = self._friendly_validation_error(error)
 
-    def build(self, bot: Any, loop: int, _phase: str) -> Observation:
+    def build(self, bot: Any, iteration: int, _phase: str) -> Observation:
         own_units = list(bot.units)
         structures = list(bot.structures)
         enemies = [unit for unit in bot.enemy_units if getattr(unit, "is_visible", True)]
@@ -149,7 +149,7 @@ class ObservationBuilder:
             "recent_changes": self._recent_changes(facts),
         }
         self._previous_facts = facts
-        return Observation(loop, counts, observation_text(data), context)
+        return Observation(iteration, counts, observation_text(data), context)
 
     def _add_execution_context(self, bot: Any, context: EntityContext) -> None:
         candidates = {
