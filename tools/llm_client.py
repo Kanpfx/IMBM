@@ -48,22 +48,8 @@ class LLMClient:
 
     @staticmethod
     def prepare_messages(messages: list[dict[str, str]]) -> list[dict[str, str]]:
-        """Use a portable prompt constraint instead of provider-specific fields.
-
-        The project speaks to OpenAI-compatible gateways.  Their server-side
-        thinking controls are not interoperable, whereas this instruction is
-        accepted by all of them and keeps the response direct and parseable.
-        """
-        return [
-            {
-                "role": "system",
-                "content": (
-                    "Do not use extended thinking, chain-of-thought, or <thinking> "
-                    "blocks. Return only the requested final JSON, with no rationale."
-                ),
-            },
-            *messages,
-        ]
+        """Return the agent-authored messages without adding another system role."""
+        return list(messages)
 
     def _complete_sync(self, messages: list[dict[str, str]]) -> str:
         url = self.config.base_url

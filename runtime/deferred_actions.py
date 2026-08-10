@@ -19,26 +19,63 @@ class DeferredAction:
 class DeferredActionQueue:
     """Retry selected macro actions without asking the model to repeat them."""
 
+    READY = "ready"
+    QUEUED = "queued"
+    BLOCKED = "blocked"
+
     _COSTED_ACTIONS = {
         "macro.build_structure": "structure_id",
         "macro.tech_up": "desired_tech",
         "macro.upgrade_c_cs": "to",
     }
 
-    def __init__(self, catalog: ActionCatalog, ttl_iterations: int):
+    def __init__(
+        self,
+        catalog: ActionCatalog,
+        ttl_iterations: int,
+        mineral_tolerance: int = 120,
+        vespene_tolerance: int = 60,
+    ):
         self.catalog = catalog
         self.ttl_iterations = ttl_iterations
+        self.mineral_tolerance = mineral_tolerance
+        self.vespene_tolerance = vespene_tolerance
         self._items: list[DeferredAction] = []
 
     def should_defer(self, bot: Any, action: dict[str, Any]) -> bool:
+        return self.resource_status(bot, action) != self.READY
+
+    def resource_status(self, bot: Any, action: dict[str, Any]) -> str:
+        """Return ready, queued, or blocked using a small fixed shortfall."""
         target = self._cost_target(action)
         can_afford = getattr(bot, "can_afford", None)
         if target is None or not callable(can_afford):
-            return False
+            return self.READY
         try:
-            return not bool(can_afford(target))
+            if bool(can_afford(target)):
+                return self.READY
         except (AttributeError, TypeError, ValueError):
-            return False
+            return self.READY
+
+        calculate_cost = getattr(bot, "calculate_cost", None)
+        if not callable(calculate_cost):
+            return self.QUEUED
+        try:
+            cost = calculate_cost(target)
+            mineral_shortfall = max(
+                0, int(getattr(cost, "minerals", 0)) - int(bot.minerals)
+            )
+            vespene_shortfall = max(
+                0, int(getattr(cost, "vespene", 0)) - int(bot.vespene)
+            )
+        except (AttributeError, TypeError, ValueError):
+            return self.QUEUED
+        if (
+            mineral_shortfall <= self.mineral_tolerance
+            and vespene_shortfall <= self.vespene_tolerance
+        ):
+            return self.QUEUED
+        return self.BLOCKED
 
     def enqueue(self, action: dict[str, Any], iteration: int) -> bool:
         key = self._key(action)

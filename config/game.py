@@ -21,3 +21,6 @@ class GameConfig:
     max_action_targets: int = 8
     max_point_nudge_tiles: float = 2.0
     deferred_action_ttl_iterations: int = 180
+    resource_queue_mineral_tolerance: int = 120
+    resource_queue_vespene_tolerance: int = 60
+    persistent_action_iterations: int = 10

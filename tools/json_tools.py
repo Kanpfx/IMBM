@@ -1,30 +1,59 @@
-"""Strict JSON extraction that also accepts legacy Markdown code fences."""
+"""Small JSON extractors for common LLM response variants."""
 
 from __future__ import annotations
 
 import json
-import re
 from typing import Any
+
+from core.action_errors import OutputFormatError
+
+
+def _json_objects(text: str):
+    """Yield standard JSON objects found in plain, fenced, or prefixed text."""
+    decoder = json.JSONDecoder()
+    candidate = text.strip().lstrip("\ufeff")
+    tried: set[int] = set()
+    starts = [0, *(index for index, char in enumerate(candidate) if char == "{")]
+    for start in starts:
+        if start in tried:
+            continue
+        tried.add(start)
+        try:
+            payload, _ = decoder.raw_decode(candidate, start)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict):
+            yield payload
 
 
 def parse_json_object(text: str) -> dict[str, Any]:
-    candidate = text.strip()
-    fenced = re.fullmatch(r"```(?:json)?\s*(.*?)\s*```", candidate, flags=re.DOTALL | re.IGNORECASE)
-    if fenced:
-        candidate = fenced.group(1).strip()
+    """Return the first standard JSON object embedded in an LLM response."""
     try:
-        payload = json.loads(candidate)
-    except json.JSONDecodeError as original_error:
-        # A model occasionally adds a short sentence before valid JSON. This is
-        # a formatting defect, not a strategic one, so recover the first JSON
-        # object without attempting to repair malformed JSON.
-        start = candidate.find("{")
-        if start < 0:
-            raise original_error
-        try:
-            payload, _ = json.JSONDecoder().raw_decode(candidate[start:])
-        except json.JSONDecodeError:
-            raise original_error
-    if not isinstance(payload, dict):
-        raise ValueError("response must be a JSON object")
-    return payload
+        return next(_json_objects(text))
+    except StopIteration as exc:
+        raise OutputFormatError.standard_json_required() from exc
+
+
+def parse_im_payload(text: str) -> dict[str, Any]:
+    """Extract and validate the exact top-level object required from IM."""
+    for payload in _json_objects(text):
+        if not {"actions", "request_background", "background_reason"}.issubset(
+            payload
+        ):
+            continue
+        if not isinstance(payload["actions"], list):
+            raise OutputFormatError.field_type("actions", "a JSON list")
+        if not isinstance(payload["request_background"], bool):
+            raise OutputFormatError.field_type(
+                "request_background", "a JSON boolean"
+            )
+        if not isinstance(payload["background_reason"], str):
+            raise OutputFormatError.field_type(
+                "background_reason", "a JSON string"
+            )
+        return {
+            "actions": payload["actions"],
+            "request_background": payload["request_background"],
+            "background_reason": payload["background_reason"].strip(),
+        }
+    raise OutputFormatError.standard_json_required()

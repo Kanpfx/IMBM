@@ -13,21 +13,16 @@
     {
       "id": "combat.bc.move_safely",
       "name": "MoveSafely",
-      "kind": "imbm_adapter_action",
       "description": "Move a Battlecruiser to a destination using safe air pathing.",
-      "documentation_status": "imbm_adapter",
+      "tags": ["combat", "movement"],
+      "availability": {
+        "param": "unit",
+        "types": ["BATTLECRUISER"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.path_unit_to_target.PathUnitToTarget",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/path_unit_to_target.py",
         "dispatch": "register_behavior"
-      },
-      "actor_unit_types": [
-        "BATTLECRUISER"
-      ],
-      "availability": {
-        "mode": "bc_actor",
-        "actor_param": "unit",
-        "actor_unit_types": ["BATTLECRUISER"]
       },
       "params": [
         {
@@ -56,31 +51,21 @@
           "description": "Fixed safe air pathing grid."
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.bc.tactical_jump",
       "name": "TacticalJump",
-      "kind": "imbm_adapter_action",
       "description": "Tactical Jump a ready Battlecruiser to a destination.",
-      "documentation_status": "imbm_adapter",
+      "tags": ["combat", "ability", "movement"],
+      "availability": {
+        "param": "unit",
+        "types": ["BATTLECRUISER"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.use_ability.UseAbility",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/use_ability.py",
         "dispatch": "register_behavior"
-      },
-      "actor_unit_types": [
-        "BATTLECRUISER"
-      ],
-      "availability": {
-        "mode": "bc_actor",
-        "actor_param": "unit",
-        "actor_unit_types": ["BATTLECRUISER"],
-        "required_ability": "EFFECT_TACTICALJUMP"
       },
       "params": [
         {
@@ -109,22 +94,16 @@
           "description": "Fixed Tactical Jump ability."
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.a_move",
       "name": "AMove",
-      "kind": "executable_behavior",
       "description": "A-Move a unit to a target.",
-      "documentation_status": "documented",
+      "tags": ["combat", "movement"],
       "availability": {
-        "mode": "bc_actor",
-        "actor_param": "unit",
-        "actor_unit_types": ["MARINE", "BATTLECRUISER"]
+        "param": "unit",
+        "types": ["ALL"]
       },
       "api": {
         "import": "ares.behaviors.combat.individual.a_move.AMove",
@@ -158,24 +137,16 @@
           "default": 7.0
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.attack_target",
       "name": "AttackTarget",
-      "kind": "executable_behavior",
       "description": "Shoot a target.",
-      "documentation_status": "documented",
+      "tags": ["combat", "attack"],
       "availability": {
-        "mode": "bc_actor",
-        "actor_param": "unit",
-        "actor_unit_types": ["MARINE", "BATTLECRUISER"],
-        "requires_enemy": true,
-        "enemy_params": ["target"]
+        "param": "unit",
+        "types": ["ALL"]
       },
       "api": {
         "import": "ares.behaviors.combat.individual.attack_target.AttackTarget",
@@ -209,18 +180,17 @@
           "default": 0.0
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.auto_use_a_o_e_ability",
       "name": "AutoUseAOEAbility",
-      "kind": "executable_behavior",
       "description": "Pass in a unit and it will find an AOE to use and cast it.",
-      "documentation_status": "source_only_nonpublic",
+      "tags": ["combat", "ability"],
+      "availability": {
+        "param": "unit",
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.auto_use_aoe_ability.AutoUseAOEAbility",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/auto_use_aoe_ability.py",
@@ -273,19 +243,17 @@
           "default": false
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
-      "llm_exposure": "disabled",
-      "llm_exposure_reason": "Requires review because it is not listed by the current documentation chapter."
+      "llm_exposure": "disabled"
     },
     {
       "id": "combat.individual.combat_maneuver",
       "name": "CombatManeuver",
-      "kind": "composite_behavior",
       "description": "Execute behaviors sequentially.",
-      "documentation_status": "documented",
+      "tags": ["combat"],
+      "availability": {
+        "param": null,
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.combat.combat_maneuver.CombatManeuver",
         "source_path": "ares-sc2/src/ares/behaviors/combat/combat_maneuver.py",
@@ -304,19 +272,17 @@
           }
         }
       ],
-      "parser": {
-        "mode": "manual_composition",
-        "instruction_shape": "{id, args}"
-      },
-      "llm_exposure": "disabled",
-      "llm_exposure_reason": "Contains nested behaviors and needs a dedicated composition instruction shape."
+      "llm_exposure": "disabled"
     },
     {
       "id": "combat.individual.drop_cargo",
       "name": "DropCargo",
-      "kind": "executable_behavior",
       "description": "Handle releasing cargo from a container.",
-      "documentation_status": "documented",
+      "tags": ["combat", "transport"],
+      "availability": {
+        "param": "unit",
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.drop_cargo.DropCargo",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/drop_cargo.py",
@@ -340,18 +306,17 @@
           "description": "Accepted for API compatibility; cargo is unloaded at the container's current position in the current implementation."
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.ghost_snipe",
       "name": "GhostSnipe",
-      "kind": "executable_behavior",
       "description": "Very opinionated ghost snipe. Create own behavior based on this if needed.",
-      "documentation_status": "documented",
+      "tags": ["combat", "ability"],
+      "availability": {
+        "param": "unit",
+        "types": ["GHOST"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.ghost_snipe.GhostSnipe",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/ghost_snipe.py",
@@ -375,18 +340,17 @@
           "description": "Close enemy."
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.keep_unit_safe",
       "name": "KeepUnitSafe",
-      "kind": "executable_behavior",
       "description": "Get a unit to safety based on the influence grid passed in.",
-      "documentation_status": "documented",
+      "tags": ["combat", "defense"],
+      "availability": {
+        "param": "unit",
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.keep_unit_safe.KeepUnitSafe",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/keep_unit_safe.py",
@@ -410,18 +374,17 @@
           "description": "2D grid which usually contains enemy influence."
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.medivac_heal",
       "name": "MedivacHeal",
-      "kind": "executable_behavior",
       "description": "Given close allied units, heal things up.",
-      "documentation_status": "documented",
+      "tags": ["combat", "ability"],
+      "availability": {
+        "param": "unit",
+        "types": ["MEDIVAC"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.medivac_heal.MedivacHeal",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/medivac_heal.py",
@@ -462,18 +425,17 @@
           "default": true
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.move_to_safe_target",
       "name": "MoveToSafeTarget",
-      "kind": "executable_behavior",
       "description": "Given a destination `target`, find the nearest safe position and move unit there.",
-      "documentation_status": "documented",
+      "tags": ["combat", "movement"],
+      "availability": {
+        "param": "unit",
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.move_to_safe_target.MoveToSafeTarget",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/move_to_safe_target.py",
@@ -577,18 +539,17 @@
           "default": 12.0
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.nydus_path_unit_to_target",
       "name": "NydusPathUnitToTarget",
-      "kind": "executable_behavior",
       "description": "Path a unit to its target destination, using nyduses if available.",
-      "documentation_status": "source_only_public",
+      "tags": ["combat", "movement", "transport"],
+      "availability": {
+        "param": "unit",
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.nydus_path_unit_to_target.NydusPathUnitToTarget",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/nydus_path_unit_to_target.py",
@@ -667,19 +628,17 @@
           "default": 10.0
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
-      "llm_exposure": "disabled",
-      "llm_exposure_reason": "Requires review because it is not listed by the current documentation chapter."
+      "llm_exposure": "disabled"
     },
     {
       "id": "combat.individual.path_unit_to_target",
       "name": "PathUnitToTarget",
-      "kind": "executable_behavior",
       "description": "Path a unit to its target destination.",
-      "documentation_status": "documented",
+      "tags": ["combat", "movement"],
+      "availability": {
+        "param": "unit",
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.path_unit_to_target.PathUnitToTarget",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/path_unit_to_target.py",
@@ -765,18 +724,17 @@
           "default": 5.0
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.pick_up_and_drop_cargo",
       "name": "PickUpAndDropCargo",
-      "kind": "executable_behavior",
       "description": "Combines `PickUpCargo` and `DropCargo` behaviors.",
-      "documentation_status": "documented",
+      "tags": ["combat", "transport"],
+      "availability": {
+        "param": "unit",
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.pick_up_and_drop_cargo.PickUpAndDropCargo",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/pick_up_and_drop_cargo.py",
@@ -852,18 +810,17 @@
           "default": 2.0
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.pick_up_cargo",
       "name": "PickUpCargo",
-      "kind": "executable_behavior",
       "description": "Handle loading cargo into a container.",
-      "documentation_status": "documented",
+      "tags": ["combat", "transport"],
+      "availability": {
+        "param": "unit",
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.pick_up_cargo.PickUpCargo",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/pick_up_cargo.py",
@@ -904,18 +861,17 @@
           "default": null
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.place_predictive_ao_e",
       "name": "PlacePredictiveAoE",
-      "kind": "executable_behavior",
       "description": "Predict an enemy position and fire AoE accordingly.",
-      "documentation_status": "documented",
+      "tags": ["combat", "ability"],
+      "availability": {
+        "param": "unit",
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.place_predictive_aoe.PlacePredictiveAoE",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/place_predictive_aoe.py",
@@ -972,18 +928,17 @@
           "default": 5.0
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.queen_spread_creep",
       "name": "QueenSpreadCreep",
-      "kind": "executable_behavior",
       "description": "Have a Queen find an appropriate creep-edge position and place a Creep Tumor.",
-      "documentation_status": "documented",
+      "tags": ["resource", "ability"],
+      "availability": {
+        "param": "unit",
+        "types": ["QUEEN"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.queen_spread_creep.QueenSpreadCreep",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/queen_spread_creep.py",
@@ -1017,18 +972,17 @@
           "default": true
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.raven_auto_turret",
       "name": "RavenAutoTurret",
-      "kind": "executable_behavior",
       "description": "Drop a turret, opinionated and could be improved Create own behavior based on this if needed.",
-      "documentation_status": "documented",
+      "tags": ["combat", "ability"],
+      "availability": {
+        "param": "unit",
+        "types": ["RAVEN"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.raven_auto_turret.RavenAutoTurret",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/raven_auto_turret.py",
@@ -1052,18 +1006,17 @@
           "description": "Nearby enemy units considered when choosing an Auto Turret placement."
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.reaper_grenade",
       "name": "ReaperGrenade",
-      "kind": "executable_behavior",
       "description": "Do reaper grenade.",
-      "documentation_status": "documented",
+      "tags": ["combat", "ability"],
+      "availability": {
+        "param": "unit",
+        "types": ["REAPER"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.reaper_grenade.ReaperGrenade",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/reaper_grenade.py",
@@ -1121,18 +1074,17 @@
           "default": 5.0
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.shoot_and_move_to_target",
       "name": "ShootAndMoveToTarget",
-      "kind": "executable_behavior",
       "description": "We want to move to a specific point on the map, but shoot any in range enemies along the way. Can also optionally shoot destructables. If unit is left near target it gets a moved, so keep in mind when calling this method.",
-      "documentation_status": "documented",
+      "tags": ["combat", "attack", "movement"],
+      "availability": {
+        "param": "unit",
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.shoot_and_move_to_target.ShootAndMoveToTarget",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/shoot_and_move_to_target.py",
@@ -1190,24 +1142,16 @@
           "default": true
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.shoot_target_in_range",
       "name": "ShootTargetInRange",
-      "kind": "executable_behavior",
       "description": "Find something to shoot at.",
-      "documentation_status": "documented",
+      "tags": ["combat", "attack"],
       "availability": {
-        "mode": "bc_actor",
-        "actor_param": "unit",
-        "actor_unit_types": ["MARINE", "BATTLECRUISER"],
-        "requires_enemy": true,
-        "enemy_params": ["targets"]
+        "param": "unit",
+        "types": ["ALL"]
       },
       "api": {
         "import": "ares.behaviors.combat.individual.shoot_target_in_range.ShootTargetInRange",
@@ -1241,18 +1185,17 @@
           "default": 0.0
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.siege_tank_decision",
       "name": "SiegeTankDecision",
-      "kind": "executable_behavior",
       "description": "Decide if a tank should either siege or unsiege.",
-      "documentation_status": "documented",
+      "tags": ["combat", "ability"],
+      "availability": {
+        "param": "unit",
+        "types": ["SIEGETANK", "SIEGETANKSIEGED"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.siege_tank_decision.SiegeTankDecision",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/siege_tank_decision.py",
@@ -1311,24 +1254,16 @@
           "default": false
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.stutter_unit_back",
       "name": "StutterUnitBack",
-      "kind": "executable_behavior",
       "description": "Shoot at the target if possible, else move back.",
-      "documentation_status": "documented",
+      "tags": ["combat", "movement"],
       "availability": {
-        "mode": "bc_actor",
-        "actor_param": "unit",
-        "actor_unit_types": ["MARINE", "BATTLECRUISER"],
-        "requires_enemy": true,
-        "enemy_params": ["target"]
+        "param": "unit",
+        "types": ["ALL"]
       },
       "api": {
         "import": "ares.behaviors.combat.individual.stutter_unit_back.StutterUnitBack",
@@ -1371,24 +1306,16 @@
           "default": null
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.stutter_unit_forward",
       "name": "StutterUnitForward",
-      "kind": "executable_behavior",
       "description": "Shoot the target when ready; otherwise move toward it.",
-      "documentation_status": "documented",
+      "tags": ["combat", "movement"],
       "availability": {
-        "mode": "bc_actor",
-        "actor_param": "unit",
-        "actor_unit_types": ["MARINE", "BATTLECRUISER"],
-        "requires_enemy": true,
-        "enemy_params": ["target"]
+        "param": "unit",
+        "types": ["ALL"]
       },
       "api": {
         "import": "ares.behaviors.combat.individual.stutter_unit_forward.StutterUnitForward",
@@ -1413,18 +1340,17 @@
           "description": "The unit we want to shoot at."
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.tumor_spread_creep",
       "name": "TumorSpreadCreep",
-      "kind": "executable_behavior",
       "description": "Coordinate tumor spread behavior for creep expansion.",
-      "documentation_status": "documented",
+      "tags": ["resource", "ability"],
+      "availability": {
+        "param": "unit",
+        "types": ["CREEPTUMOR", "CREEPTUMORBURROWED", "CREEPTUMORQUEEN"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.tumor_spread_creep.TumorSpreadCreep",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/tumor_spread_creep.py",
@@ -1448,18 +1374,17 @@
           "description": "Accepted for API compatibility; currently ignored while the behavior chooses its own nearby creep position."
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.use_a_o_e_ability",
       "name": "UseAOEAbility",
-      "kind": "executable_behavior",
       "description": "Attempt to use AOE ability for a unit.",
-      "documentation_status": "documented",
+      "tags": ["combat", "ability"],
+      "availability": {
+        "param": "unit",
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.use_aoe_ability.UseAOEAbility",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/use_aoe_ability.py",
@@ -1546,18 +1471,17 @@
           "default": false
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.use_ability",
       "name": "UseAbility",
-      "kind": "executable_behavior",
       "description": "Order a unit to cast a specified ability, optionally at a target.",
-      "documentation_status": "documented",
+      "tags": ["combat", "ability"],
+      "availability": {
+        "param": "unit",
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.use_ability.UseAbility",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/use_ability.py",
@@ -1590,18 +1514,17 @@
           "default": null
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.use_transfuse",
       "name": "UseTransfuse",
-      "kind": "executable_behavior",
       "description": "Queen tries to transfuse something",
-      "documentation_status": "documented",
+      "tags": ["combat", "ability"],
+      "availability": {
+        "param": "unit",
+        "types": ["QUEEN"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.use_transfuse.UseTransfuse",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/use_transfuse.py",
@@ -1634,18 +1557,17 @@
           "default": 0.0
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "combat.individual.worker_kite_back",
       "name": "WorkerKiteBack",
-      "kind": "executable_behavior",
       "description": "Shoot at the target if possible, else move back.",
-      "documentation_status": "documented",
+      "tags": ["combat", "resource"],
+      "availability": {
+        "param": "unit",
+        "types": ["SCV", "DRONE", "PROBE"]
+      },
       "api": {
         "import": "ares.behaviors.combat.individual.worker_kite_back.WorkerKiteBack",
         "source_path": "ares-sc2/src/ares/behaviors/combat/individual/worker_kite_back.py",
@@ -1678,10 +1600,6 @@
           "default": true
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     }
   ]

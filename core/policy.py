@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isclose
 from typing import Any
 
 from config.game import GameConfig
-from config.policy import COMBAT_MICRO_ACTIONS, COMBAT_UNIT_TYPES, allowed_actions
+from core.action_errors import (
+    ActionNameError,
+    ConflictError,
+    InstructionError,
+    OutputFormatError,
+    ParameterError,
+)
 from core.action_exposure import ActionSurface
 from knowledge.loader import ActionCatalog
 from runtime.ares_adapter import AresActionAdapter, InstructionError
@@ -78,7 +85,15 @@ class PolicyValidator:
         """
         if not isinstance(actions, list):
             return ActionReview(
-                [], [ValidationIssue(0, actions, "actions must be a list")], []
+                [],
+                [
+                    ValidationIssue(
+                        0,
+                        actions,
+                        str(OutputFormatError.field_type("actions", "a JSON list")),
+                    )
+                ],
+                [],
             )
 
         valid: list[dict[str, Any]] = []
@@ -91,22 +106,31 @@ class PolicyValidator:
                     ValidationIssue(
                         index,
                         action,
-                        f"at most {self.game_config.max_actions_per_decision} actions are executed per decision",
+                        str(
+                            InstructionError(
+                                "action limit exceeded",
+                                "at most "
+                                f"{self.game_config.max_actions_per_decision} actions "
+                                "may be executed in one decision",
+                            )
+                        ),
                     )
                 )
                 continue
+            current_action = action
             try:
                 if not isinstance(action, dict):
-                    raise ValueError("each action must be an object")
-                action_id = action.get("id")
+                    raise InstructionError(
+                        "format error", "each action must be a JSON object"
+                    )
+                current_action, shape_notes = self._normalize_action_keys(action)
+                action_id = current_action.get("id")
                 entry = self.catalog.get(action_id)
-                if entry["id"] not in allowed_actions(phase):
-                    raise ValueError(f"action {action_id!r} is not allowed in phase {phase}")
                 if entry.get("llm_exposure") != "eligible":
-                    raise ValueError(f"action {action_id!r} is not enabled for LLM output")
+                    raise ActionNameError.disabled(action_id)
 
                 normalized, notes = self._normalize_action(
-                    entry, action, bot, phase, context
+                    entry, current_action, bot, phase, context
                 )
                 if surface is not None:
                     surface.validate(entry, normalized["args"])
@@ -120,40 +144,89 @@ class PolicyValidator:
                 seen_own = provisional_seen
                 valid.append(normalized)
                 normalizations.extend(
-                    f"Action {index + 1}: {note}" for note in notes
+                    f"Action {index + 1}: {note}"
+                    for note in shape_notes + notes
                 )
             except (KeyError, TypeError, InstructionError, ValueError) as exc:
-                issues.append(ValidationIssue(index, action, str(exc)))
+                issues.append(ValidationIssue(index, current_action, str(exc)))
         return ActionReview(valid, issues, normalizations)
+
+    @staticmethod
+    def _symbol_key(value: str) -> str:
+        return "".join(
+            character for character in value.strip().casefold() if character.isalnum()
+        )
+
+    def _normalize_action_keys(
+        self, action: dict[str, Any]
+    ) -> tuple[dict[str, Any], list[str]]:
+        """Normalize only harmless case and separator variations in key names."""
+        top_level_names = {self._symbol_key(name): name for name in ("id", "args")}
+        normalized: dict[str, Any] = {}
+        notes: list[str] = []
+        for raw_name, value in action.items():
+            name = raw_name
+            if isinstance(raw_name, str):
+                name = top_level_names.get(self._symbol_key(raw_name), raw_name)
+            if name in normalized:
+                raise ParameterError.duplicate(str(name))
+            normalized[name] = value
+            if name != raw_name:
+                notes.append(f"normalized field name {raw_name!r} to {name!r}")
+        return normalized, notes
 
     def _normalize_action(
         self,
         entry: dict[str, Any],
         action: dict[str, Any],
         bot: Any,
-        phase: str,
+        _phase: str,
         context: EntityContext,
     ) -> tuple[dict[str, Any], list[str]]:
         """Apply only lossless, local corrections before validation."""
         if not isinstance(action.get("args"), dict):
             return action, []
-        normalized = {"id": action.get("id"), "args": dict(action["args"])}
+        normalized_args, argument_notes = self._normalize_argument_names(
+            entry, action["args"]
+        )
+        normalized = {"id": entry["name"], "args": normalized_args}
         notes: list[str] = []
+        notes.extend(argument_notes)
+        if action.get("id") != entry["name"]:
+            notes.append(f"normalized action name to {entry['name']!r}")
         # ``TECHLAB`` is a common human/LLM shorthand, but it is an abstract
         # UnitTypeId which Ares' TechUp cannot look up in its technology table.
         # BC Rush has exactly one intended addon at this point: a Starport Tech
         # Lab. Normalize only in the two phases where that intent is unambiguous.
         if (
             entry["id"] == "macro.tech_up"
-            and phase in {"opening_air_tech", "first_battlecruiser"}
-            and normalized["args"].get("desired_tech") in {"TECHLAB", "STARPORT_TECHLAB"}
+            and normalized["args"].get("desired_tech") == "STARPORT_TECHLAB"
         ):
             normalized["args"]["desired_tech"] = "STARPORTTECHLAB"
             notes.append("normalized desired_tech to STARPORTTECHLAB for BC Rush")
         for param in self.catalog.required_model_params(entry).values():
             name = param["name"]
             type_name = param["type"]
-            if type_name == "unit_refs":
+            if type_name == "army_composition":
+                value = normalized["args"].get(name)
+                repaired = self._normalize_army_composition(value)
+                if repaired != value:
+                    normalized["args"][name] = repaired
+                    notes.append(
+                        f"normalized {name} to proportion/priority objects"
+                    )
+            elif type_name in {
+                "ability_id",
+                "unit_type_id",
+                "upgrade_id",
+                "unit_or_upgrade_id",
+            }:
+                value = normalized["args"].get(name)
+                repaired = self._normalize_enum_name(value, type_name, name)
+                if repaired != value:
+                    normalized["args"][name] = repaired
+                    notes.append(f"normalized {name} enum name")
+            elif type_name == "unit_refs":
                 value = normalized["args"].get(name)
                 if isinstance(value, list):
                     repaired = [
@@ -170,6 +243,21 @@ class PolicyValidator:
                     normalized["args"][name] = repaired
                     notes.append(f"normalized {name} observation ID")
 
+            if type_name == "grid_ref":
+                value = normalized["args"].get(name)
+                if isinstance(value, str):
+                    repaired = value.strip().casefold().replace("-", "_").replace(" ", "_")
+                    if repaired != value:
+                        normalized["args"][name] = repaired
+                        notes.append(f"normalized {name} grid name")
+            elif type_name in {"point_ref", "point_or_unit_ref"}:
+                value = normalized["args"].get(name)
+                if isinstance(value, str) and not context.has_entity_alias(value):
+                    repaired = value.strip().casefold().replace("-", "_").replace(" ", "_")
+                    if repaired in context.positions and repaired != value:
+                        normalized["args"][name] = repaired
+                        notes.append(f"normalized {name} landmark")
+
             if param["type"] not in {"point_ref", "point_or_unit_ref"}:
                 continue
             value = normalized["args"].get(name)
@@ -180,6 +268,105 @@ class PolicyValidator:
                 normalized["args"][name] = corrected
                 notes.append(f"clamped {name} to the playable area")
         return normalized, notes
+
+    def _normalize_enum_name(self, value: Any, type_name: str, name: str) -> Any:
+        if not isinstance(value, str):
+            return value
+        if type_name == "ability_id":
+            from sc2.ids.ability_id import AbilityId
+
+            return self.adapter._resolve_enum(AbilityId, value, name).name
+        if type_name == "upgrade_id":
+            from sc2.ids.upgrade_id import UpgradeId
+
+            return self.adapter._resolve_enum(UpgradeId, value, name).name
+        if type_name == "unit_type_id":
+            from sc2.ids.unit_typeid import UnitTypeId
+
+            return self.adapter._resolve_enum(UnitTypeId, value, name).name
+
+        from sc2.ids.unit_typeid import UnitTypeId
+        from sc2.ids.upgrade_id import UpgradeId
+
+        try:
+            return self.adapter._resolve_enum(UnitTypeId, value, name).name
+        except ValueError:
+            return self.adapter._resolve_enum(UpgradeId, value, name).name
+
+    def _normalize_argument_names(
+        self, entry: dict[str, Any], args: dict[str, Any]
+    ) -> tuple[dict[str, Any], list[str]]:
+        exposed = self.catalog.required_model_params(entry)
+        aliases = {self._symbol_key(name): name for name in exposed}
+        normalized: dict[str, Any] = {}
+        notes: list[str] = []
+        for raw_name, value in args.items():
+            name = raw_name
+            if isinstance(raw_name, str):
+                name = aliases.get(self._symbol_key(raw_name), raw_name)
+            if name in normalized:
+                raise ParameterError.duplicate(str(name))
+            normalized[name] = value
+            if name != raw_name:
+                notes.append(
+                    f"normalized parameter name {raw_name!r} to {name!r}"
+                )
+        return normalized, notes
+
+    def _normalize_army_composition(self, value: Any) -> Any:
+        """Repair common unambiguous model shorthands for Ares compositions."""
+        if not isinstance(value, dict) or not value:
+            return value
+        from sc2.ids.unit_typeid import UnitTypeId
+
+        repaired: dict[str, dict[str, Any]] = {}
+        for index, (raw_unit_name, settings) in enumerate(value.items()):
+            if not isinstance(raw_unit_name, str):
+                return value
+            requested_name = (
+                "BATTLECRUISER"
+                if raw_unit_name.strip().casefold() == "bc"
+                else raw_unit_name
+            )
+            try:
+                unit_name = self.adapter._resolve_enum(
+                    UnitTypeId, requested_name, "army_composition_dict"
+                ).name
+            except ValueError:
+                return value
+            if isinstance(settings, bool):
+                return value
+            if isinstance(settings, (int, float)):
+                proportion = float(settings)
+                priority = index
+            elif isinstance(settings, dict):
+                proportion = settings.get("proportion")
+                priority = settings.get("priority", index)
+            else:
+                return value
+            if (
+                isinstance(proportion, bool)
+                or not isinstance(proportion, (int, float))
+                or float(proportion) < 0.0
+                or isinstance(priority, bool)
+                or not isinstance(priority, int)
+            ):
+                return value
+            if float(proportion) == 0.0:
+                continue
+            repaired[unit_name] = {
+                "proportion": float(proportion),
+                "priority": priority,
+            }
+        if not repaired:
+            return value
+        total = sum(item["proportion"] for item in repaired.values())
+        if total <= 0.0:
+            return value
+        if not isclose(total, 1.0, abs_tol=1e-6):
+            for settings in repaired.values():
+                settings["proportion"] /= total
+        return repaired
 
     @staticmethod
     def _canonicalize_known_entity_alias(value: Any, context: EntityContext) -> Any:
@@ -217,7 +404,9 @@ class PolicyValidator:
             return value
         distance = max(abs(clamped_x - x), abs(clamped_y - y))
         if distance > self.game_config.max_point_nudge_tiles:
-            raise ValueError("point is outside the playable area")
+            raise ParameterError.invalid_value(
+                "point", value, "a coordinate inside the playable area"
+            )
         return {"x": clamped_x, "y": clamped_y}
 
     @staticmethod
@@ -236,11 +425,15 @@ class PolicyValidator:
         try:
             structure_id = UnitTypeId[structure_name]
         except KeyError as exc:
-            raise ValueError(f"unknown structure type: {structure_name}") from exc
+            raise ParameterError.invalid_value(
+                "structure_id", structure_name, "a valid structure type"
+            ) from exc
         if structure_id not in STRUCTURE_TO_BUILDING_SIZE:
-            raise ValueError(
-                f"{structure_name} cannot use macro.build_structure; "
-                "use macro.gas_building_controller for Refineries"
+            raise ParameterError.invalid_value(
+                "structure_id",
+                structure_name,
+                "a structure supported by BuildStructure; use "
+                "GasBuildingController for Refineries",
             )
 
     def _validate_live_args(
@@ -258,49 +451,54 @@ class PolicyValidator:
                 own_only = name in {"unit", "group"}
                 entity = context.resolve_entity(value, own_only=own_only)
                 if own_only:
-                    allowed_types = entry.get("actor_unit_types")
+                    availability = entry.get("availability", {})
+                    allowed_types = availability.get("types")
+                    if allowed_types == ["ALL"]:
+                        allowed_types = None
                     actual_type = getattr(getattr(entity, "type_id", None), "name", "UNKNOWN")
                     if allowed_types and actual_type not in allowed_types:
                         allowed = ", ".join(allowed_types)
-                        raise ValueError(f"{entry['name']} requires one of: {allowed}")
-                    if (
-                        entry["id"] in COMBAT_MICRO_ACTIONS
-                        and actual_type not in COMBAT_UNIT_TYPES
-                    ):
-                        allowed = ", ".join(sorted(COMBAT_UNIT_TYPES))
-                        raise ValueError(
-                            f"{entry['name']} is limited to combat units: {allowed}"
+                        raise ParameterError.invalid_value(
+                            name,
+                            actual_type,
+                            f"an actor of type {allowed} for {entry['name']}",
                         )
                     if value in seen_own:
-                        raise ValueError(
-                            f"unit {value} already has a higher-priority action"
-                        )
+                        raise ConflictError.unit_reused(value)
                     seen_own.add(value)
             elif type_name == "unit_refs":
                 if not isinstance(value, list) or not value:
-                    raise ValueError(f"{name} must be a non-empty list")
+                    raise ParameterError.format(
+                        name, "a non-empty observation unit ID list"
+                    )
                 for alias in value:
                     context.resolve_entity(alias, own_only=name == "group")
             elif type_name == "point_ref":
                 point = context.resolve_point(value)
                 if point.x < 0 or point.y < 0:
-                    raise ValueError("point must be on the playable map")
+                    raise ParameterError.invalid_value(
+                        name, value, "a point on the playable map"
+                    )
             elif type_name == "ability_id":
                 if not isinstance(value, str):
-                    raise ValueError(f"{name} must be an ability enum name")
+                    raise ParameterError.format(name, "an ability enum name")
                 from sc2.ids.ability_id import AbilityId
 
                 try:
                     ability = AbilityId[value]
                 except KeyError as exc:
-                    raise ValueError(f"unknown ability: {value}") from exc
+                    raise ParameterError.invalid_value(
+                        name, value, "a valid ability enum name"
+                    ) from exc
                 actor_alias = args.get("unit")
                 if isinstance(actor_alias, str):
                     actor = context.resolve_entity(actor_alias, own_only=True)
                     available = getattr(actor, "abilities", None)
                     if available is not None and ability not in available:
-                        raise ValueError(
-                            f"ability {value} is not ready for unit {actor_alias}"
+                        raise ParameterError.invalid_value(
+                            name,
+                            value,
+                            f"an ability currently ready for unit {actor_alias}",
                         )
         self._validate_fixed_abilities(entry, args, context)
 
@@ -325,6 +523,12 @@ class PolicyValidator:
             try:
                 ability = AbilityId[ability_name]
             except (KeyError, TypeError) as exc:
-                raise ValueError(f"unknown fixed ability: {ability_name}") from exc
+                raise ParameterError.invalid_value(
+                    "ability", ability_name, "a valid fixed ability enum name"
+                ) from exc
             if ability not in available:
-                raise ValueError(f"{entry['name']} is not ready for unit {actor_alias}")
+                raise ParameterError.invalid_value(
+                    "unit",
+                    actor_alias,
+                    f"a unit with {entry['name']} currently ready",
+                )

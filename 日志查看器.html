@@ -44,6 +44,10 @@
     details { margin-top:14px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 13px; }
     summary { cursor:pointer; color:#344054; font-weight:600; }
     details pre { margin-top:10px; max-height:420px; }
+    .raw-inputs { margin-top:14px; }
+    .raw-inputs details { margin-top:10px; }
+    .raw-inputs pre { max-height:620px; }
+    .raw-inputs .attempt + .attempt { margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
     .empty { color:var(--muted); padding:18px 0; }
     .hidden { display:none; }
     @media (max-width:840px) { .summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .grid { grid-template-columns:1fr; } .events { grid-column:auto; } .tick-row { grid-template-columns:76px 1fr; } .tick-row span:last-child { grid-column:1 / -1; } }
@@ -94,6 +98,17 @@
       <summary>当前观测文本</summary>
       <pre id="observation-panel"></pre>
     </details>
+
+    <section class="raw-inputs hidden" id="raw-inputs">
+      <details>
+        <summary id="raw-im-summary">原始 IM 输入</summary>
+        <div id="raw-im-panel"></div>
+      </details>
+      <details>
+        <summary id="raw-bm-summary">原始 BM 输入</summary>
+        <div id="raw-bm-panel"></div>
+      </details>
+    </section>
   </main>
 
   <script>
@@ -154,6 +169,7 @@
       $("summary").classList.remove("hidden");
       $("viewer").classList.remove("hidden");
       $("observation-details").classList.remove("hidden");
+      $("raw-inputs").classList.remove("hidden");
       renderSummary();
       renderCurrent();
     }
@@ -200,6 +216,7 @@
       renderBm(iteration);
       renderActions(decision);
       renderEvents(iteration);
+      renderRawInputs(iteration);
       $("observation-panel").textContent = observation?.observation || "该 iteration 没有保存观测文本。";
     }
 
@@ -261,6 +278,44 @@
         return section;
       });
       replacePanel("event-panel", nodes);
+    }
+
+    function formatRequest(request) {
+      if (!Array.isArray(request)) return formatJson(request);
+      return request.map((message, index) => {
+        const role = String(message?.role || "unknown").toUpperCase();
+        const content = typeof message?.content === "string" ? message.content : formatJson(message?.content);
+        const extra = message && typeof message === "object"
+          ? Object.fromEntries(Object.entries(message).filter(([key]) => key !== "role" && key !== "content"))
+          : {};
+        const extraText = Object.keys(extra).length ? `\n\n[其他字段]\n${formatJson(extra)}` : "";
+        return `===== MESSAGE ${index + 1} · ${role} =====\n${content}${extraText}`;
+      }).join("\n\n");
+    }
+
+    function renderRawInputs(iteration) {
+      const imRows = indexes.im.get(iteration) || [];
+      $("raw-im-summary").textContent = `原始 IM 输入 · iteration ${iteration}`;
+      if (!imRows.length) replacePanel("raw-im-panel", [noData("该 iteration 没有 IM 输入记录。")]);
+      else {
+        const nodes = imRows.map((row, index) => {
+          const section = document.createElement("div"); section.className = "attempt";
+          section.append(
+            line("尝试", String((row.attempt ?? index) + 1)),
+            pre(formatRequest(row.request)),
+          );
+          return section;
+        });
+        replacePanel("raw-im-panel", nodes);
+      }
+
+      const latestBm = [...state.bm].reverse().find(row => rowIteration(row) <= iteration);
+      $("raw-bm-summary").textContent = latestBm
+        ? `原始 BM 输入 · iteration ${rowIteration(latestBm)}`
+        : "原始 BM 输入";
+      if (!latestBm) replacePanel("raw-bm-panel", [noData("此时尚无 BM 输入记录。")]);
+      else if (!latestBm.request) replacePanel("raw-bm-panel", [noData("这条 BM 日志没有保存 request 字段。")]);
+      else replacePanel("raw-bm-panel", [pre(formatRequest(latestBm.request))]);
     }
 
     $("tick-slider").addEventListener("input", renderCurrent);

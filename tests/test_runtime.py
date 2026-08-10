@@ -1,24 +1,18 @@
 import unittest
 
 from knowledge.loader import ActionCatalog
-from config.policy import PHASE_ACTIONS
 from config.game import GameConfig
+from core.action_errors import OutputFormatError
 from core.policy import PolicyValidator
 from runtime.ares_adapter import AresActionAdapter, InstructionError
 from runtime.deferred_actions import DeferredActionQueue
 from runtime.directive import BMDirective, DirectiveStore
+from runtime.persistent_actions import PersistentActionRegistry
 from runtime.resolver import EntityContext
-from tools.json_tools import parse_json_object
+from tools.json_tools import parse_im_payload, parse_json_object
 
 
 class RuntimeTests(unittest.TestCase):
-    def test_phase_actions_are_all_catalog_eligible(self):
-        catalog = ActionCatalog.load()
-        for action_ids in PHASE_ACTIONS.values():
-            for action_id in action_ids:
-                self.assertEqual(catalog.get(action_id)["llm_exposure"], "eligible")
-                self.assertIn("availability", catalog.get(action_id))
-
     def test_adapter_rejects_disabled_catalog_actions(self):
         catalog = ActionCatalog.load()
         adapter = AresActionAdapter(catalog)
@@ -36,14 +30,14 @@ class RuntimeTests(unittest.TestCase):
                 {"id": "GasBuildingController", "args": {"to_count": 1}}
             ],
             context=EntityContext(),
-            phase="opening_factory",
+            phase="opening_tech",
         )
 
         self.assertTrue(accepted, reason)
 
     def test_directive_store_honors_ttl(self):
         store = DirectiveStore()
-        directive = BMDirective("opening_factory", ("Build tech.",), 10, 20)
+        directive = BMDirective("opening_tech", ("Build tech.",), 10, 20)
         store.write(directive)
         self.assertEqual(store.read(20), directive)
         self.assertIsNone(store.read(21))
@@ -56,6 +50,56 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(
             parse_json_object('Here is the result: {"actions":[]}'),
             {"actions": []},
+        )
+
+    def test_im_parser_accepts_common_wrappers_and_requires_the_full_contract(self):
+        expected = {
+            "actions": [],
+            "request_background": False,
+            "background_reason": "",
+        }
+        raw = (
+            '{"actions":[],"request_background":false,'
+            '"background_reason":""}'
+        )
+
+        self.assertEqual(parse_im_payload(raw), expected)
+        self.assertEqual(parse_im_payload(f"```json\n{raw}\n```"), expected)
+        self.assertEqual(parse_im_payload(f"Result:\n{raw}\nDone."), expected)
+        with self.assertRaisesRegex(OutputFormatError, "standard JSON object"):
+            parse_im_payload('{"actions":[]')
+        with self.assertRaisesRegex(OutputFormatError, "request_background"):
+            parse_im_payload(
+                '{"actions":[],"request_background":"false",'
+                '"background_reason":""}'
+            )
+
+    def test_catalog_and_policy_apply_basic_case_and_separator_tolerance(self):
+        catalog = ActionCatalog.load()
+        validator = PolicyValidator(catalog, GameConfig())
+        main = type("Point", (), {"x": 1, "y": 1})()
+
+        self.assertEqual(catalog.get("build-structure")["id"], "macro.build_structure")
+        review = validator.review(
+            bot=None,
+            actions=[
+                {
+                    "ID": "build structure",
+                    "ARGS": {
+                        "BaseLocation": "MAIN",
+                        "Structure-ID": "factory",
+                    },
+                }
+            ],
+            context=EntityContext(positions={"main": main}),
+            phase="opening_tech",
+        )
+
+        self.assertTrue(review.accepted, review.message)
+        self.assertEqual(review.actions[0]["id"], "BuildStructure")
+        self.assertEqual(
+            review.actions[0]["args"],
+            {"base_location": "main", "structure_id": "FACTORY"},
         )
 
     def test_adapter_resolves_scalar_values_and_derived_group_tags(self):
@@ -125,7 +169,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(review.actions[0]["args"]["group"], ["1", "2"])
         self.assertTrue(review.normalizations)
 
-    def test_adapter_resolves_the_restricted_bc_rush_composition(self):
+    def test_adapter_resolves_a_generic_army_composition(self):
         catalog = ActionCatalog.load()
         adapter = AresActionAdapter(catalog)
         context = EntityContext(positions={"main": object()})
@@ -133,8 +177,8 @@ class RuntimeTests(unittest.TestCase):
             catalog.get("macro.spawn_controller"),
             {
                 "army_composition_dict": {
-                    "BATTLECRUISER": {"proportion": 0.8, "priority": 0},
-                    "MARINE": {"proportion": 0.2, "priority": 1},
+                    "ZEALOT": {"proportion": 0.6, "priority": 0},
+                    "STALKER": {"proportion": 0.4, "priority": 1},
                 }
             },
             context,
@@ -142,7 +186,88 @@ class RuntimeTests(unittest.TestCase):
 
         self.assertEqual(
             {unit.name for unit in kwargs["army_composition_dict"]},
-            {"BATTLECRUISER", "MARINE"},
+            {"ZEALOT", "STALKER"},
+        )
+        self.assertTrue(kwargs["freeflow_mode"])
+
+    def test_policy_normalizes_flat_composition_shorthand(self):
+        catalog = ActionCatalog.load()
+        validator = PolicyValidator(catalog, GameConfig())
+
+        review = validator.review(
+            bot=None,
+            actions=[
+                {
+                    "id": "SpawnController",
+                    "args": {"army_composition_dict": {"MARINE": 1.0}},
+                }
+            ],
+            context=EntityContext(),
+            phase="first_bc_preparation",
+        )
+
+        self.assertTrue(review.accepted, review.message)
+        self.assertEqual(
+            review.actions[0]["args"]["army_composition_dict"],
+            {"MARINE": {"proportion": 1.0, "priority": 0}},
+        )
+        self.assertTrue(review.normalizations)
+
+    def test_policy_normalizes_composition_weights_and_missing_priorities(self):
+        catalog = ActionCatalog.load()
+        validator = PolicyValidator(catalog, GameConfig())
+
+        review = validator.review(
+            bot=None,
+            actions=[
+                {
+                    "id": "SpawnController",
+                    "args": {
+                        "army_composition_dict": {
+                            "bc": {"proportion": 8},
+                            "marine": {"proportion": 2},
+                        }
+                    },
+                }
+            ],
+            context=EntityContext(),
+            phase="bc_pressure",
+        )
+
+        self.assertTrue(review.accepted, review.message)
+        self.assertEqual(
+            review.actions[0]["args"]["army_composition_dict"],
+            {
+                "BATTLECRUISER": {"proportion": 0.8, "priority": 0},
+                "MARINE": {"proportion": 0.2, "priority": 1},
+            },
+        )
+
+    def test_policy_drops_zero_weight_units_without_correction(self):
+        catalog = ActionCatalog.load()
+        validator = PolicyValidator(catalog, GameConfig())
+
+        review = validator.review(
+            bot=None,
+            actions=[
+                {
+                    "id": "SpawnController",
+                    "args": {
+                        "army_composition_dict": {
+                            "BATTLECRUISER": {"proportion": 1.0, "priority": 0},
+                            "MARINE": {"proportion": 0.0, "priority": 1},
+                        }
+                    },
+                }
+            ],
+            context=EntityContext(),
+            phase="bc_pressure",
+        )
+
+        self.assertTrue(review.accepted, review.message)
+        self.assertEqual(
+            review.actions[0]["args"]["army_composition_dict"],
+            {"BATTLECRUISER": {"proportion": 1.0, "priority": 0}},
         )
 
     def test_adapter_fills_bc_runtime_details_without_exposing_them_to_im(self):
@@ -214,9 +339,10 @@ class RuntimeTests(unittest.TestCase):
         )
 
         self.assertFalse(review.accepted)
-        self.assertIn("not ready", review.message)
+        self.assertIn("Parameter error: invalid value", review.message)
+        self.assertIn("currently ready", review.message)
 
-    def test_policy_rejects_scv_combat_micro(self):
+    def test_policy_allows_worker_micro_outside_a_phase_whitelist(self):
         catalog = ActionCatalog.load()
         validator = PolicyValidator(catalog, GameConfig())
         scv = type(
@@ -233,8 +359,7 @@ class RuntimeTests(unittest.TestCase):
             phase="bc_pressure",
         )
 
-        self.assertFalse(review.accepted)
-        self.assertIn("combat units", review.message)
+        self.assertTrue(review.accepted, review.message)
 
     def test_policy_rejects_refinery_for_build_structure(self):
         catalog = ActionCatalog.load()
@@ -249,11 +374,11 @@ class RuntimeTests(unittest.TestCase):
                 }
             ],
             context=EntityContext(positions={"main": point}),
-            phase="opening_factory",
+            phase="opening_tech",
         )
 
         self.assertFalse(accepted)
-        self.assertIn("gas_building_controller", reason)
+        self.assertIn("GasBuildingController", reason)
 
     def test_policy_review_keeps_valid_actions_when_a_sibling_is_invalid(self):
         catalog = ActionCatalog.load()
@@ -270,12 +395,12 @@ class RuntimeTests(unittest.TestCase):
                 },
             ],
             context=EntityContext(positions={"main": point}),
-            phase="opening_factory",
+            phase="opening_tech",
         )
 
         self.assertFalse(review.accepted)
         self.assertEqual(review.actions, [{"id": "GasBuildingController", "args": {"to_count": 1}}])
-        self.assertIn("gas_building_controller", review.message)
+        self.assertIn("GasBuildingController", review.message)
 
     def test_policy_clamps_a_point_slightly_outside_the_playable_area(self):
         catalog = ActionCatalog.load()
@@ -304,7 +429,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(review.actions[0]["args"]["target"], {"x": 0.0, "y": 30.0})
         self.assertTrue(review.normalizations)
 
-    def test_policy_normalizes_bc_rush_techlab_shorthand_before_execution(self):
+    def test_policy_normalizes_starport_techlab_separators_before_execution(self):
         catalog = ActionCatalog.load()
         validator = PolicyValidator(catalog, GameConfig())
 
@@ -313,13 +438,16 @@ class RuntimeTests(unittest.TestCase):
             actions=[
                 {
                     "id": "TechUp",
-                    "args": {"desired_tech": "TECHLAB", "base_location": "main"},
+                    "args": {
+                        "desired_tech": "starport-techlab",
+                        "base_location": "main",
+                    },
                 }
             ],
             context=EntityContext(
                 positions={"main": type("Point", (), {"x": 1, "y": 1})()}
             ),
-            phase="opening_air_tech",
+            phase="opening_tech",
         )
 
         self.assertTrue(review.accepted, review.message)
@@ -356,3 +484,59 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(queue.pop_ready(bot, iteration=11), ([], []))
         bot.affordable = True
         self.assertEqual(queue.pop_ready(bot, iteration=12), ([action], []))
+
+    def test_resource_filter_queues_small_shortfalls_and_blocks_large_ones(self):
+        catalog = ActionCatalog.load()
+        queue = DeferredActionQueue(
+            catalog,
+            ttl_iterations=10,
+            mineral_tolerance=120,
+            vespene_tolerance=60,
+        )
+        cost = type("Cost", (), {"minerals": 150, "vespene": 100})()
+        bot = type("Bot", (), {"minerals": 100, "vespene": 50})()
+        bot.can_afford = lambda _target: False
+        bot.calculate_cost = lambda _target: cost
+        action = {
+            "id": "BuildStructure",
+            "args": {"base_location": "main", "structure_id": "FACTORY"},
+        }
+
+        self.assertEqual(
+            queue.resource_status(bot, action), DeferredActionQueue.QUEUED
+        )
+        bot.minerals = 0
+        bot.vespene = 0
+        self.assertEqual(
+            queue.resource_status(bot, action), DeferredActionQueue.BLOCKED
+        )
+
+    def test_persistent_action_is_registered_until_the_next_decision(self):
+        catalog = ActionCatalog.load()
+        registry = PersistentActionRegistry(catalog, duration_iterations=10)
+        action = {
+            "id": "KeepUnitSafe",
+            "args": {"unit": "1", "grid": "ground"},
+        }
+
+        class Adapter:
+            def __init__(self):
+                self.calls = 0
+
+            def compile_and_register(self, _bot, actions, _context):
+                self.calls += len(actions)
+
+        adapter = Adapter()
+        registry.remember(action, iteration=0)
+        for iteration in range(1, 10):
+            completed, failed = registry.run(
+                object(), iteration, adapter, EntityContext()
+            )
+            self.assertEqual(completed, [])
+            self.assertEqual(failed, [])
+
+        completed, failed = registry.run(object(), 10, adapter, EntityContext())
+
+        self.assertEqual(adapter.calls, 9)
+        self.assertEqual(completed, [action])
+        self.assertEqual(failed, [])

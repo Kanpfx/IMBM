@@ -8,7 +8,7 @@ from config.llm import LLMConfig
 class FakeLLMClient:
     async def complete(self, _messages):
         return (
-            '{"phase":"opening_factory","guidance":['
+            '{"phase":"opening_tech","guidance":['
             '"Start air technology.","Keep producing SCVs.",'
             '"Avoid optional spending.","Prepare the next supply structure."]}'
         )
@@ -21,7 +21,7 @@ class InvalidPhaseLLMClient:
 
 class BMAgentTests(unittest.IsolatedAsyncioTestCase):
     def test_bm_planning_horizon_is_thirty_game_seconds(self):
-        self.assertIn("30 game seconds", BM_ROLE)
+        self.assertIn("30 seconds of gameplay", BM_ROLE)
         self.assertNotIn("60 game seconds", BM_ROLE)
 
     async def test_bm_accepts_guidance_without_a_length_constraint(self):
@@ -33,7 +33,7 @@ class BMAgentTests(unittest.IsolatedAsyncioTestCase):
                 "rules": ["Stay safe."],
                 "phases": [
                     {
-                        "id": "opening_factory",
+                        "id": "opening_tech",
                         "enter_when": ["The Factory has not started."],
                         "goal": "Start production.",
                         "guidance": ["Build a Depot."],
@@ -44,7 +44,7 @@ class BMAgentTests(unittest.IsolatedAsyncioTestCase):
             "cold_start",
         )
 
-        self.assertEqual(result.phase, "opening_factory")
+        self.assertEqual(result.phase, "opening_tech")
         self.assertEqual(len(result.guidance), 4)
 
     async def test_bm_rejects_a_phase_outside_the_tactical_card(self):
@@ -54,7 +54,7 @@ class BMAgentTests(unittest.IsolatedAsyncioTestCase):
             "rules": [],
             "phases": [
                 {
-                    "id": "opening_factory",
+                    "id": "opening_tech",
                     "enter_when": ["The Factory has not started."],
                     "goal": "Start production.",
                     "guidance": ["Build a Depot."],

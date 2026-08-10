@@ -5,9 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from core.action_errors import ResolveError
 
-class ResolveError(ValueError):
-    pass
+
+def _normalized_label(value: str) -> str:
+    return value.strip().casefold().replace("-", "_").replace(" ", "_")
 
 
 @dataclass
@@ -31,20 +33,20 @@ class EntityContext:
         conversion is deterministic and must not consume a correction turn.
         """
         if isinstance(alias, bool):
-            raise ResolveError("unit id must not be a boolean")
+            raise ResolveError.format("unit", "an observation unit ID, not a boolean")
         if isinstance(alias, int):
             return str(alias)
         if isinstance(alias, float):
             if alias.is_integer():
                 return str(int(alias))
-            raise ResolveError("unit id number must be an integer")
+            raise ResolveError.format("unit", "an integer observation unit ID")
         if isinstance(alias, str):
             normalized = alias.strip()
             if normalized.startswith("[") and normalized.endswith("]"):
                 normalized = normalized[1:-1].strip()
             if normalized:
                 return normalized
-        raise ResolveError("unit id must be an observation [id] label")
+        raise ResolveError.format("unit", "an observation [id] label")
 
     def has_entity_alias(self, alias: Any) -> bool:
         try:
@@ -58,16 +60,22 @@ class EntityContext:
         try:
             return source[canonical]
         except KeyError as exc:
-            raise ResolveError(f"unknown or stale unit id: {canonical}") from exc
+            raise ResolveError.invalid_value(
+                "unit", canonical, "a current observation unit ID"
+            ) from exc
 
     def resolve_point(self, value: Any) -> Any:
         if isinstance(value, str):
             try:
-                return self.positions[value]
+                return self.positions[_normalized_label(value)]
             except KeyError as exc:
-                raise ResolveError(f"unknown landmark: {value}") from exc
+                raise ResolveError.invalid_value(
+                    "point", value, "a known landmark or an {x, y} coordinate"
+                ) from exc
         if not isinstance(value, dict) or not isinstance(value.get("x"), (int, float)) or not isinstance(value.get("y"), (int, float)):
-            raise ResolveError("point must be a landmark or {x, y}")
+            raise ResolveError.format(
+                "point", "a known landmark or an {x, y} coordinate object"
+            )
         from sc2.position import Point2
 
         return Point2((value["x"], value["y"]))

@@ -8,8 +8,9 @@ from time import perf_counter
 from typing import Any
 
 from agents.base_agent import BaseAgent
-from agents.prompts import im_messages, refine_messages
-from tools.json_tools import parse_json_object
+from agents.prompts import im_messages
+from core.action_errors import InstructionError
+from tools.json_tools import parse_im_payload
 from tools.telemetry import Telemetry
 
 
@@ -34,71 +35,49 @@ class IMAgent(BaseAgent):
         iteration: int | None = None,
     ) -> IMResult:
         messages = im_messages(observation, guidance, action_entries)
-        error = ""
-        requested_background = False
-        background_reason = ""
-        for attempt in range(self.generation_config.max_refines + 1):
-            request_messages = self._request_messages(messages)
-            started_at = perf_counter()
-            try:
-                response = await self.llm_client.complete(messages)
-            except Exception as exc:
-                if trace is not None:
-                    trace.im_conversation(
-                        iteration=iteration,
-                        attempt=attempt,
-                        request=request_messages,
-                        error=str(exc),
-                        valid=False,
-                        latency_ms=round((perf_counter() - started_at) * 1000),
-                    )
-                raise
-            latency_ms = round((perf_counter() - started_at) * 1000)
-            actions: list[dict[str, Any]] | None = None
-            try:
-                payload = parse_json_object(response)
-                actions = payload.get("actions")
-                if not isinstance(actions, list):
-                    raise ValueError("actions must be a list")
-                if payload.get("request_background", False):
-                    requested_background = True
-                    background_reason = str(
-                        payload.get("background_reason", "")
-                    ).strip()
-                accepted, error = verifier(actions)
-                if trace is not None:
-                    trace.im_conversation(
-                        iteration=iteration,
-                        attempt=attempt,
-                        request=request_messages,
-                        reply=response,
-                        valid=accepted,
-                        validation=error,
-                        actions=actions,
-                        latency_ms=latency_ms,
-                    )
-                if accepted:
-                    return IMResult(actions, requested_background, background_reason)
-            except (ValueError, TypeError) as exc:
-                error = str(exc)
-                if trace is not None:
-                    trace.im_conversation(
-                        iteration=iteration,
-                        attempt=attempt,
-                        request=request_messages,
-                        reply=response,
-                        valid=False,
-                        validation=error,
-                        actions=actions,
-                        latency_ms=latency_ms,
-                    )
-            if attempt < self.generation_config.max_refines:
-                messages = refine_messages(
-                    messages,
-                    error,
-                    '{"actions":[{"id":"...","args":{...}}],"request_background":false,"background_reason":""}',
+        request_messages = self._request_messages(messages)
+        started_at = perf_counter()
+        response = ""
+        actions: list[dict[str, Any]] | None = None
+        try:
+            response = await self.llm_client.complete(messages)
+            payload = parse_im_payload(response)
+            actions = payload["actions"]
+            accepted, error = verifier(actions)
+            if not accepted:
+                raise InstructionError(
+                    "verification failed",
+                    error or "the IM action list did not pass verification",
                 )
-        raise ValueError(error or "IM action verification failed")
+            if trace is not None:
+                trace.im_conversation(
+                    iteration=iteration,
+                    attempt=0,
+                    request=request_messages,
+                    reply=response,
+                    valid=True,
+                    validation=error,
+                    actions=actions,
+                    latency_ms=round((perf_counter() - started_at) * 1000),
+                )
+            return IMResult(
+                actions,
+                payload["request_background"],
+                payload["background_reason"],
+            )
+        except Exception as exc:
+            if trace is not None:
+                trace.im_conversation(
+                    iteration=iteration,
+                    attempt=0,
+                    request=request_messages,
+                    reply=response,
+                    valid=False,
+                    validation=str(exc),
+                    actions=actions,
+                    latency_ms=round((perf_counter() - started_at) * 1000),
+                )
+            raise
 
     def _request_messages(self, messages: list[dict[str, str]]) -> list[dict[str, str]]:
         prepare = getattr(self.llm_client, "prepare_messages", None)

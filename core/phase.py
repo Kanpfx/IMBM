@@ -18,27 +18,24 @@ class PhaseResolver:
         self._revision = 0
 
     def resolve(self, counts: Mapping[str, int]) -> PhaseState:
-        completed_bc = counts.get("BATTLECRUISER", 0)
-        factory_started = (
-            counts.get("FACTORY", 0) + counts.get("pending:FACTORY", 0) > 0
-        )
+        ready_bc = counts.get("ready:BATTLECRUISER", 0)
+        pending_bc = counts.get("pending:BATTLECRUISER", 0)
         tech_ready = (
-            counts.get("FUSIONCORE", 0) > 0
-            and counts.get("STARPORT", 0) > 0
-            and counts.get("STARPORTTECHLAB", 0) > 0
+            counts.get("ready:FUSIONCORE", 0) > 0
+            and counts.get("ready:STARPORTTECHLAB", 0) > 0
         )
-        if completed_bc >= 1:
+        if ready_bc >= 1:
             phase = "bc_pressure"
+        elif pending_bc >= 1:
+            phase = "first_bc_transition"
         elif tech_ready:
-            phase = "first_battlecruiser"
-        elif factory_started:
-            phase = "opening_air_tech"
+            phase = "first_bc_preparation"
         else:
-            phase = "opening_factory"
+            phase = "opening_tech"
         ordered_phases = (
-            "opening_factory",
-            "opening_air_tech",
-            "first_battlecruiser",
+            "opening_tech",
+            "first_bc_preparation",
+            "first_bc_transition",
             "bc_pressure",
         )
         if self._last_id is not None and ordered_phases.index(

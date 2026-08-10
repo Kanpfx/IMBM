@@ -6,12 +6,14 @@ import importlib
 from math import isclose
 from typing import Any
 
+from core.action_errors import (
+    ActionNameError,
+    InstructionError,
+    ParameterError,
+    ResolveError,
+)
 from knowledge.loader import ActionCatalog
-from runtime.resolver import EntityContext, ResolveError
-
-
-class InstructionError(ValueError):
-    pass
+from runtime.resolver import EntityContext
 
 
 class AresActionAdapter:
@@ -34,19 +36,17 @@ class AresActionAdapter:
 
     def _validate_shape(self, action: Any) -> dict[str, Any]:
         if not isinstance(action, dict) or set(action) != {"id", "args"}:
-            raise InstructionError("each action must contain exactly id and args")
+            raise InstructionError(
+                "format error", "each action must contain exactly 'id' and 'args'"
+            )
         if not isinstance(action["id"], str) or not isinstance(action["args"], dict):
             raise InstructionError(
-                "action id must be a string and args must be an object"
+                "format error",
+                "action 'id' must be a string and 'args' must be a JSON object",
             )
-        try:
-            entry = self.catalog.get(action["id"])
-        except KeyError as exc:
-            raise InstructionError(f"unknown action id: {action['id']}") from exc
+        entry = self.catalog.get(action["id"])
         if entry.get("llm_exposure") != "eligible":
-            raise InstructionError(f"{action['id']} is not enabled for LLM output")
-        if entry["parser"]["mode"] != "construct_and_register":
-            raise InstructionError(f"{action['id']} is not directly compilable")
+            raise ActionNameError.disabled(action["id"])
         return entry
 
     def _resolve_arguments(
@@ -55,7 +55,7 @@ class AresActionAdapter:
         params = self.catalog.required_model_params(entry)
         unknown = set(args) - set(params)
         if unknown:
-            raise InstructionError(f"unknown arguments: {sorted(unknown)}")
+            raise ParameterError.unexpected(sorted(unknown))
         kwargs: dict[str, Any] = {}
         if any(param["name"] == "group_tags" for param in entry["params"]):
             kwargs["group_tags"] = {
@@ -63,31 +63,27 @@ class AresActionAdapter:
                 for alias in args.get("group", [])
             }
             if not kwargs["group_tags"]:
-                raise InstructionError("group requires a non-empty own-unit list")
+                raise ParameterError.format("group", "a non-empty own-unit ID list")
         for name, param in params.items():
             if name not in args:
-                raise InstructionError(f"missing required argument: {name}")
-            try:
-                if entry["id"] == "macro.tech_up" and name == "desired_tech":
-                    kwargs[name] = self._resolve_tech_up_target(args[name])
-                else:
-                    kwargs[name] = self._resolve_value(
-                        args[name], param["type"], context, args, name
-                    )
-            except ResolveError as exc:
-                raise InstructionError(str(exc)) from exc
+                raise ParameterError.missing(name)
+            if entry["id"] == "macro.tech_up" and name == "desired_tech":
+                kwargs[name] = self._resolve_tech_up_target(args[name])
+            else:
+                kwargs[name] = self._resolve_value(
+                    args[name], param["type"], context, args, name
+                )
         for param in entry["params"]:
             if param.get("input") != "runtime":
                 continue
             name = param["name"]
             if "value" not in param:
-                raise InstructionError(f"runtime argument {name} has no fixed value")
-            try:
-                kwargs[name] = self._resolve_value(
-                    param["value"], param["type"], context, args, name
+                raise InstructionError(
+                    "catalog error", f"runtime parameter '{name}' has no fixed value"
                 )
-            except ResolveError as exc:
-                raise InstructionError(str(exc)) from exc
+            kwargs[name] = self._resolve_value(
+                param["value"], param["type"], context, args, name
+            )
         return kwargs
 
     def _resolve_value(
@@ -102,15 +98,15 @@ class AresActionAdapter:
             return None
         if type_name == "boolean":
             if not isinstance(value, bool):
-                raise ResolveError(f"{name} must be a boolean")
+                raise ResolveError.format(name, "a JSON boolean")
             return value
         if type_name == "integer":
             if isinstance(value, bool) or not isinstance(value, int):
-                raise ResolveError(f"{name} must be an integer")
+                raise ResolveError.format(name, "an integer")
             return value
         if type_name == "number":
             if isinstance(value, bool) or not isinstance(value, (int, float)):
-                raise ResolveError(f"{name} must be a number")
+                raise ResolveError.format(name, "a number")
             return value
         if type_name == "army_composition":
             return self._resolve_army_composition(value, name)
@@ -124,8 +120,14 @@ class AresActionAdapter:
             return context.resolve_entity(value)
         if type_name == "unit_refs":
             if not isinstance(value, list) or not value:
-                raise ResolveError(f"{name} must be a non-empty unit id list")
+                raise ResolveError.format(name, "a non-empty observation unit ID list")
             return [context.resolve_entity(alias) for alias in value]
+        if type_name == "unit_or_unit_type_id":
+            if context.has_entity_alias(value):
+                return context.resolve_entity(value, own_only=True)
+            from sc2.ids.unit_typeid import UnitTypeId
+
+            return self._resolve_enum(UnitTypeId, value, name)
         if type_name == "point_ref":
             return context.resolve_point(value)
         if type_name == "point_or_unit_ref":
@@ -135,27 +137,59 @@ class AresActionAdapter:
                 else context.resolve_point(value)
             )
         if type_name == "grid_ref":
+            if not isinstance(value, str):
+                raise ResolveError.format(name, "a grid name")
+            normalized = value.strip().casefold().replace("-", "_").replace(" ", "_")
             try:
-                return context.grids[value]
+                return context.grids[normalized]
             except KeyError as exc:
-                raise ResolveError(f"unknown grid: {value}") from exc
+                raise ResolveError.invalid_value(
+                    name, value, f"one of {sorted(context.grids)}"
+                ) from exc
         if type_name == "unit_type_id":
             from sc2.ids.unit_typeid import UnitTypeId
 
-            return UnitTypeId[value]
+            return self._resolve_enum(UnitTypeId, value, name)
         if type_name == "ability_id":
             from sc2.ids.ability_id import AbilityId
 
-            return AbilityId[value]
+            return self._resolve_enum(AbilityId, value, name)
         if type_name == "upgrade_id":
             from sc2.ids.upgrade_id import UpgradeId
 
-            return UpgradeId[value]
+            return self._resolve_enum(UpgradeId, value, name)
+        if type_name == "upgrade_ids":
+            if not isinstance(value, list) or not value:
+                raise ResolveError.format(name, "a non-empty upgrade name list")
+            from sc2.ids.upgrade_id import UpgradeId
+
+            return [self._resolve_enum(UpgradeId, item, name) for item in value]
         if type_name == "unit_role":
             from ares.consts import UnitRole
 
-            return UnitRole[value]
-        raise ResolveError(f"unsupported catalog type for {name}: {type_name}")
+            return self._resolve_enum(UnitRole, value, name)
+        raise ResolveError.invalid_value(
+            name, type_name, "a catalog parameter type supported by the runtime"
+        )
+
+    @staticmethod
+    def _resolve_enum(enum_type: Any, value: Any, name: str) -> Any:
+        if not isinstance(value, str):
+            raise ResolveError.format(name, f"a {enum_type.__name__} name")
+        normalized = "".join(
+            character for character in value.strip().casefold() if character.isalnum()
+        )
+        for member_name, member in enum_type.__members__.items():
+            candidate = "".join(
+                character
+                for character in member_name.casefold()
+                if character.isalnum()
+            )
+            if candidate == normalized:
+                return member
+        raise ResolveError.invalid_value(
+            name, value, f"a valid {enum_type.__name__} name"
+        )
 
     @staticmethod
     def _resolve_tech_up_target(value: Any) -> Any:
@@ -167,7 +201,9 @@ class AresActionAdapter:
         lookup here so malformed targets become recoverable policy issues.
         """
         if not isinstance(value, str):
-            raise ResolveError("desired_tech must be a unit or upgrade enum name")
+            raise ResolveError.format(
+                "desired_tech", "a unit or upgrade enum name"
+            )
 
         from ares.behaviors.macro.tech_up import BUILD_TECHLAB_FROM
         from ares.consts import ALL_STRUCTURES, GATEWAY_UNITS, TECHLAB_TYPES
@@ -178,12 +214,18 @@ class AresActionAdapter:
         from sc2.ids.upgrade_id import UpgradeId
 
         try:
-            desired_tech: Any = UnitTypeId[value]
-        except KeyError:
+            desired_tech: Any = AresActionAdapter._resolve_enum(
+                UnitTypeId, value, "desired_tech"
+            )
+        except ResolveError:
             try:
-                desired_tech = UpgradeId[value]
-            except KeyError as exc:
-                raise ResolveError(f"unknown TechUp target: {value}") from exc
+                desired_tech = AresActionAdapter._resolve_enum(
+                    UpgradeId, value, "desired_tech"
+                )
+            except ResolveError as exc:
+                raise ResolveError.invalid_value(
+                    "desired_tech", value, "a valid unit or upgrade enum name"
+                ) from exc
 
         try:
             if isinstance(desired_tech, UpgradeId):
@@ -201,8 +243,10 @@ class AresActionAdapter:
             else:
                 UNIT_TECH_REQUIREMENT[researched_from]
         except (KeyError, StopIteration) as exc:
-            raise ResolveError(
-                f"{value} is not a concrete technology target supported by TechUp"
+            raise ResolveError.invalid_value(
+                "desired_tech",
+                value,
+                "a concrete technology target supported by Ares TechUp",
             ) from exc
         return desired_tech
 
@@ -210,47 +254,69 @@ class AresActionAdapter:
     def _resolve_army_composition(value: Any, name: str) -> dict[Any, dict[str, Any]]:
         """Convert the only model-exposed composition shape to Ares enums.
 
-        The opening is fixed to BC Rush, so allowing arbitrary unit keys would
-        quietly reintroduce an unrestricted production surface.
+        Unit names remain enum-checked, while tactic policy stays outside the
+        generic Ares translation layer.
         """
         if not isinstance(value, dict) or not value:
-            raise ResolveError(f"{name} must be a non-empty object")
-        allowed_units = {"MARINE", "BATTLECRUISER"}
-        if set(value) - allowed_units:
-            raise ResolveError(
-                f"{name} may only contain {sorted(allowed_units)} in BC Rush mode"
-            )
+            raise ResolveError.format(name, "a non-empty army composition object")
         from sc2.ids.unit_typeid import UnitTypeId
+
+        normalized_value: dict[Any, Any] = {}
+        for raw_unit_name, settings in value.items():
+            if not isinstance(raw_unit_name, str):
+                raise ResolveError.format(name, "an object with unit-name keys")
+            normalized_name = "BATTLECRUISER" if raw_unit_name.strip().casefold() == "bc" else raw_unit_name
+            unit_type = AresActionAdapter._resolve_enum(
+                UnitTypeId, normalized_name, name
+            )
+            if unit_type in normalized_value:
+                raise ResolveError.invalid_value(
+                    name, raw_unit_name, "each unit type exactly once"
+                )
+            normalized_value[unit_type] = settings
+        value = normalized_value
 
         composition: dict[Any, dict[str, Any]] = {}
         total = 0.0
-        for unit_name, settings in value.items():
+        for unit_type, settings in value.items():
+            unit_name = unit_type.name
             if not isinstance(settings, dict) or set(settings) != {
                 "proportion",
                 "priority",
             }:
-                raise ResolveError(
-                    f"{name}.{unit_name} must contain exactly proportion and priority"
+                raise ResolveError.format(
+                    f"{name}.{unit_name}",
+                    "an object containing exactly 'proportion' and 'priority'",
                 )
             proportion = settings["proportion"]
             priority = settings["priority"]
             if isinstance(proportion, bool) or not isinstance(proportion, (int, float)):
-                raise ResolveError(f"{name}.{unit_name}.proportion must be a number")
+                raise ResolveError.format(
+                    f"{name}.{unit_name}.proportion", "a number"
+                )
             if not 0.0 < float(proportion) <= 1.0:
-                raise ResolveError(f"{name}.{unit_name}.proportion must be in (0, 1]")
+                raise ResolveError.invalid_value(
+                    f"{name}.{unit_name}.proportion",
+                    proportion,
+                    "a number in the interval (0, 1]",
+                )
             if (
                 isinstance(priority, bool)
                 or not isinstance(priority, int)
                 or not 0 <= priority < 11
             ):
-                raise ResolveError(
-                    f"{name}.{unit_name}.priority must be an integer from 0 to 10"
+                raise ResolveError.invalid_value(
+                    f"{name}.{unit_name}.priority",
+                    priority,
+                    "an integer from 0 to 10",
                 )
             total += float(proportion)
-            composition[UnitTypeId[unit_name]] = {
+            composition[unit_type] = {
                 "proportion": float(proportion),
                 "priority": priority,
             }
         if not isclose(total, 1.0, abs_tol=1e-6):
-            raise ResolveError(f"{name} proportions must sum to 1.0")
+            raise ResolveError.invalid_value(
+                name, total, "composition proportions that sum to 1.0"
+            )
         return composition

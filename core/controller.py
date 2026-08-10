@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
@@ -16,17 +17,22 @@ from agents.correction_agent import CorrectionAgent
 from agents.im_agent import IMAgent
 from config.game import GameConfig
 from config.llm import LLMConfig
-from config.policy import allowed_actions
-from core.action_exposure import BCRushActionExposure
+from core.action_exposure import ActionExposure
+from core.action_errors import InstructionError, ResourceError
 from core.automation import AutomationController
 from core.observation import Observation, ObservationBuilder
 from core.phase import PhaseResolver
 from core.policy import ActionReview, PolicyValidator, ValidationIssue
 from core.state import TagIdMapper
-from knowledge.loader import ActionCatalog, load_battlecruiser_tactic
+from knowledge.loader import (
+    ActionCatalog,
+    load_battlecruiser_tactic,
+    normalize_catalog_name,
+)
 from runtime.ares_adapter import AresActionAdapter
 from runtime.deferred_actions import DeferredActionQueue
 from runtime.directive import BMDirective, DirectiveStore
+from runtime.persistent_actions import PersistentActionRegistry
 from tools.llm_client import LLMClient
 from tools.telemetry import Telemetry
 
@@ -60,11 +66,7 @@ class LLMGameController:
         self.llm_config = llm_config or LLMConfig.from_env()
         self.tactic = load_battlecruiser_tactic()
         self.catalog = ActionCatalog.load()
-        bm_action_ids: set[str] = set()
-        for tactic_phase in self.tactic["phases"]:
-            bm_action_ids.update(allowed_actions(tactic_phase["id"]))
-        self.bm_action_ids = bm_action_ids
-        self.action_exposure = BCRushActionExposure(self.catalog)
+        self.action_exposure = ActionExposure(self.catalog)
         self.adapter = AresActionAdapter(self.catalog)
         self.policy = PolicyValidator(self.catalog, self.game_config)
         self.observation_builder = ObservationBuilder(TagIdMapper())
@@ -84,7 +86,13 @@ class LLMGameController:
         self.im = IMAgent(self.llm_config, self.client)
         self.corrector = CorrectionAgent(self.llm_config, self.client)
         self.deferred_actions = DeferredActionQueue(
-            self.catalog, self.game_config.deferred_action_ttl_iterations
+            self.catalog,
+            self.game_config.deferred_action_ttl_iterations,
+            self.game_config.resource_queue_mineral_tolerance,
+            self.game_config.resource_queue_vespene_tolerance,
+        )
+        self.persistent_actions = PersistentActionRegistry(
+            self.catalog, self.game_config.persistent_action_iterations
         )
         self.enable_bm = enable_bm
         self.bm_pending: PendingBM | None = None
@@ -98,6 +106,24 @@ class LLMGameController:
     async def run_iteration(self, bot: Any, iteration: int) -> None:
         """Run automation and the blocking IM decision on its iteration interval."""
         await self.automation.run(bot, iteration)
+        persistent_context = self.observation_builder.execution_context(bot)
+        completed_persistent, failed_persistent = self.persistent_actions.run(
+            bot, iteration, self.adapter, persistent_context
+        )
+        current_time = getattr(bot, "time_formatted", "--:--")
+        if completed_persistent:
+            self.observation_builder.record_completed_actions(
+                completed_persistent, current_time
+            )
+        if failed_persistent:
+            self.observation_builder.record_failed_actions(
+                failed_persistent, current_time
+            )
+            self.telemetry.event(
+                "persistent_actions_failed",
+                iteration=iteration,
+                actions=failed_persistent,
+            )
         await self._poll_bm(iteration)
         if (
             not self.active
@@ -110,9 +136,7 @@ class LLMGameController:
 
         # With BM enabled, the first directive is a startup gate. Later refreshes
         # remain asynchronous and the previous directive stays active meanwhile.
-        bm_surface = self.action_exposure.build(
-            bot, observation.context, self.bm_action_ids
-        )
+        bm_surface = self.action_exposure.build(bot, observation.context)
         await self._maybe_start_bm(observation, iteration, bm_surface.entries)
         directive = self.directive_store.read(iteration)
         if self.enable_bm and directive is None:
@@ -136,6 +160,9 @@ class LLMGameController:
 
         ready_deferred, expired_deferred = self.deferred_actions.pop_ready(bot, iteration)
         if expired_deferred:
+            self.observation_builder.record_expired_actions(
+                expired_deferred, getattr(bot, "time_formatted", "--:--")
+            )
             self.telemetry.event(
                 "deferred_actions_expired",
                 iteration=iteration,
@@ -143,7 +170,26 @@ class LLMGameController:
             )
         if ready_deferred:
             self.adapter.compile_and_register(bot, ready_deferred, observation.context)
-            self.observation_builder.record_registered_actions(ready_deferred)
+            persistent_ready = [
+                action
+                for action in ready_deferred
+                if self.persistent_actions.is_persistent(action)
+            ]
+            completed_ready = [
+                action
+                for action in ready_deferred
+                if not self.persistent_actions.is_persistent(action)
+            ]
+            for action in persistent_ready:
+                self.persistent_actions.remember(action, iteration)
+            if persistent_ready:
+                self.observation_builder.record_active_actions(
+                    persistent_ready, current_time
+                )
+            if completed_ready:
+                self.observation_builder.record_registered_actions(
+                    completed_ready, current_time
+                )
             self.telemetry.event(
                 "deferred_actions_registered",
                 iteration=iteration,
@@ -157,9 +203,7 @@ class LLMGameController:
             if directive is not None
             else "none"
         )
-        im_surface = self.action_exposure.build(
-            bot, observation.context, allowed_actions(phase)
-        )
+        im_surface = self.action_exposure.build(bot, observation.context)
         entries = im_surface.entries
         try:
             # This await is intentional: unlike BM, IM owns the foreground game
@@ -173,50 +217,16 @@ class LLMGameController:
                 trace=self.telemetry,
                 iteration=iteration,
             )
-            review = self.policy.review(
-                bot, result.actions, observation.context, phase, im_surface
+            review = await self._review_im_actions(
+                bot,
+                result.actions,
+                observation,
+                guidance,
+                entries,
+                phase,
+                im_surface,
+                iteration,
             )
-            if review.issues:
-                initial_review = review
-                try:
-                    repaired_actions = await self.corrector.run(
-                        observation.text,
-                        guidance,
-                        entries,
-                        [issue.action for issue in initial_review.issues],
-                        [issue.text() for issue in initial_review.issues],
-                        trace=self.telemetry,
-                        iteration=iteration,
-                    )
-                    repaired_review = self.policy.review(
-                        bot, repaired_actions, observation.context, phase, im_surface
-                    )
-                    available_slots = max(
-                        0,
-                        self.game_config.max_actions_per_decision
-                        - len(initial_review.actions),
-                    )
-                    overflow = repaired_review.actions[available_slots:]
-                    overflow_issues = [
-                        ValidationIssue(
-                            len(result.actions) + index,
-                            action,
-                            "omitted because the decision action limit was reached",
-                        )
-                        for index, action in enumerate(overflow)
-                    ]
-                    review = ActionReview(
-                        initial_review.actions
-                        + repaired_review.actions[:available_slots],
-                        repaired_review.issues + overflow_issues,
-                        initial_review.normalizations + repaired_review.normalizations,
-                    )
-                except Exception as correction_error:
-                    self.telemetry.event(
-                        "im_correction_failed",
-                        iteration=iteration,
-                        error=str(correction_error),
-                    )
             if review.normalizations:
                 self.telemetry.event(
                     "im_actions_normalized",
@@ -233,18 +243,44 @@ class LLMGameController:
 
             immediate_actions: list[dict[str, Any]] = []
             queued_actions: list[dict[str, Any]] = []
+            resource_blocked_actions: list[dict[str, Any]] = []
             for action in review.actions:
-                if self.deferred_actions.should_defer(bot, action):
+                resource_status = self.deferred_actions.resource_status(bot, action)
+                if resource_status == DeferredActionQueue.QUEUED:
                     if self.deferred_actions.enqueue(action, iteration):
                         queued_actions.append(action)
+                elif resource_status == DeferredActionQueue.BLOCKED:
+                    resource_blocked_actions.append(action)
                 else:
                     immediate_actions.append(action)
             if immediate_actions:
                 self.adapter.compile_and_register(
                     bot, immediate_actions, observation.context
                 )
-                self.observation_builder.record_registered_actions(immediate_actions)
+                active_actions = [
+                    action
+                    for action in immediate_actions
+                    if self.persistent_actions.is_persistent(action)
+                ]
+                completed_actions = [
+                    action
+                    for action in immediate_actions
+                    if not self.persistent_actions.is_persistent(action)
+                ]
+                for action in active_actions:
+                    self.persistent_actions.remember(action, iteration)
+                if active_actions:
+                    self.observation_builder.record_active_actions(
+                        active_actions, current_time
+                    )
+                if completed_actions:
+                    self.observation_builder.record_registered_actions(
+                        completed_actions, current_time
+                    )
             if queued_actions:
+                self.observation_builder.record_deferred_actions(
+                    queued_actions, getattr(bot, "time_formatted", "--:--")
+                )
                 self.telemetry.event(
                     "im_actions_deferred",
                     iteration=iteration,
@@ -252,6 +288,19 @@ class LLMGameController:
                     expires_after_iterations=(
                         self.game_config.deferred_action_ttl_iterations
                     ),
+                )
+            if resource_blocked_actions:
+                self.observation_builder.record_failed_actions(
+                    resource_blocked_actions, current_time
+                )
+                self.telemetry.event(
+                    "im_actions_resource_blocked",
+                    iteration=iteration,
+                    actions=resource_blocked_actions,
+                    errors=[
+                        str(ResourceError.insufficient(action.get("id")))
+                        for action in resource_blocked_actions
+                    ],
                 )
             self.telemetry.event(
                 "im_accepted",
@@ -318,6 +367,113 @@ class LLMGameController:
                 reason=result.background_reason,
                 scheduling="periodic_refresh_only",
             )
+
+    async def _review_im_actions(
+        self,
+        bot: Any,
+        actions: list[dict[str, Any]],
+        observation: Observation,
+        guidance: list[str],
+        entries: list[dict[str, Any]],
+        phase: str,
+        surface: Any,
+        iteration: int,
+    ) -> ActionReview:
+        """Keep valid actions and retry only rejected actions up to two times."""
+        initial = self.policy.review(
+            bot, actions, observation.context, phase, surface
+        )
+        accepted = list(initial.actions)
+        pending = list(initial.issues)
+        discarded: list[ValidationIssue] = []
+        normalizations = list(initial.normalizations)
+
+        correction_attempts = min(2, max(0, self.llm_config.max_refines))
+        for attempt in range(1, correction_attempts + 1):
+            if not pending:
+                break
+            proposed = [issue.action for issue in pending]
+            try:
+                repaired_actions = await self.corrector.run(
+                    observation.text,
+                    guidance,
+                    entries,
+                    proposed,
+                    [issue.text() for issue in pending],
+                    trace=self.telemetry,
+                    iteration=iteration,
+                )
+            except Exception as correction_error:
+                self.telemetry.event(
+                    "im_correction_failed",
+                    iteration=iteration,
+                    attempt=attempt,
+                    error=str(correction_error),
+                )
+                break
+
+            returned = Counter(
+                self._correction_action_key(action) for action in repaired_actions
+            )
+            for issue in pending:
+                key = self._correction_action_key(issue.action)
+                if returned[key] > 0:
+                    returned[key] -= 1
+                else:
+                    discarded.append(issue)
+
+            repaired_review = self.policy.review(
+                bot,
+                repaired_actions,
+                observation.context,
+                phase,
+                surface,
+            )
+            accepted.extend(repaired_review.actions)
+            normalizations.extend(repaired_review.normalizations)
+            pending = list(repaired_review.issues)
+
+        discarded.extend(pending)
+        limit = self.game_config.max_actions_per_decision
+        overflow = accepted[limit:]
+        overflow_issues = [
+            ValidationIssue(
+                len(actions) + index,
+                action,
+                str(
+                    InstructionError(
+                        "action limit exceeded",
+                        f"at most {limit} actions may be executed in one decision",
+                    )
+                ),
+            )
+            for index, action in enumerate(overflow)
+        ]
+
+        # Re-review the merged list so corrected actions cannot conflict with
+        # valid siblings retained from the original response.
+        final_review = self.policy.review(
+            bot,
+            accepted[:limit],
+            observation.context,
+            phase,
+            surface,
+        )
+        normalizations.extend(final_review.normalizations)
+        return ActionReview(
+            final_review.actions,
+            discarded + overflow_issues + final_review.issues,
+            list(dict.fromkeys(normalizations)),
+        )
+
+    def _correction_action_key(self, action: Any) -> str:
+        action_id = action.get("id") if isinstance(action, dict) else None
+        if not isinstance(action_id, str):
+            return ""
+        try:
+            return self.catalog.get(action_id)["id"]
+        except ValueError:
+            return normalize_catalog_name(action_id)
 
     async def _await_first_bm(
         self,
@@ -449,7 +605,23 @@ class LLMGameController:
         for unit in list(bot.units) + list(bot.structures):
             name = getattr(unit.type_id, "name", "UNKNOWN")
             counts[name] = counts.get(name, 0) + 1
-        for name in ("FACTORY", "STARPORT", "FUSIONCORE", "STARPORTTECHLAB"):
+            is_ready = bool(
+                getattr(
+                    unit,
+                    "is_ready",
+                    float(getattr(unit, "build_progress", 1.0)) >= 1.0,
+                )
+            )
+            if is_ready:
+                ready_name = f"ready:{name}"
+                counts[ready_name] = counts.get(ready_name, 0) + 1
+        for name in (
+            "FACTORY",
+            "STARPORT",
+            "FUSIONCORE",
+            "STARPORTTECHLAB",
+            "BATTLECRUISER",
+        ):
             try:
                 from sc2.ids.unit_typeid import UnitTypeId
 

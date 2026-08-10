@@ -13,9 +13,12 @@
     {
       "id": "macro.addon_swap",
       "name": "AddonSwap",
-      "kind": "executable_behavior",
       "description": "For Terran only, swap 3x3 structures. Pass in two structures and they will swap positions.",
-      "documentation_status": "documented",
+      "tags": ["technology", "production"],
+      "availability": {
+        "param": "structure_needing_addon",
+        "types": ["BARRACKS", "FACTORY", "STARPORT"]
+      },
       "api": {
         "import": "ares.behaviors.macro.addon_swap.AddonSwap",
         "source_path": "ares-sc2/src/ares/behaviors/macro/addon_swap.py",
@@ -48,18 +51,17 @@
           "default": null
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "macro.auto_supply",
       "name": "AutoSupply",
-      "kind": "executable_behavior",
       "description": "Automatically build supply, works for all races.",
-      "documentation_status": "documented",
+      "tags": ["resource", "supply"],
+      "availability": {
+        "param": null,
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.macro.auto_supply.AutoSupply",
         "source_path": "ares-sc2/src/ares/behaviors/macro/auto_supply.py",
@@ -93,20 +95,16 @@
           "default": null
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "macro.build_structure",
       "name": "BuildStructure",
-      "kind": "executable_behavior",
       "description": "Handy convenience building structure behavior. Especially combined with `Mining` and ares built in placement solver. Finds an ideal mining worker, and an available precalculated placement. Then removes worker from mining records and provides a new role.",
-      "documentation_status": "documented",
+      "tags": ["technology", "construction"],
       "availability": {
-        "mode": "bc_build_frontier"
+        "param": null,
+        "types": ["SCV", "DRONE", "PROBE"]
       },
       "api": {
         "import": "ares.behaviors.macro.build_structure.BuildStructure",
@@ -275,18 +273,17 @@
           "default": true
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "macro.build_workers",
       "name": "BuildWorkers",
-      "kind": "executable_behavior",
       "description": "Finds idle townhalls / larvae and build workers.",
-      "documentation_status": "documented",
+      "tags": ["resource", "production"],
+      "availability": {
+        "param": null,
+        "types": ["COMMANDCENTER", "ORBITALCOMMAND", "PLANETARYFORTRESS", "NEXUS", "HATCHERY", "LAIR", "HIVE"]
+      },
       "api": {
         "import": "ares.behaviors.macro.build_workers.BuildWorkers",
         "source_path": "ares-sc2/src/ares/behaviors/macro/build_workers.py",
@@ -302,20 +299,16 @@
           "description": "The target count of workers we want to hit."
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "macro.expansion_controller",
       "name": "ExpansionController",
-      "kind": "executable_behavior",
       "description": "Manage expanding.",
-      "documentation_status": "documented",
+      "tags": ["resource", "expansion"],
       "availability": {
-        "mode": "bc_expansion"
+        "param": null,
+        "types": ["SCV", "DRONE", "PROBE"]
       },
       "api": {
         "import": "ares.behaviors.macro.expansion_controller.ExpansionController",
@@ -368,20 +361,16 @@
           "default": false
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "macro.gas_building_controller",
       "name": "GasBuildingController",
-      "kind": "executable_behavior",
       "description": "Maintain gas building count. Finds an ideal mining worker, and an available geyser. Then removes worker from mining records and provides a new role.",
-      "documentation_status": "documented",
+      "tags": ["resource"],
       "availability": {
-        "mode": "bc_gas"
+        "param": null,
+        "types": ["SCV", "DRONE", "PROBE"]
       },
       "api": {
         "import": "ares.behaviors.macro.gas_building_controller.GasBuildingController",
@@ -416,18 +405,17 @@
           "default": null
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "macro.macro_plan",
       "name": "MacroPlan",
-      "kind": "composite_behavior",
       "description": "Execute macro behaviors sequentially.",
-      "documentation_status": "documented",
+      "tags": ["macro"],
+      "availability": {
+        "param": null,
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.macro.macro_plan.MacroPlan",
         "source_path": "ares-sc2/src/ares/behaviors/macro/macro_plan.py",
@@ -446,19 +434,17 @@
           }
         }
       ],
-      "parser": {
-        "mode": "manual_composition",
-        "instruction_shape": "{id, args}"
-      },
-      "llm_exposure": "disabled",
-      "llm_exposure_reason": "Contains nested behaviors and needs a dedicated composition instruction shape."
+      "llm_exposure": "disabled"
     },
     {
       "id": "macro.mining",
       "name": "Mining",
-      "kind": "executable_behavior",
       "description": "Handle worker mining control.",
-      "documentation_status": "documented",
+      "tags": ["resource"],
+      "availability": {
+        "param": null,
+        "types": ["SCV", "DRONE", "PROBE"]
+      },
       "api": {
         "import": "ares.behaviors.macro.mining.Mining",
         "source_path": "ares-sc2/src/ares/behaviors/macro/mining.py",
@@ -558,20 +544,16 @@
           "default": 12.0
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "macro.production_controller",
       "name": "ProductionController",
-      "kind": "executable_behavior",
       "description": "Handle creating extra production facilities based on an army composition dictionary. This dictionary should be structured the same as the one passed into SpawnController",
-      "documentation_status": "documented",
+      "tags": ["technology", "production"],
       "availability": {
-        "mode": "bc_production"
+        "param": null,
+        "types": ["SCV", "DRONE", "PROBE"]
       },
       "api": {
         "import": "ares.behaviors.macro.production_controller.ProductionController",
@@ -653,18 +635,17 @@
           "default": 12
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "macro.protoss_static_defence",
       "name": "ProtossStaticDefence",
-      "kind": "executable_behavior",
       "description": "Build protoss static defence at all bases with a Nexus.",
-      "documentation_status": "source_only_public",
+      "tags": ["combat", "construction"],
+      "availability": {
+        "param": null,
+        "types": ["PROBE"]
+      },
       "api": {
         "import": "ares.behaviors.macro.protoss_static_defence.ProtossStaticDefence",
         "source_path": "ares-sc2/src/ares/behaviors/macro/protoss_static_defence.py",
@@ -728,39 +709,33 @@
           "default": null
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
-      "llm_exposure": "disabled",
-      "llm_exposure_reason": "Requires review because it is not listed by the current documentation chapter."
+      "llm_exposure": "disabled"
     },
     {
       "id": "macro.restore_power",
       "name": "RestorePower",
-      "kind": "executable_behavior",
       "description": "Restore power for protoss structures.",
-      "documentation_status": "documented",
+      "tags": ["technology", "construction"],
+      "availability": {
+        "param": null,
+        "types": ["PROBE"]
+      },
       "api": {
         "import": "ares.behaviors.macro.restore_power.RestorePower",
         "source_path": "ares-sc2/src/ares/behaviors/macro/restore_power.py",
         "dispatch": "register_behavior"
       },
       "params": [],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "macro.spawn_controller",
       "name": "SpawnController",
-      "kind": "executable_behavior",
       "description": "Handle spawning army compositions.",
-      "documentation_status": "documented",
+      "tags": ["production"],
       "availability": {
-        "mode": "bc_spawn"
+        "param": null,
+        "types": ["ALL"]
       },
       "api": {
         "import": "ares.behaviors.macro.spawn_controller.SpawnController",
@@ -780,10 +755,10 @@
           "name": "freeflow_mode",
           "type": "boolean",
           "python_type": "bool",
-          "input": "model",
-          "required": false,
-          "description": "If set to True, army composition proportions are ignored, and resources will be spent freely. Defaults to `False`.",
-          "default": false
+          "input": "runtime",
+          "required": true,
+          "value": true,
+          "description": "Fixed true for BC Rush so idle production structures continuously spend available resources in priority order."
         },
         {
           "name": "ignore_proportions_below_unit_count",
@@ -864,18 +839,17 @@
           "default": 0.0
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "macro.speed_mining",
       "name": "SpeedMining",
-      "kind": "executable_behavior",
       "description": "Speed mine worker at provided townhall and target resource.",
-      "documentation_status": "source_only_public",
+      "tags": ["resource"],
+      "availability": {
+        "param": "worker",
+        "types": ["SCV", "DRONE", "PROBE"]
+      },
       "api": {
         "import": "ares.behaviors.macro.speed_mining.SpeedMining",
         "source_path": "ares-sc2/src/ares/behaviors/macro/speed_mining.py",
@@ -933,21 +907,16 @@
           "default": null
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
-      "llm_exposure": "disabled",
-      "llm_exposure_reason": "Requires review because it is not listed by the current documentation chapter."
+      "llm_exposure": "disabled"
     },
     {
       "id": "macro.tech_up",
       "name": "TechUp",
-      "kind": "executable_behavior",
       "description": "Automatically tech up so desired upgrade/unit can be built.",
-      "documentation_status": "documented",
+      "tags": ["technology"],
       "availability": {
-        "mode": "bc_tech_frontier"
+        "param": null,
+        "types": ["ALL"]
       },
       "api": {
         "import": "ares.behaviors.macro.tech_up.TechUp",
@@ -981,20 +950,16 @@
           "default": false
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     },
     {
       "id": "macro.upgrade_c_cs",
       "name": "UpgradeCCs",
-      "kind": "executable_behavior",
       "description": "Upgrade an idle Terran Command Center to an Orbital Command or Planetary Fortress.",
-      "documentation_status": "source_only_public",
+      "tags": ["technology"],
       "availability": {
-        "mode": "bc_upgrade_cc"
+        "param": null,
+        "types": ["COMMANDCENTER"]
       },
       "api": {
         "import": "ares.behaviors.macro.upgrade_ccs.UpgradeCCs",
@@ -1020,19 +985,17 @@
           "default": false
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
-      "llm_exposure": "eligible",
-      "llm_exposure_reason": "Reviewed for the BC Rush IM contract despite source-only documentation status."
+      "llm_exposure": "eligible"
     },
     {
       "id": "macro.upgrade_controller",
       "name": "UpgradeController",
-      "kind": "executable_behavior",
       "description": "Research upgrades, if the upgrade is not currently researchable this behavior will automatically make the tech buildings required.",
-      "documentation_status": "documented",
+      "tags": ["technology"],
+      "availability": {
+        "param": null,
+        "types": ["ALL"]
+      },
       "api": {
         "import": "ares.behaviors.macro.upgrade_controller.UpgradeController",
         "source_path": "ares-sc2/src/ares/behaviors/macro/upgrade_controller.py",
@@ -1074,10 +1037,6 @@
           "default": false
         }
       ],
-      "parser": {
-        "mode": "construct_and_register",
-        "instruction_shape": "{id, args}"
-      },
       "llm_exposure": "eligible"
     }
   ]

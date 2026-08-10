@@ -1,74 +1,80 @@
 {
   "id": "BattleCruiserRush",
-  "concept": "Execute a strict two-stage Battlecruiser technology opening, transition through the first Battlecruiser, then apply sustained pressure with Battlecruisers as the primary force and Marines as support.",
+  "concept": "Rush Battlecruiser tech with a compact opening, start the first Battlecruiser before normal economic expansion, then transition into sustained Battlecruiser-led pressure while scaling economy and production.",
   "rules": [
-    "Complete the fixed Battlecruiser opening in its defined order before making optional strategic investments.",
-    "Keep the early economy focused on Battlecruiser technology; do not delay the first Battlecruiser with expansions, unrelated technology, or alternative army production.",
-    "After the opening, target roughly 80% Battlecruisers and 20% Marines.",
-    "After Battlecruiser production begins, expand the economy and production capacity only when doing so does not interrupt the next Battlecruiser.",
-    "Preserve expensive Battlecruisers and convert early pressure into damage against enemy bases and production."
+    "Keep Battlecruisers as the core army and Marines as support, developing toward roughly 80% Battlecruisers and 20% Marines.",
+    "Prioritize Battlecruiser tech and sustained Battlecruiser production over nonessential spending.",
+    "Preserve Battlecruisers and avoid unnecessary losses or unfavorable trades.",
+    "After the first Battlecruiser enters production, expand one base at a time and do not exceed four total bases."
   ],
   "phases": [
     {
-      "id": "opening_factory",
+      "id": "opening_tech",
       "enter_when": [
-        "The fixed opening is in progress.",
-        "The Factory has not started."
+        "The Fusion Core and Starport Tech Lab are not both ready.",
+        "This usually occurs within approximately 0-4 minutes; time is only a weak reference."
       ],
-      "goal": "Establish the initial economy, Barracks production, gas income, and Factory required for the Battlecruiser technology path.",
+      "goal": "Complete the tech path required for the first Battlecruiser as quickly as possible.",
       "guidance": [
-        "Follow the opening sequence exactly and do not insert optional actions between its steps.",
+        "Prioritize the fixed Battlecruiser opening over expansion, extra production, unrelated tech, or nonessential units.",
         "At 12 supply, build one Supply Depot, one Refinery, and one Barracks, then train three SCVs.",
-        "At 15 supply, start one Factory.",
-        "After the Factory starts, train one Marine, upgrade the Command Center to an Orbital Command, then build the second Refinery.",
-        "After the second Refinery starts, train one more Marine and then two SCVs.",
-        "Avoid a supply block, but do not spend on optional structures that delay the Factory."
+        "At 15 supply, start one Factory, train one Marine, upgrade the Command Center to an Orbital Command, build the second Refinery, then train one Marine and two SCVs.",
+        "At 17 supply, start one Starport, then train one Marine, two SCVs, and one more Marine.",
+        "At 19 supply, build one Supply Depot, one Fusion Core, and a Tech Lab on the Starport.",
+        "Keep early Marines near the main base for defense.",
+        "Avoid spending that significantly delays the Starport, Fusion Core, or Starport Tech Lab.",
+        "Keep the opening close to the planned scale: roughly 4 Marines, 2 Refineries, and one each of Barracks, Factory, Starport, Fusion Core, and Starport Tech Lab.",
+        "Finish this phase when both the Fusion Core and Starport Tech Lab are ready."
       ]
     },
     {
-      "id": "opening_air_tech",
+      "id": "first_bc_preparation",
       "enter_when": [
-        "The Factory has started.",
-        "The fixed opening has not completed."
+        "The Fusion Core and Starport Tech Lab are ready, but no Battlecruiser is ready or in production."
       ],
-      "goal": "Complete the Starport, Fusion Core, and Starport Tech Lab chain required to begin Battlecruiser production.",
+      "goal": "Start the first Battlecruiser as soon as possible.",
       "guidance": [
-        "Continue the fixed opening without adding an expansion, Hellions, unrelated technology, or extra production structures.",
-        "At 17 supply, build one Starport.",
-        "After starting the Starport, train one Marine, then two SCVs, then one more Marine.",
-        "At 19 supply, build one Supply Depot, one Fusion Core, and one Tech Lab on the Starport.",
-        "Keep Marines at the main-base ramp for defense while reserving gas and minerals for the first Battlecruiser.",
-        "Finish this phase when the Starport, Fusion Core, and Starport Tech Lab are ready."
+        "Reserve 400 minerals, 300 vespene, and 6 supply for the first Battlecruiser.",
+        "Avoid expansion, extra production, upgrades, or nonessential units if they would delay the first Battlecruiser.",
+        "Keep Marines near the main base for defense.",
+        "Start the first Battlecruiser as soon as resources and supply are available.",
+        "Finish this phase once a Battlecruiser enters production."
       ]
     },
     {
-      "id": "first_battlecruiser",
+      "id": "first_bc_transition",
       "enter_when": [
-        "The fixed opening has completed.",
-        "No completed Battlecruiser exists."
+        "The first Battlecruiser is in production, but no Battlecruiser is ready yet.",
+        "This usually occurs around approximately 4-6 minutes; time is only a weak reference."
       ],
-      "goal": "Produce the first Battlecruiser and transition from the fixed technology opening into sustainable Battlecruiser production.",
+      "goal": "Use the first Battlecruiser's production window to begin economic and production growth without disrupting Battlecruiser production.",
       "guidance": [
-        "Start the first Battlecruiser as soon as the required technology, supply, and resources are available.",
-        "Keep the existing Marines defending the main base until the first Battlecruiser is completed.",
-        "Maintain SCV production, supply, and two-refinery gas income without delaying the queued Battlecruiser.",
-        "Once the first Battlecruiser is queued, add economy or production only when the next Battlecruiser will not be delayed.",
-        "Do not shift resources into an alternative army composition during this transition."
+        "Keep the first Battlecruiser in production and prioritize continued Battlecruiser production.",
+        "Begin normal macro growth: add SCVs, supply, Refineries, production capacity, and take the natural as the second base as resources allow.",
+        "Expansion is now allowed one base at a time, but should not significantly delay continued Battlecruiser production.",
+        "Develop toward roughly 80% Battlecruisers and 20% Marines.",
+        "Keep Marines near the main base for defense until the first Battlecruiser is ready.",
+        "Finish this phase as soon as the first Battlecruiser is ready."
       ]
     },
     {
       "id": "bc_pressure",
       "enter_when": [
-        "At least one completed Battlecruiser exists."
+        "At least one Battlecruiser is ready.",
+        "This usually occurs after approximately 5-6 minutes; time is only a weak reference."
       ],
-      "goal": "Maintain Battlecruiser-led pressure while scaling the economy and army until the enemy can no longer defend its bases or production.",
+      "goal": "Apply continuous Battlecruiser-led pressure while scaling economy, production, and army strength.",
       "guidance": [
-        "Begin offensive pressure as soon as the first Battlecruiser is available rather than waiting for a large army.",
-        "Continue producing Battlecruisers as the main army and Marines as supporting ground forces, targeting roughly an 80% Battlecruiser and 20% Marine composition.",
-        "Move Marines from pure base defense into support for the Battlecruiser attack after the first Battlecruiser is ready.",
-        "Use Tactical Jump only for a safe high-value attack, escape, or reposition; never jump into known anti-air defenses.",
-        "Retreat a badly damaged Battlecruiser, especially below roughly 225 health, instead of trading it needlessly.",
-        "Expand the economy and add production only when Battlecruiser production remains continuous."
+        "Start pressure as soon as the first Battlecruiser is ready rather than waiting for a large army.",
+        "Keep Battlecruisers as the main force and Marines as support, developing toward roughly 80% Battlecruisers and 20% Marines.",
+        "Continue Battlecruiser production while adding SCVs, Refineries, supply, production capacity, and expansions up to four total bases as resources allow.",
+        "Move Marines from main-base defense into offensive support after the first Battlecruiser is ready.",
+        "Prioritize significant enemy army concentrations when they present a useful engagement; otherwise pressure known enemy structures.",
+        "If no useful enemy target is known, pressure the enemy starting area, then search likely expansion locations.",
+        "Avoid concentrated anti-air threats and unsafe routes when possible.",
+        "Use Tactical Jump for long-distance engagement or repositioning, preferably to a safe position near the attack target.",
+        "Retreat badly damaged Battlecruisers, especially below roughly 225 health, rather than losing them unnecessarily.",
+        "Prioritize sustained Battlecruiser production over excessive expansion or Marine production."
       ]
     }
   ]

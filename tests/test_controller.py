@@ -4,8 +4,10 @@ from unittest.mock import AsyncMock, patch
 
 from agents.bm_agent import BMResult
 from config.game import GameConfig
+from config.llm import LLMConfig
 from core.controller import LLMGameController
 from core.observation import Observation
+from core.policy import ActionReview, ValidationIssue
 from runtime.directive import DirectiveStore
 from runtime.resolver import EntityContext
 
@@ -24,7 +26,7 @@ class ImmediateBM:
 
     async def run(self, observation, tactic, action_entries, trigger_reason, **_kwargs):
         self.calls.append((observation, tactic, action_entries, trigger_reason))
-        return BMResult("opening_factory", ("Build the opening infrastructure.",))
+        return BMResult("opening_tech", ("Build the opening infrastructure.",))
 
 
 class BlockingBM(ImmediateBM):
@@ -35,7 +37,7 @@ class BlockingBM(ImmediateBM):
     async def run(self, observation, tactic, action_entries, trigger_reason, **kwargs):
         self.calls.append((observation, tactic, action_entries, trigger_reason))
         await self.release.wait()
-        return BMResult("opening_factory", ("Build the opening infrastructure.",))
+        return BMResult("opening_tech", ("Build the opening infrastructure.",))
 
 
 class FlakyBM(ImmediateBM):
@@ -43,7 +45,51 @@ class FlakyBM(ImmediateBM):
         self.calls.append((observation, tactic, action_entries, trigger_reason))
         if len(self.calls) == 1:
             raise ValueError("invalid first response")
-        return BMResult("opening_factory", ("Build the opening infrastructure.",))
+        return BMResult("opening_tech", ("Build the opening infrastructure.",))
+
+
+class RetryingPolicy:
+    def review(self, _bot, actions, _context, _phase, _surface):
+        valid = []
+        issues = []
+        for index, action in enumerate(actions):
+            if action["id"] == "Good" or action["args"].get("fixed"):
+                valid.append(action)
+            else:
+                issues.append(
+                    ValidationIssue(
+                        index,
+                        action,
+                        "Parameter error: invalid value, parameter 'value' must be fixed",
+                    )
+                )
+        return ActionReview(valid, issues, [])
+
+
+class TwoAttemptCorrector:
+    def __init__(self):
+        self.calls = 0
+
+    async def run(self, *_args, **_kwargs):
+        self.calls += 1
+        if self.calls == 1:
+            return [{"id": "Bad", "args": {"fixed": False}}]
+        return [{"id": "Bad", "args": {"fixed": True}}]
+
+
+class NeverFixedCorrector:
+    def __init__(self):
+        self.calls = 0
+
+    async def run(self, *_args, **_kwargs):
+        self.calls += 1
+        return [{"id": "Bad", "args": {"fixed": False}}]
+
+
+class SimpleCatalog:
+    @staticmethod
+    def get(action_id):
+        return {"id": action_id}
 
 
 def make_controller(bm, *, enabled=True):
@@ -57,7 +103,7 @@ def make_controller(bm, *, enabled=True):
     controller.tactic = {
         "concept": "Build Battlecruisers.",
         "rules": [],
-        "phases": [{"id": "opening_factory"}],
+        "phases": [{"id": "opening_tech"}],
     }
     controller.bm_action_entries = [{"id": "macro.build_structure"}]
     controller.telemetry = FakeTelemetry()
@@ -69,6 +115,19 @@ def observation(iteration):
 
 
 class ControllerBMTests(unittest.IsolatedAsyncioTestCase):
+    def test_quick_counts_includes_pending_battlecruiser(self):
+        class Bot:
+            units = []
+            structures = []
+
+            @staticmethod
+            def already_pending(unit_type):
+                return 1 if unit_type.name == "BATTLECRUISER" else 0
+
+        counts = LLMGameController._quick_counts(Bot())
+
+        self.assertEqual(counts["pending:BATTLECRUISER"], 1)
+
     async def test_cold_start_can_be_awaited_before_the_first_im_decision(self):
         bm = ImmediateBM()
         controller = make_controller(bm)
@@ -78,7 +137,7 @@ class ControllerBMTests(unittest.IsolatedAsyncioTestCase):
         )
         directive = controller.directive_store.read(0)
         self.assertIsNotNone(directive)
-        self.assertEqual(directive.phase, "opening_factory")
+        self.assertEqual(directive.phase, "opening_tech")
         self.assertEqual(directive.guidance, ("Build the opening infrastructure.",))
         self.assertEqual(bm.calls[0][2], controller.bm_action_entries)
         self.assertEqual(bm.calls[0][3], "cold_start")
@@ -146,3 +205,65 @@ class ControllerBMTests(unittest.IsolatedAsyncioTestCase):
         )
 
         self.assertIsNone(controller.bm_pending)
+
+
+class ControllerCorrectionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_two_correction_attempts_keep_originally_valid_actions(self):
+        controller = object.__new__(LLMGameController)
+        controller.policy = RetryingPolicy()
+        controller.corrector = TwoAttemptCorrector()
+        controller.llm_config = LLMConfig(max_refines=2)
+        controller.game_config = GameConfig()
+        controller.telemetry = FakeTelemetry()
+        controller.catalog = SimpleCatalog()
+
+        review = await controller._review_im_actions(
+            bot=None,
+            actions=[
+                {"id": "Good", "args": {}},
+                {"id": "Bad", "args": {"fixed": False}},
+            ],
+            observation=observation(20),
+            guidance=[],
+            entries=[],
+            phase="opening_tech",
+            surface=None,
+            iteration=20,
+        )
+
+        self.assertEqual(controller.corrector.calls, 2)
+        self.assertEqual(
+            review.actions,
+            [
+                {"id": "Good", "args": {}},
+                {"id": "Bad", "args": {"fixed": True}},
+            ],
+        )
+        self.assertFalse(review.issues)
+
+    async def test_action_still_invalid_after_two_attempts_is_discarded(self):
+        controller = object.__new__(LLMGameController)
+        controller.policy = RetryingPolicy()
+        controller.corrector = NeverFixedCorrector()
+        controller.llm_config = LLMConfig(max_refines=2)
+        controller.game_config = GameConfig()
+        controller.telemetry = FakeTelemetry()
+        controller.catalog = SimpleCatalog()
+
+        review = await controller._review_im_actions(
+            bot=None,
+            actions=[
+                {"id": "Good", "args": {}},
+                {"id": "Bad", "args": {"fixed": False}},
+            ],
+            observation=observation(20),
+            guidance=[],
+            entries=[],
+            phase="opening_tech",
+            surface=None,
+            iteration=20,
+        )
+
+        self.assertEqual(controller.corrector.calls, 2)
+        self.assertEqual(review.actions, [{"id": "Good", "args": {}}])
+        self.assertTrue(review.issues)

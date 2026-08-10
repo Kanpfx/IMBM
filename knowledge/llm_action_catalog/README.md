@@ -19,7 +19,7 @@
 
 运行时的 `ActionCatalog` 只加载三个 Behavior 文件。`llm_exposure: "eligible"` 的动作才可进入模型动作空间；阶段白名单和当前游戏状态还会进一步限制实际展示和执行的动作。
 
-当前先为 BC Rush 使用的 17 个动作增加了 `availability` 元数据。运行时据此生成每次调用专属的动作面：保留当前可执行动作与合法科技前沿，隐藏没有执行单位、生产建筑、有效编组或 ready 技能的动作；同时把当前合法单位 ID、目标 ID、建筑类型、科技目标和阵容键写入参数域。Prompt 与 PolicyValidator 共用同一个动作面，因此未展示的动作或参数值也无法通过执行校验。以后扩展完整动作表时沿用该字段，不需要继续扩大阶段硬编码。
+全部 Behavior 使用 `tags` 支持按战斗、科技、资源等类别部分加载，并用精简后的 `availability` 描述动作发出者与参数的对应关系。BC Rush 的科技前沿、资源状态和技能 ready 判断保留在运行时动作面代码中；Prompt 与 PolicyValidator 共用该动作面，因此未展示的动作或参数值也无法通过执行校验。
 
 ## 项目扩展
 
@@ -39,9 +39,10 @@
 - `params[].input = "runtime"`：由适配器注入，模型不可填写。
 - `params[].input = "derived"`：由组合器、编组单位或 Behavior 内部状态推导，模型不可填写。
 - `params[].via_kwargs = true`：该参数由 `ManagerMediator` 的 `**kwargs` 接收，名称和含义来自 v3.9.6 API 文档。
-- `availability`：项目运行时的状态暴露规则；不改变 Ares 构造签名。当前 `bc_*` mode 是 BC Rush 的第一版实现。
-- `documentation_status`：区分官网已记录、仅源码公开、非公开源码和项目适配动作。
-- `kind = "composite_behavior"`：需要手动组合，不能直接按普通动作构造。
+- `tags`：用于按战斗、科技、资源、生产等类别部分加载动作。
+- `availability.param`：指向动作发出者参数；由 Behavior 内部选择时为 `null`。
+- `availability.types`：允许的发出者类型；通用动作使用 `["ALL"]`。
+- 所有 `llm_exposure = "eligible"` 的动作均按 `api.import` 构造 Behavior 并通过 `register_behavior` 注册。
 
 ## 固定与更新原则
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
+import json
 from typing import Any
 
 from core.renderer import observation_text
@@ -11,7 +12,7 @@ from core.state import TagIdMapper
 from runtime.resolver import EntityContext
 
 
-PENDING_STRUCTURE_NAMES = (
+PENDING_NAMES = (
     "COMMANDCENTER",
     "ORBITALCOMMAND",
     "SUPPLYDEPOT",
@@ -21,6 +22,7 @@ PENDING_STRUCTURE_NAMES = (
     "STARPORT",
     "FUSIONCORE",
     "STARPORTTECHLAB",
+    "BATTLECRUISER",
 )
 
 IMPORTANT_UNIT_NAMES = {
@@ -60,6 +62,14 @@ class Observation:
         return self.text
 
 
+@dataclass
+class ActionHistoryEntry:
+    time: str
+    key: str
+    description: str
+    status: str
+
+
 def _type_name(unit: Any) -> str:
     return getattr(
         getattr(unit, "type_id", None), "name", getattr(unit, "name", "UNKNOWN")
@@ -79,18 +89,79 @@ class ObservationBuilder:
 
     def __init__(self, ids: TagIdMapper):
         self.ids = ids
-        self._action_history: list[str] = []
+        self._action_history: list[ActionHistoryEntry] = []
         self._last_validation_error = ""
         self._previous_facts: dict[str, int | str] | None = None
+        self._battlecruiser_ever_ready = False
 
-    def record_registered_actions(self, actions: list[dict[str, Any]]) -> None:
+    def record_registered_actions(
+        self, actions: list[dict[str, Any]], time: str = "--:--"
+    ) -> None:
+        self._record_actions(actions, time, "completed", replace_statuses={"queued"})
+        self._last_validation_error = ""
+
+    def record_deferred_actions(
+        self, actions: list[dict[str, Any]], time: str = "--:--"
+    ) -> None:
+        self._record_actions(actions, time, "queued")
+        self._last_validation_error = ""
+
+    def record_active_actions(
+        self, actions: list[dict[str, Any]], time: str = "--:--"
+    ) -> None:
+        self._record_actions(actions, time, "active")
+        self._last_validation_error = ""
+
+    def record_completed_actions(
+        self, actions: list[dict[str, Any]], time: str = "--:--"
+    ) -> None:
+        self._record_actions(actions, time, "completed", replace_statuses={"active"})
+
+    def record_failed_actions(
+        self, actions: list[dict[str, Any]], time: str = "--:--"
+    ) -> None:
+        self._record_actions(
+            actions, time, "failed", replace_statuses={"active", "queued"}
+        )
+
+    def record_expired_actions(
+        self, actions: list[dict[str, Any]], time: str = "--:--"
+    ) -> None:
+        self._record_actions(actions, time, "expired", replace_statuses={"queued"})
+
+    def _record_actions(
+        self,
+        actions: list[dict[str, Any]],
+        time: str,
+        status: str,
+        *,
+        replace_statuses: set[str] | None = None,
+    ) -> None:
         for action in actions:
             action_id = str(action.get("id", "unknown action"))
             args = action.get("args", {})
-            detail = self._action_detail(action_id, args)
-            self._action_history.append(f"Sent once: {action_id}{detail}")
+            key = json.dumps(action, sort_keys=True, separators=(",", ":"))
+            if replace_statuses:
+                waiting = next(
+                    (
+                        item
+                        for item in reversed(self._action_history)
+                        if item.key == key and item.status in replace_statuses
+                    ),
+                    None,
+                )
+                if waiting is not None:
+                    waiting.status = status
+                    continue
+            self._action_history.append(
+                ActionHistoryEntry(
+                    time,
+                    key,
+                    f"{action_id}{self._action_detail(action_id, args)}",
+                    status,
+                )
+            )
         self._action_history = self._action_history[-10:]
-        self._last_validation_error = ""
 
     def record_validation_error(self, error: str) -> None:
         # Network failures are not action validation feedback and would only
@@ -108,19 +179,30 @@ class ObservationBuilder:
         own_counts = _count(own_units)
         structure_counts = _count(structures)
         pending = self._pending_counts(bot)
+        if any(
+            _type_name(unit) == "BATTLECRUISER"
+            and bool(
+                getattr(
+                    unit,
+                    "is_ready",
+                    float(getattr(unit, "build_progress", 1.0)) >= 1.0,
+                )
+            )
+            for unit in own_units
+        ):
+            self._battlecruiser_ever_ready = True
         counts = dict(own_counts)
         counts.update(structure_counts)
         counts.update({f"pending:{name}": value for name, value in pending.items()})
 
-        context = EntityContext()
-        self._add_execution_context(bot, context)
+        context = self.execution_context(bot)
         own_unit_blocks = self._own_unit_blocks(own_units, context, bot)
         own_structure_blocks = self._structure_blocks(structures, context, bot, own=True)
         enemy_unit_blocks = self._enemy_unit_blocks(enemies, context, bot)
         enemy_structure_blocks = self._structure_blocks(
             enemy_structures, context, bot, own=False
         )
-        facts = self._facts(own_counts, structure_counts, enemies, enemy_structures, bot)
+        facts = self._facts(own_counts, structures, enemies, enemy_structures, bot)
         data = {
             "time": getattr(bot, "time_formatted", "00:00"),
             "enemy_race": getattr(
@@ -143,13 +225,26 @@ class ObservationBuilder:
             "own_structure_blocks": own_structure_blocks,
             "enemy_unit_blocks": enemy_unit_blocks,
             "enemy_structure_blocks": enemy_structure_blocks,
-            "production_and_technology": self._production_and_technology(structures),
-            "base_security": self._base_security(bot, enemies),
+            "production_and_technology": self._production_and_technology(
+                structures, pending
+            ),
+            "base_overview": self._base_overview(bot, enemies),
             "action_history": self._history_blocks(),
             "recent_changes": self._recent_changes(facts),
         }
         self._previous_facts = facts
         return Observation(iteration, counts, observation_text(data), context)
+
+    def execution_context(self, bot: Any) -> EntityContext:
+        """Build a lightweight current-frame context without rendering a prompt."""
+        context = EntityContext()
+        self._add_execution_context(bot, context)
+        for entity in list(bot.units) + list(bot.structures):
+            context.own_entities[self.ids.alias(entity.tag)] = entity
+        for entity in list(bot.enemy_units) + list(bot.enemy_structures):
+            if getattr(entity, "is_visible", True):
+                context.enemy_entities[self.ids.alias(entity.tag)] = entity
+        return context
 
     def _add_execution_context(self, bot: Any, context: EntityContext) -> None:
         candidates = {
@@ -175,7 +270,7 @@ class ObservationBuilder:
         from sc2.ids.unit_typeid import UnitTypeId
 
         pending: dict[str, int] = {}
-        for name in PENDING_STRUCTURE_NAMES:
+        for name in PENDING_NAMES:
             if hasattr(UnitTypeId, name):
                 pending[name] = int(bot.already_pending(getattr(UnitTypeId, name)))
         return pending
@@ -331,7 +426,9 @@ class ObservationBuilder:
             return f"{coordinates}, near {nearest_name}"
         return coordinates
 
-    def _production_and_technology(self, structures: list[Any]) -> list[str]:
+    def _production_and_technology(
+        self, structures: list[Any], pending: dict[str, int]
+    ) -> list[str]:
         counts = _count(structures)
         infrastructure_order = (
             "COMMANDCENTER",
@@ -358,7 +455,19 @@ class ObservationBuilder:
         ]
         if technology:
             lines.append(
-                "Technology: " + "; ".join(f"{name} complete" for name in technology) + "."
+                "Technology: " + "; ".join(f"{name} ready" for name in technology) + "."
+            )
+        pending_items = [
+            f"{count} {self._display_name(name, plural=count != 1)}"
+            for name, count in pending.items()
+            if count > 0
+        ]
+        if pending_items:
+            lines.append("In production or pending: " + ", ".join(pending_items) + ".")
+        if self._battlecruiser_ever_ready:
+            lines.append(
+                "Battlecruiser history: at least one Battlecruiser is ready now "
+                "or was ready earlier."
             )
         production = []
         idle = []
@@ -384,31 +493,36 @@ class ObservationBuilder:
             lines.append("In progress: " + ", ".join(in_progress) + ".")
         return lines
 
-    def _base_security(self, bot: Any, enemies: list[Any]) -> list[str]:
+    def _base_overview(self, bot: Any, enemies: list[Any]) -> str:
         ground = self._safe_mediator(bot, "get_ground_enemy_near_bases") or {}
         air = self._safe_mediator(bot, "get_flying_enemy_near_bases") or {}
-        lines: list[str] = []
-        largest: tuple[int, str] = (0, "")
+        entries: list[str] = []
         for index, base in enumerate(getattr(bot, "townhalls", [])):
-            label = ("Main", "Natural")[index] if index < 2 else f"Base {index + 1}"
+            label = ("main", "natural")[index] if index < 2 else f"base {index + 1}"
+            if bool(getattr(base, "is_ready", True)):
+                state = "active"
+            else:
+                progress = int(float(getattr(base, "build_progress", 0.0)) * 100)
+                state = f"building {progress}%"
             ground_tags = set(ground.get(base.tag, set()))
             air_tags = set(air.get(base.tag, set()))
             if not ground_tags and not air_tags:
-                lines.append(f"{label}: no visible ground or air threat.")
-                continue
-            if ground_tags:
-                lines.append(
-                    f"{label}: ground threat — {self._summary_units_for_tags(enemies, ground_tags)}."
-                )
-            if air_tags:
-                lines.append(
-                    f"{label}: air threat — {self._summary_units_for_tags(enemies, air_tags)}."
-                )
-            if len(ground_tags) + len(air_tags) > largest[0]:
-                largest = (len(ground_tags) + len(air_tags), label)
-        if largest[0]:
-            lines.append(f"Largest current threat: our {largest[1].lower()}.")
-        return lines
+                threat = "no visible ground or air threat"
+            else:
+                threats: list[str] = []
+                if ground_tags:
+                    threats.append(
+                        "ground threat: "
+                        + self._summary_units_for_tags(enemies, ground_tags)
+                    )
+                if air_tags:
+                    threats.append(
+                        "air threat: "
+                        + self._summary_units_for_tags(enemies, air_tags)
+                    )
+                threat = "; ".join(threats)
+            entries.append(f"{label} ({state}, {threat})")
+        return "; ".join(entries) if entries else "[Empty]"
 
     def _summary_units_for_tags(self, units: list[Any], tags: set[int]) -> str:
         selected = [unit for unit in units if unit.tag in tags]
@@ -489,7 +603,7 @@ class ObservationBuilder:
                 aliases.append(alias)
                 entity_map[alias] = unit
             label = self._display_name(name, plural=len(members) > 1)
-            observation_ids = " ".join(f"[{alias}]" for alias in aliases)
+            observation_ids = f"[{','.join(aliases)}]"
             lines = [f"{observation_ids} {label}", f"Status: {state}."]
             if extra:
                 lines.extend(extra.splitlines())
@@ -588,8 +702,8 @@ class ObservationBuilder:
         if progress < 1.0:
             return f"building ({int(progress * 100)}%)"
         if getattr(structure, "is_idle", False):
-            return "idle"
-        return "complete"
+            return "ready and idle"
+        return "ready"
 
     @staticmethod
     def _production_text(structure: Any) -> str:
@@ -615,14 +729,30 @@ class ObservationBuilder:
     def _facts(
         self,
         own_counts: dict[str, int],
-        structures: dict[str, int],
+        structures: list[Any],
         enemies: list[Any],
         enemy_structures: list[Any],
         bot: Any,
     ) -> dict[str, int | str]:
         facts: dict[str, int | str] = {}
         facts.update({f"own:{name}": count for name, count in own_counts.items()})
-        facts.update({f"structure:{name}": count for name, count in structures.items()})
+        structure_counts = _count(structures)
+        ready_structure_counts = _count(
+            [
+                structure
+                for structure in structures
+                if float(getattr(structure, "build_progress", 1.0)) >= 1.0
+            ]
+        )
+        facts.update(
+            {f"structure:{name}": count for name, count in structure_counts.items()}
+        )
+        facts.update(
+            {
+                f"ready_structure:{name}": count
+                for name, count in ready_structure_counts.items()
+            }
+        )
         facts.update({f"enemy:{name}": count for name, count in _count(enemies).items()})
         facts.update(
             {f"enemy_structure:{name}": count for name, count in _count(enemy_structures).items()}
@@ -649,14 +779,37 @@ class ObservationBuilder:
                 changes.append(f"Enemy {self._display_name(key.split(':', 1)[1])} first seen.")
             elif key.startswith("own:") and isinstance(after, int) and after > before:
                 changes.append(f"Our {self._display_name(key.split(':', 1)[1])} count increased to {after}.")
-            elif key.startswith("structure:") and isinstance(after, int) and after > before:
-                changes.append(f"Our {self._display_name(key.split(':', 1)[1])} completed.")
+            elif (
+                key.startswith("ready_structure:")
+                and isinstance(after, int)
+                and after > before
+            ):
+                changes.append(
+                    f"Our {self._display_name(key.split(':', 1)[1])} became ready."
+                )
+            elif (
+                key.startswith("structure:")
+                and isinstance(after, int)
+                and after > before
+            ):
+                name = key.split(":", 1)[1]
+                ready_key = f"ready_structure:{name}"
+                ready_increased = facts.get(ready_key, 0) > self._previous_facts.get(
+                    ready_key, 0
+                )
+                if not ready_increased:
+                    changes.append(
+                        f"Our {self._display_name(name)} started building."
+                    )
             if len(changes) == 5:
                 break
         return changes
 
     def _history_blocks(self) -> list[str]:
-        history = list(self._action_history)
+        history = [
+            f"{item.time} {item.description} status: {item.status}"
+            for item in self._action_history
+        ]
         if self._last_validation_error:
             history.append(f"Previous validation error: {self._last_validation_error}")
         return history
@@ -665,9 +818,9 @@ class ObservationBuilder:
     def _action_detail(action_id: str, args: Any) -> str:
         if not isinstance(args, dict):
             return ""
-        if action_id == "macro.build_structure":
+        if action_id in {"macro.build_structure", "BuildStructure"}:
             return f" ({args.get('structure_id', 'structure')} near {args.get('base_location', 'base')})"
-        if action_id == "macro.gas_building_controller":
+        if action_id in {"macro.gas_building_controller", "GasBuildingController"}:
             return f" (target: {args.get('to_count', '?')} Refineries)"
         return ""
 

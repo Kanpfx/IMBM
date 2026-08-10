@@ -1,7 +1,11 @@
 import unittest
 
-from agents.prompts import bm_messages, im_messages
-from config.policy import allowed_actions
+from agents.prompts import (
+    bm_messages,
+    correction_messages,
+    im_messages,
+    refine_messages,
+)
 from core.observation import ObservationBuilder
 from core.state import TagIdMapper
 from knowledge.loader import ActionCatalog
@@ -59,24 +63,36 @@ class Bot:
         self.start_location = Point(1, 1)
         self.enemy_start_locations = [Point(100, 100)]
         self.mediator = Mediator()
+        self.pending = {}
 
-    @staticmethod
-    def already_pending(_unit_type):
-        return 0
+    def already_pending(self, unit_type):
+        return self.pending.get(unit_type.name, 0)
 
 
 class ObservationTests(unittest.TestCase):
     def test_shared_observation_aggregates_workers_and_hides_internal_details(self):
         builder = ObservationBuilder(TagIdMapper())
-        observation = builder.build(Bot(), iteration=0, _phase="opening_factory")
+        observation = builder.build(Bot(), iteration=0, _phase="opening_tech")
 
         self.assertEqual(observation.text, observation.strategy_text)
         self.assertEqual(observation.text, observation.action_text)
-        self.assertIn("## Game state", observation.text)
-        self.assertIn("### Recent changes", observation.text)
-        self.assertIn("## Own situation", observation.text)
+        self.assertTrue(observation.text.startswith("<overview>\n"))
+        self.assertIn("</overview>", observation.text)
+        self.assertIn("<own_forces>", observation.text)
+        self.assertIn("<visible_enemy>", observation.text)
+        self.assertIn("<recent_history>", observation.text)
+        self.assertNotIn("<situation>", observation.text)
+        self.assertNotIn("<memory>", observation.text)
+        self.assertNotIn("<own_units>", observation.text)
+        self.assertNotIn("<own_structures>", observation.text)
+        self.assertIn("## Production and technology", observation.text)
+        self.assertIn("## Units", observation.text)
         self.assertIn(
-            "[497] [641] SCV\nStatus: collecting resources automatically.",
+            "Bases: main (active, no visible ground or air threat).",
+            observation.text,
+        )
+        self.assertIn(
+            "[497,641] SCV\nStatus: collecting resources automatically.",
             observation.text,
         )
         self.assertIn("[88] Stalker", observation.text)
@@ -102,7 +118,7 @@ class ObservationTests(unittest.TestCase):
         bot.units.append(battlecruiser)
         bot.structures.append(starport)
         observation = ObservationBuilder(TagIdMapper()).build(
-            bot, iteration=0, _phase="opening_factory"
+            bot, iteration=0, _phase="opening_tech"
         )
 
         self.assertIn("[333] Battlecruiser", observation.text)
@@ -121,16 +137,65 @@ class ObservationTests(unittest.TestCase):
                     "id": "macro.build_structure",
                     "args": {"structure_id": "SUPPLYDEPOT", "base_location": "main"},
                 }
-            ]
+            ],
+            time="05:10",
         )
         builder.record_validation_error("2")
-        observation = builder.build(Bot(), iteration=10, _phase="opening_factory")
+        observation = builder.build(Bot(), iteration=10, _phase="opening_tech")
 
-        self.assertIn("Sent once: macro.build_structure (SUPPLYDEPOT near main)", observation.text)
+        self.assertIn(
+            "05:10 macro.build_structure (SUPPLYDEPOT near main) status: completed",
+            observation.text,
+        )
         self.assertIn(
             "Previous validation error: An action used a numeric enum value.",
             observation.text,
         )
+
+    def test_queued_history_updates_in_place_when_completed_or_expired(self):
+        builder = ObservationBuilder(TagIdMapper())
+        finished = {
+            "id": "BuildStructure",
+            "args": {"structure_id": "FACTORY", "base_location": "main"},
+        }
+        expired = {
+            "id": "TechUp",
+            "args": {"desired_tech": "STARPORT", "base_location": "main"},
+        }
+        builder.record_deferred_actions([finished], time="05:10")
+        builder.record_deferred_actions([expired], time="05:11")
+        builder.record_registered_actions([finished], time="05:20")
+        builder.record_expired_actions([expired], time="05:21")
+
+        observation = builder.build(Bot(), iteration=10, _phase="opening_tech")
+
+        self.assertIn(
+            "05:10 BuildStructure (FACTORY near main) status: completed",
+            observation.text,
+        )
+        self.assertIn("05:11 TechUp status: expired", observation.text)
+        self.assertEqual(observation.text.count("BuildStructure (FACTORY near main)"), 1)
+
+    def test_persistent_history_uses_active_completed_and_failed_states(self):
+        builder = ObservationBuilder(TagIdMapper())
+        active = {
+            "id": "KeepUnitSafe",
+            "args": {"unit": "1", "grid": "ground"},
+        }
+        failed = {
+            "id": "PathUnitToTarget",
+            "args": {"unit": "2", "grid": "ground", "target": "main"},
+        }
+        builder.record_active_actions([active], time="05:10")
+        builder.record_active_actions([failed], time="05:11")
+        builder.record_completed_actions([active], time="05:20")
+        builder.record_failed_actions([failed], time="05:20")
+
+        observation = builder.build(Bot(), iteration=10, _phase="opening_tech")
+
+        self.assertIn("KeepUnitSafe status: completed", observation.text)
+        self.assertIn("PathUnitToTarget status: failed", observation.text)
+        self.assertNotIn("status: active", observation.text)
 
     def test_compact_units_keep_their_semantic_locations(self):
         bot = Bot()
@@ -140,11 +205,11 @@ class ObservationTests(unittest.TestCase):
         bot.units.extend([near_main, near_enemy])
 
         observation = ObservationBuilder(TagIdMapper()).build(
-            bot, iteration=0, _phase="opening_factory"
+            bot, iteration=0, _phase="opening_tech"
         )
 
         self.assertIn(
-            "[217] [218] Marines\nStatus: active.\nLocation: near our main.",
+            "[217,218] Marines\nStatus: active.\nLocation: near our main.",
             observation.text,
         )
         self.assertIn(
@@ -160,22 +225,71 @@ class ObservationTests(unittest.TestCase):
         bot.mediator.get_ground_enemy_near_bases = {bot.structures[0].tag: {88}}
 
         observation = ObservationBuilder(TagIdMapper()).build(
-            bot, iteration=0, _phase="opening_factory"
+            bot, iteration=0, _phase="opening_tech"
         )
 
         self.assertIn("[88] Stalker\nStatus: visible; near our main.", observation.text)
         self.assertIn("[99] Zealot\nStatus: visible; near enemy main.", observation.text)
+        self.assertIn(
+            "Bases: main (active, ground threat: 1 Stalker).",
+            observation.text,
+        )
 
     def test_empty_enemy_sections_explain_visibility_scope(self):
         bot = Bot()
         bot.enemy_units = []
 
         observation = ObservationBuilder(TagIdMapper()).build(
-            bot, iteration=0, _phase="opening_factory"
+            bot, iteration=0, _phase="opening_tech"
         )
 
         self.assertIn("[Empty \u2014 no enemy units are visible now.]", observation.text)
         self.assertIn("[Empty \u2014 no enemy structures are visible now.]", observation.text)
+
+    def test_structure_changes_distinguish_building_from_ready(self):
+        bot = Bot()
+        builder = ObservationBuilder(TagIdMapper())
+        builder.build(bot, iteration=0, _phase="opening_tech")
+
+        factory = Unit(700, "FACTORY", progress=0.25)
+        bot.structures.append(factory)
+        building = builder.build(bot, iteration=10, _phase="opening_tech")
+        self.assertIn("Status: building (25%).", building.text)
+        self.assertIn("Our Factory started building.", building.text)
+        self.assertNotIn("Our Factory became ready.", building.text)
+
+        factory.build_progress = 1.0
+        ready = builder.build(bot, iteration=20, _phase="opening_tech")
+        self.assertIn("Status: ready.", ready.text)
+        self.assertIn("Our Factory became ready.", ready.text)
+        self.assertNotIn("Our Factory completed.", ready.text)
+
+    def test_battlecruiser_history_survives_current_unit_loss(self):
+        bot = Bot()
+        builder = ObservationBuilder(TagIdMapper())
+        bot.units.append(Unit(800, "BATTLECRUISER"))
+        builder.build(bot, iteration=0, _phase="bc_pressure")
+
+        bot.units = [unit for unit in bot.units if unit.type_id.name != "BATTLECRUISER"]
+        observation = builder.build(bot, iteration=10, _phase="bc_pressure")
+
+        self.assertIn(
+            "Battlecruiser history: at least one Battlecruiser is ready now "
+            "or was ready earlier.",
+            observation.text,
+        )
+
+    def test_pending_battlecruiser_is_explicit_in_production_summary(self):
+        bot = Bot()
+        bot.pending["BATTLECRUISER"] = 1
+
+        observation = ObservationBuilder(TagIdMapper()).build(
+            bot, iteration=0, _phase="first_bc_transition"
+        )
+
+        self.assertIn(
+            "In production or pending: 1 Battlecruiser.", observation.text
+        )
 
     def test_prompts_use_named_sections_and_give_bm_the_complete_tactic(self):
         tactic = {
@@ -183,13 +297,13 @@ class ObservationTests(unittest.TestCase):
             "rules": ["Stay safe."],
             "phases": [
                 {
-                    "id": "opening_factory",
+                    "id": "opening_tech",
                     "enter_when": ["The Factory has not started."],
                     "goal": "Start production.",
                     "guidance": ["Build a Depot."],
                 },
                 {
-                    "id": "opening_air_tech",
+                    "id": "first_bc_preparation",
                     "enter_when": ["The Factory has started."],
                     "goal": "Start air technology.",
                     "guidance": ["Build a Starport."],
@@ -197,68 +311,108 @@ class ObservationTests(unittest.TestCase):
             ],
         }
         catalog = ActionCatalog.load()
-        entries = catalog.prompt_entries(allowed_actions("opening_factory"))
+        entries = catalog.prompt_entries({"macro.build_structure"})
         bm = bm_messages("# Round state\n[Empty]", tactic, entries, "cold start")
         im = im_messages("# Round state\n[Empty]", ["Build a Depot."], [])
 
-        self.assertIn("# Your current task", bm[-1]["content"])
+        self.assertIn("<task>", bm[-1]["content"])
         self.assertIn("The game has just started.", bm[-1]["content"])
-        self.assertIn("# Observation", bm[-1]["content"])
-        self.assertIn("# Complete tactical card", bm[-1]["content"])
-        self.assertIn("## Core idea", bm[-1]["content"])
-        self.assertIn("### Phase `opening_factory`", bm[-1]["content"])
-        self.assertIn("### Phase `opening_air_tech`", bm[-1]["content"])
-        self.assertIn("#### Enter when", bm[-1]["content"])
-        self.assertIn("#### Complete guidance", bm[-1]["content"])
-        self.assertIn("# Available actions", bm[-1]["content"])
-        self.assertIn("`BuildStructure(base_location, structure_id)`:", bm[-1]["content"])
-        self.assertIn("# JSON format and example", bm[-1]["content"])
-        self.assertIn('"phase":"opening_factory"', bm[-1]["content"])
-        self.assertIn("# Objective", im[-1]["content"])
-        self.assertIn("# Observation", im[-1]["content"])
-        self.assertIn("# Strategic guidance to follow", im[-1]["content"])
-        self.assertIn("# Rules", im[-1]["content"])
-        self.assertIn("# Available actions", im[-1]["content"])
-        self.assertIn("# JSON format and example", im[-1]["content"])
+        self.assertIn("<observation>", bm[-1]["content"])
+        self.assertIn("<tactical_card", bm[-1]["content"])
+        self.assertIn("Concept: Build Battlecruisers.", bm[-1]["content"])
+        self.assertIn("Phase `opening_tech`", bm[-1]["content"])
+        self.assertIn("Phase `first_bc_preparation`", bm[-1]["content"])
+        self.assertIn("Enter when:", bm[-1]["content"])
+        self.assertIn("Guidance:", bm[-1]["content"])
+        self.assertIn("<action_reference>", bm[-1]["content"])
+        self.assertIn("- `BuildStructure(", bm[-1]["content"])
+        self.assertIn("<output_contract>", bm[-1]["content"])
+        self.assertIn('"phase":"opening_tech"', bm[-1]["content"])
+        self.assertIn("<observation>", im[-1]["content"])
+        self.assertIn("<decision_context>", im[-1]["content"])
+        self.assertIn("Strategic guidance:", im[-1]["content"])
+        self.assertIn("Decision rules:", im[-1]["content"])
+        self.assertIn("<action_reference>", im[-1]["content"])
+        self.assertIn("Available actions:", im[-1]["content"])
+        self.assertIn("<output_contract>", im[-1]["content"])
+        self.assertNotIn("<priority>", im[-1]["content"])
+        self.assertNotIn("<rule>", im[-1]["content"])
 
     def test_action_cards_use_short_names_and_required_params_only(self):
         catalog = ActionCatalog.load()
-        entries = catalog.prompt_entries(allowed_actions("bc_pressure"))
+        entries = catalog.prompt_entries(
+            {
+                "combat.individual.a_move",
+                "combat.bc.move_safely",
+                "combat.bc.tactical_jump",
+                "macro.build_structure",
+                "macro.production_controller",
+            }
+        )
         prompt = im_messages("# Round state\n[Empty]", [], entries)[-1]["content"]
 
-        self.assertIn("`AMove(unit, target)`: A-Move a unit to a target.", prompt)
+        self.assertIn("- `AMove(unit: Unit, target: Point | Unit)`", prompt)
+        self.assertIn("— A-Move a unit to a target.", prompt)
+        self.assertIn("Argument types:", prompt)
+        self.assertIn("Composition format for `army_composition_dict`:", prompt)
         self.assertIn(
-            "# Argument type legend",
+            '\"BATTLECRUISER\": {\"proportion\": 0.8, \"priority\": 0}',
             prompt,
         )
         self.assertIn(
-            "- `[Unit]`: One unit ID from Observation.",
+            "- Unit: One unit ID from Observation.",
             prompt,
         )
         self.assertIn(
-            "- `unit` [Unit]: The unit that will attack-move.",
+            "  - `unit` (Unit):",
             prompt,
         )
         self.assertIn(
-            "- `target` [Point | Unit]: Where the unit is going.",
+            "  - `target` (Point | Unit):",
             prompt,
         )
         self.assertIn(
-            "`BuildStructure(base_location, structure_id)`:", prompt
-        )
-        self.assertIn(
-            "`TacticalJump(unit, target)`: Tactical Jump a ready Battlecruiser to a destination.",
+            "- `BuildStructure(base_location: Point, structure_id: UnitType)`",
             prompt,
         )
-        self.assertIn(
-            "`MoveSafely(unit, target)`: Move a Battlecruiser to a destination using safe air pathing.",
-            prompt,
-        )
-        self.assertNotIn("`UseAbility(ability, unit)`", prompt)
+        self.assertIn("- `TacticalJump(", prompt)
+        self.assertIn("- `MoveSafely(", prompt)
+        self.assertNotIn("- `UseAbility(", prompt)
+        self.assertNotIn("<action name=", prompt)
+        self.assertNotIn("<parameter name=", prompt)
         self.assertNotIn("combat.individual.a_move", prompt)
         self.assertNotIn("success_at_distance", prompt)
         self.assertNotIn("group_tags", prompt)
         self.assertNotIn("Union[Point2, Unit]", prompt)
+
+    def test_correction_and_refine_prompts_keep_only_section_tags(self):
+        catalog = ActionCatalog.load()
+        entries = catalog.prompt_entries({"macro.build_structure"})
+        correction = correction_messages(
+            "<state_summary>\nstate\n</state_summary>",
+            ["Build the Factory."],
+            entries,
+            [{"id": "BuildStructure", "args": {}}],
+            ["Action 1: missing required argument"],
+        )[-1]["content"]
+
+        self.assertIn("<correction_context>", correction)
+        self.assertIn("Strategic guidance:", correction)
+        self.assertIn("Rejected actions:", correction)
+        self.assertIn("Validation errors:", correction)
+        self.assertIn("Repair rules:", correction)
+        self.assertIn("<action_reference>", correction)
+        self.assertIn("Available actions:", correction)
+        self.assertIn("<output_contract>", correction)
+        self.assertNotIn("<error>", correction)
+        self.assertNotIn("<rule>", correction)
+
+        refined = refine_messages([], "actions must be a list", '{"actions":[]}')
+        self.assertEqual(refined[0]["content"], "Previous output was rejected.")
+        self.assertIn("<correction_request>", refined[1]["content"])
+        self.assertIn("Validation error: actions must be a list", refined[1]["content"])
+        self.assertIn("Required JSON shape: {\"actions\":[]}", refined[1]["content"])
+        self.assertNotIn("### Validation Error", refined[1]["content"])
 
     def test_catalog_corrects_verified_ares_documentation_errors(self):
         catalog = ActionCatalog.load()
