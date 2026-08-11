@@ -1,11 +1,11 @@
 import unittest
 
-from agents.prompts import im_messages
 from config.game import GameConfig
-from core.action_exposure import ActionExposure
-from core.policy import PolicyValidator
+from game.actions.exposure import ActionExposure
+from game.actions.policy import PolicyValidator
+from game.actions.resolver import EntityContext
 from knowledge.loader import ActionCatalog
-from runtime.resolver import EntityContext
+from llm.agents.prompts import im_messages
 
 
 class Unit:
@@ -55,9 +55,7 @@ class ActionExposureTests(unittest.TestCase):
         context = EntityContext(
             own_entities={
                 "1": Unit("REAPER"),
-                "2": Unit(
-                    "BATTLECRUISER", abilities=("EFFECT_TACTICALJUMP",)
-                ),
+                "2": Unit("BATTLECRUISER", abilities=("EFFECT_TACTICALJUMP",)),
                 "3": Unit("MARINE"),
                 "4": Unit("STARPORT", is_structure=True),
             },
@@ -88,9 +86,7 @@ class ActionExposureTests(unittest.TestCase):
 
         self.assertIn("combat.individual.a_move", surface.action_ids)
         self.assertNotIn("combat.individual.attack_target", surface.action_ids)
-        self.assertNotIn(
-            "combat.individual.shoot_target_in_range", surface.action_ids
-        )
+        self.assertNotIn("combat.individual.shoot_target_in_range", surface.action_ids)
 
     def test_group_actions_require_at_least_two_current_units(self):
         one = EntityContext(own_entities={"1": Unit("MARINE")})
@@ -120,9 +116,7 @@ class ActionExposureTests(unittest.TestCase):
         validator = PolicyValidator(self.catalog, GameConfig())
         action = {"id": "AMove", "args": {"unit": "1", "target": "main"}}
 
-        opening = validator.review(
-            None, [action], context, "opening_tech", surface
-        )
+        opening = validator.review(None, [action], context, "opening_tech", surface)
         unrelated = validator.review(
             None, [action], context, "some_other_tactic_phase", surface
         )
@@ -142,5 +136,7 @@ class ActionExposureTests(unittest.TestCase):
 
         prompt = im_messages("# Observation", [], surface.entries)[-1]["content"]
 
-        self.assertIn("`BuildStructure(base_location: Point, structure_id: UnitType)`", prompt)
+        self.assertIn(
+            "`BuildStructure(base_location: Point, structure_id: UnitType)`", prompt
+        )
         self.assertNotIn("`max_on_route`", prompt)

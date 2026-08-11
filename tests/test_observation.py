@@ -1,14 +1,14 @@
 import unittest
 
-from agents.prompts import (
+from game.observation.builder import ObservationBuilder
+from game.observation.state import TagIdMapper
+from knowledge.loader import ActionCatalog
+from llm.agents.prompts import (
     bm_messages,
     correction_messages,
     im_messages,
     refine_messages,
 )
-from core.observation import ObservationBuilder
-from core.state import TagIdMapper
-from knowledge.loader import ActionCatalog
 
 
 class Point:
@@ -174,7 +174,9 @@ class ObservationTests(unittest.TestCase):
             observation.text,
         )
         self.assertIn("05:11 TechUp status: expired", observation.text)
-        self.assertEqual(observation.text.count("BuildStructure (FACTORY near main)"), 1)
+        self.assertEqual(
+            observation.text.count("BuildStructure (FACTORY near main)"), 1
+        )
 
     def test_persistent_history_uses_active_completed_and_failed_states(self):
         builder = ObservationBuilder(TagIdMapper())
@@ -229,7 +231,9 @@ class ObservationTests(unittest.TestCase):
         )
 
         self.assertIn("[88] Stalker\nStatus: visible; near our main.", observation.text)
-        self.assertIn("[99] Zealot\nStatus: visible; near enemy main.", observation.text)
+        self.assertIn(
+            "[99] Zealot\nStatus: visible; near enemy main.", observation.text
+        )
         self.assertIn(
             "Bases: main (active, ground threat: 1 Stalker).",
             observation.text,
@@ -243,8 +247,12 @@ class ObservationTests(unittest.TestCase):
             bot, iteration=0, _phase="opening_tech"
         )
 
-        self.assertIn("[Empty \u2014 no enemy units are visible now.]", observation.text)
-        self.assertIn("[Empty \u2014 no enemy structures are visible now.]", observation.text)
+        self.assertIn(
+            "[Empty \u2014 no enemy units are visible now.]", observation.text
+        )
+        self.assertIn(
+            "[Empty \u2014 no enemy structures are visible now.]", observation.text
+        )
 
     def test_structure_changes_distinguish_building_from_ready(self):
         bot = Bot()
@@ -287,9 +295,7 @@ class ObservationTests(unittest.TestCase):
             bot, iteration=0, _phase="first_bc_transition"
         )
 
-        self.assertIn(
-            "In production or pending: 1 Battlecruiser.", observation.text
-        )
+        self.assertIn("In production or pending: 1 Battlecruiser.", observation.text)
 
     def test_prompts_use_named_sections_and_give_bm_the_complete_tactic(self):
         tactic = {
@@ -356,7 +362,7 @@ class ObservationTests(unittest.TestCase):
         self.assertIn("Argument types:", prompt)
         self.assertIn("Composition format for `army_composition_dict`:", prompt)
         self.assertIn(
-            '\"BATTLECRUISER\": {\"proportion\": 0.8, \"priority\": 0}',
+            '"BATTLECRUISER": {"proportion": 0.8, "priority": 0}',
             prompt,
         )
         self.assertIn(
@@ -411,7 +417,7 @@ class ObservationTests(unittest.TestCase):
         self.assertEqual(refined[0]["content"], "Previous output was rejected.")
         self.assertIn("<correction_request>", refined[1]["content"])
         self.assertIn("Validation error: actions must be a list", refined[1]["content"])
-        self.assertIn("Required JSON shape: {\"actions\":[]}", refined[1]["content"])
+        self.assertIn('Required JSON shape: {"actions":[]}', refined[1]["content"])
         self.assertNotIn("### Validation Error", refined[1]["content"])
 
     def test_catalog_corrects_verified_ares_documentation_errors(self):

@@ -7,16 +7,17 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from loguru import logger
 from sc2 import maps
 from sc2.data import AIBuild, Difficulty, Race
 from sc2.main import run_game
 from sc2.player import Bot, Computer
-from loguru import logger
 
 sys.path.extend(["ares-sc2/src/ares", "ares-sc2/src", "ares-sc2"])
 
-from bot.main import MyBot
 from config.env import load_environment, require_environment
+from game.bot.main import MyBot
+from knowledge.loader import available_tactics
 
 
 def configure_console_logging() -> None:
@@ -40,10 +41,16 @@ def parse_args() -> argparse.Namespace:
         help="Built-in opponent difficulty.",
     )
     parser.add_argument(
-        "--ai_build",
+        "--build_mode",
         choices=[build.name for build in AIBuild],
         default="RandomBuild",
         help="Built-in opponent build style.",
+    )
+    parser.add_argument(
+        "--tactic",
+        choices=available_tactics(),
+        default="BattleCruiserRush",
+        help="Tactic card used by BM.",
     )
     parser.add_argument("--player_name", default="im_bm_player")
     parser.add_argument("--own_race", choices=["Terran"], default="Terran")
@@ -62,9 +69,9 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    load_environment()
     args = parse_args()
     configure_console_logging()
-    load_environment()
     require_environment(["LLM_IMBM_MODEL", "LLM_IMBM_BASE_URL", "LLM_IMBM_API_KEY"])
     own_race = Race[args.own_race]
     enemy_race = Race[args.enemy_race]
@@ -73,11 +80,13 @@ def main() -> None:
     bot = Bot(
         own_race,
         MyBot(
+            tactic_name=args.tactic,
             enable_bm=args.enable_bm,
             run_metadata={
                 "map_name": args.map_name,
                 "difficulty": args.difficulty,
-                "ai_build": args.ai_build,
+                "build_mode": args.build_mode,
+                "tactic": args.tactic,
                 "player_name": args.player_name,
                 "own_race": args.own_race,
                 "enemy_race": args.enemy_race,
@@ -89,7 +98,7 @@ def main() -> None:
     opponent = Computer(
         enemy_race,
         Difficulty[args.difficulty],
-        ai_build=AIBuild[args.ai_build],
+        ai_build=AIBuild[args.build_mode],
     )
     run_game(
         maps.get(args.map_name),

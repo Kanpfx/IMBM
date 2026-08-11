@@ -2,14 +2,14 @@ import asyncio
 import unittest
 from unittest.mock import AsyncMock, patch
 
-from agents.bm_agent import BMResult
 from config.game import GameConfig
 from config.llm import LLMConfig
-from core.controller import LLMGameController
-from core.observation import Observation
-from core.policy import ActionReview, ValidationIssue
-from runtime.directive import DirectiveStore
-from runtime.resolver import EntityContext
+from game.actions.policy import ActionReview, ValidationIssue
+from game.actions.resolver import EntityContext
+from game.control.controller import LLMGameController
+from game.control.directive import DirectiveStore
+from game.observation.builder import Observation
+from llm.agents.bm_agent import BMResult
 
 
 class FakeTelemetry:
@@ -115,6 +115,38 @@ def observation(iteration):
 
 
 class ControllerBMTests(unittest.IsolatedAsyncioTestCase):
+    async def test_im_chat_prints_a_header_and_one_message_per_action(self):
+        class Bot:
+            def __init__(self):
+                self.messages = []
+
+            async def chat_send(self, message, team_only=False):
+                self.messages.append((message, team_only))
+
+        bot = Bot()
+        action = {
+            "id": "BuildStructure",
+            "args": {"base_location": "main", "structure_id": "BARRACKS"},
+        }
+
+        header = (
+            "[IM iteration=30] t=00:12 M=150 G=0 supply=14/23 "
+            "phase=opening_tech im=4.29s guidance=BM@0"
+        )
+        await LLMGameController._chat_im_decision(bot, header, [action])
+
+        self.assertEqual(
+            bot.messages,
+            [
+                (header, True),
+                (
+                    "actions[0]=BuildStructure(base_location=main, "
+                    "structure_id=BARRACKS)",
+                    True,
+                ),
+            ],
+        )
+
     def test_quick_counts_includes_pending_battlecruiser(self):
         class Bot:
             units = []
@@ -146,7 +178,7 @@ class ControllerBMTests(unittest.IsolatedAsyncioTestCase):
         bm = FlakyBM()
         controller = make_controller(bm)
 
-        with patch("core.controller.asyncio.sleep", new=AsyncMock()):
+        with patch("game.control.controller.asyncio.sleep", new=AsyncMock()):
             await controller._await_first_bm(
                 observation(0), 0, controller.bm_action_entries
             )

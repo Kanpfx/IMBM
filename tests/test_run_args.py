@@ -18,3 +18,27 @@ class RunArgumentTests(unittest.TestCase):
         with patch.object(sys, "argv", ["run.py", "--map_name", "TestMap"]):
             args = parse_args()
             self.assertFalse(args.enable_bm)
+
+    def test_build_mode_and_tactic_are_explicit_arguments(self):
+        with patch.object(
+            sys,
+            "argv",
+            [
+                "run.py",
+                "--map_name",
+                "TestMap",
+                "--build_mode",
+                "Macro",
+                "--tactic",
+                "ThorDrop",
+            ],
+        ):
+            args = parse_args()
+            self.assertEqual(args.build_mode, "Macro")
+            self.assertEqual(args.tactic, "ThorDrop")
+
+    def test_default_tactic_preserves_current_behavior(self):
+        with patch.object(sys, "argv", ["run.py", "--map_name", "TestMap"]):
+            args = parse_args()
+            self.assertEqual(args.build_mode, "RandomBuild")
+            self.assertEqual(args.tactic, "BattleCruiserRush")

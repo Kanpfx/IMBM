@@ -31,6 +31,7 @@
           "python_type": "Unit | UnitID",
           "input": "model",
           "required": true,
+          "options": ["BARRACKS", "FACTORY", "STARPORT"],
           "description": "The structure type we want the addon for."
         },
         {
@@ -39,6 +40,16 @@
           "python_type": "UnitID",
           "input": "model",
           "required": true,
+          "options": [
+            "BARRACKSREACTOR",
+            "BARRACKSTECHLAB",
+            "FACTORYREACTOR",
+            "FACTORYTECHLAB",
+            "REACTOR",
+            "STARPORTREACTOR",
+            "STARPORTTECHLAB",
+            "TECHLAB"
+          ],
           "description": "Type of addon required."
         },
         {
@@ -95,7 +106,7 @@
           "default": null
         }
       ],
-      "llm_exposure": "eligible"
+      "llm_exposure": "disabled"
     },
     {
       "id": "macro.build_structure",
@@ -126,6 +137,48 @@
           "python_type": "UnitID",
           "input": "model",
           "required": true,
+          "options": [
+            "ARMORY",
+            "BANELINGNEST",
+            "BARRACKS",
+            "BUNKER",
+            "COMMANDCENTER",
+            "CYBERNETICSCORE",
+            "DARKSHRINE",
+            "ENGINEERINGBAY",
+            "EVOLUTIONCHAMBER",
+            "FACTORY",
+            "FLEETBEACON",
+            "FORGE",
+            "FUSIONCORE",
+            "GATEWAY",
+            "GHOSTACADEMY",
+            "HATCHERY",
+            "HYDRALISKDEN",
+            "INFESTATIONPIT",
+            "LURKERDENMP",
+            "MISSILETURRET",
+            "NEXUS",
+            "NYDUSCANAL",
+            "NYDUSNETWORK",
+            "PHOTONCANNON",
+            "PYLON",
+            "ROACHWARREN",
+            "ROBOTICSBAY",
+            "ROBOTICSFACILITY",
+            "SENSORTOWER",
+            "SHIELDBATTERY",
+            "SPAWNINGPOOL",
+            "SPINECRAWLER",
+            "SPIRE",
+            "SPORECRAWLER",
+            "STARGATE",
+            "STARPORT",
+            "SUPPLYDEPOT",
+            "TEMPLARARCHIVE",
+            "TWILIGHTCOUNCIL",
+            "ULTRALISKCAVERN"
+          ],
           "description": "The structure type we want to build."
         },
         {
@@ -544,7 +597,7 @@
           "default": 12.0
         }
       ],
-      "llm_exposure": "eligible"
+      "llm_exposure": "disabled"
     },
     {
       "id": "macro.production_controller",
@@ -726,7 +779,7 @@
         "dispatch": "register_behavior"
       },
       "params": [],
-      "llm_exposure": "eligible"
+      "llm_exposure": "disabled"
     },
     {
       "id": "macro.spawn_controller",
@@ -973,6 +1026,7 @@
           "python_type": "UnitID",
           "input": "model",
           "required": true,
+          "options": ["ORBITALCOMMAND", "PLANETARYFORTRESS"],
           "description": "The desired Command Center upgrade: ORBITALCOMMAND or PLANETARYFORTRESS."
         },
         {

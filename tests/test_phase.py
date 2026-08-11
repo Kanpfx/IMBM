@@ -1,12 +1,12 @@
 import unittest
 
-from core.phase import PhaseResolver
-from knowledge.loader import load_battlecruiser_tactic
+from game.control.phase import PhaseResolver
+from knowledge.loader import load_tactic
 
 
 class PhaseResolverTests(unittest.TestCase):
     def test_tactic_phase_ids_match_runtime_phase_ids(self):
-        tactic = load_battlecruiser_tactic()
+        tactic = load_tactic("BattleCruiserRush")
 
         self.assertEqual(
             [phase["id"] for phase in tactic["phases"]],
@@ -47,9 +47,7 @@ class PhaseResolverTests(unittest.TestCase):
 
     def test_unready_bc_technology_does_not_enter_first_bc_phase(self):
         resolver = PhaseResolver()
-        phase = resolver.resolve(
-            {"FACTORY": 1, "FUSIONCORE": 1, "STARPORTTECHLAB": 1}
-        )
+        phase = resolver.resolve({"FACTORY": 1, "FUSIONCORE": 1, "STARPORTTECHLAB": 1})
 
         self.assertEqual(phase.id, "opening_tech")
 
@@ -57,9 +55,7 @@ class PhaseResolverTests(unittest.TestCase):
         resolver = PhaseResolver()
         first = resolver.resolve({})
         repeat = resolver.resolve({})
-        changed = resolver.resolve(
-            {"ready:FUSIONCORE": 1, "ready:STARPORTTECHLAB": 1}
-        )
+        changed = resolver.resolve({"ready:FUSIONCORE": 1, "ready:STARPORTTECHLAB": 1})
         self.assertEqual(first.revision, repeat.revision)
         self.assertEqual(changed.revision, first.revision + 1)
 

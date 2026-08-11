@@ -1,6 +1,6 @@
 import unittest
 
-from tools.llm_client import LLMClient
+from llm.client import LLMClient
 
 
 class LLMClientTests(unittest.TestCase):

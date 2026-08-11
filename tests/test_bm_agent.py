@@ -1,8 +1,8 @@
 import unittest
 
-from agents.bm_agent import BMAgent
-from agents.prompts import BM_ROLE
 from config.llm import LLMConfig
+from llm.agents.bm_agent import BMAgent
+from llm.agents.prompts import BM_ROLE
 
 
 class FakeLLMClient:

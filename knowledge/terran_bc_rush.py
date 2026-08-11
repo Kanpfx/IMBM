@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 KEY_STRUCTURE_NAMES = {
     "COMMANDCENTER",
     "ORBITALCOMMAND",
@@ -12,4 +11,3 @@ KEY_STRUCTURE_NAMES = {
     "BARRACKS",
 }
 KEY_UNIT_NAMES = {"BATTLECRUISER", "MARINE", "SCV"}
-

@@ -38,6 +38,7 @@
 - `params[].input = "model"`：由模型提供；当前提示只展示必要参数。
 - `params[].input = "runtime"`：由适配器注入，模型不可填写。
 - `params[].input = "derived"`：由组合器、编组单位或 Behavior 内部状态推导，模型不可填写。
+- `params[].options`：从固定 Ares 版本源码整理出的静态可选值；当前仅作目录元数据，不进入 Prompt、动作面或运行时校验。
 - `params[].via_kwargs = true`：该参数由 `ManagerMediator` 的 `**kwargs` 接收，名称和含义来自 v3.9.6 API 文档。
 - `tags`：用于按战斗、科技、资源、生产等类别部分加载动作。
 - `availability.param`：指向动作发出者参数；由 Behavior 内部选择时为 `null`。

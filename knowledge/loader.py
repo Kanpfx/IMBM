@@ -7,12 +7,14 @@ import os
 from pathlib import Path
 from typing import Any
 
-from core.action_errors import ActionNameError
+from game.actions.errors import ActionNameError
 
 
 def normalize_catalog_name(value: str) -> str:
     """Apply small, deterministic case/separator tolerance to catalog names."""
-    return "".join(character for character in value.strip().casefold() if character.isalnum())
+    return "".join(
+        character for character in value.strip().casefold() if character.isalnum()
+    )
 
 
 def catalog_root() -> Path:
@@ -56,8 +58,10 @@ class ActionCatalog:
     @staticmethod
     def _validate_entry(entry: dict[str, Any]) -> None:
         tags = entry.get("tags")
-        if not isinstance(tags, list) or not tags or not all(
-            isinstance(tag, str) and tag for tag in tags
+        if (
+            not isinstance(tags, list)
+            or not tags
+            or not all(isinstance(tag, str) and tag for tag in tags)
         ):
             raise ValueError(f"{entry.get('id')} must define non-empty tags")
 
@@ -69,13 +73,9 @@ class ActionCatalog:
             raise ValueError(f"{entry.get('id')} has invalid availability")
         actor_types = availability["types"]
         if not isinstance(actor_types, list) or not actor_types:
-            raise ValueError(
-                f"{entry.get('id')} availability.types must be non-empty"
-            )
+            raise ValueError(f"{entry.get('id')} availability.types must be non-empty")
         if "ALL" in actor_types and actor_types != ["ALL"]:
-            raise ValueError(
-                f"{entry.get('id')} availability ALL must be used alone"
-            )
+            raise ValueError(f"{entry.get('id')} availability ALL must be used alone")
 
         actor_param = availability["param"]
         if actor_param is not None and actor_param not in {
@@ -116,6 +116,16 @@ class ActionCatalog:
         ]
 
 
-def load_battlecruiser_tactic() -> dict[str, Any]:
-    path = catalog_root() / "llm_tactic_catalog" / "BattleCruiserRush.json"
+def available_tactics() -> tuple[str, ...]:
+    """Return tactic names available in the configured knowledge catalog."""
+    root = catalog_root() / "llm_tactic_catalog"
+    return tuple(sorted(path.stem for path in root.glob("*.json")))
+
+
+def load_tactic(name: str) -> dict[str, Any]:
+    """Load one tactic card by its exact catalog name."""
+    tactics = available_tactics()
+    if name not in tactics:
+        raise ValueError(f"Unknown tactic {name!r}; expected one of {list(tactics)}")
+    path = catalog_root() / "llm_tactic_catalog" / f"{name}.json"
     return json.loads(path.read_text(encoding="utf-8"))

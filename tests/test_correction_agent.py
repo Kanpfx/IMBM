@@ -1,7 +1,7 @@
 import unittest
 
-from agents.correction_agent import CorrectionAgent
 from config.llm import LLMConfig
+from llm.agents.correction_agent import CorrectionAgent
 
 
 class FakeLLMClient:
@@ -43,9 +43,7 @@ class CorrectionAgentTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("reply", telemetry.events[0][1])
 
     async def test_correction_agent_discards_cross_action_replacements(self):
-        client = FakeLLMClient(
-            '{"actions":[{"id":"ProductionController","args":{}}]}'
-        )
+        client = FakeLLMClient('{"actions":[{"id":"ProductionController","args":{}}]}')
         agent = CorrectionAgent(LLMConfig(), client)
         telemetry = FakeTelemetry()
 

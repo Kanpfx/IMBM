@@ -1,8 +1,8 @@
 import unittest
 
-from agents.im_agent import IMAgent
 from config.llm import LLMConfig
-from core.action_errors import OutputFormatError
+from game.actions.errors import OutputFormatError
+from llm.agents.im_agent import IMAgent
 
 
 class FakeLLMClient:
