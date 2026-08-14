@@ -99,10 +99,8 @@ class MyBot(AresBot):
         result_name = getattr(game_result, "name", str(game_result))
         return {
             "result": result_name,
-            "victory": result_name == Result.Victory.name,
             "final_iteration": self._last_iteration,
             "game_time_seconds": round(float(getattr(self, "time", 0.0)), 1),
-            "game_time_formatted": getattr(self, "time_formatted", "00:00"),
             "final_resources": {
                 "minerals": int(getattr(self, "minerals", 0)),
                 "vespene": int(getattr(self, "vespene", 0)),

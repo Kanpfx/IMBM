@@ -16,6 +16,15 @@ from game.actions.resolver import EntityContext
 from knowledge.loader import ActionCatalog
 
 
+# Common multiplayer names can otherwise resolve to unrelated campaign enums.
+UPGRADE_NAME_ALIASES = {
+    "combatshield": "shieldwall",
+    "combatshields": "shieldwall",
+    "concussiveshell": "punishergrenades",
+    "concussiveshells": "punishergrenades",
+}
+
+
 class AresActionAdapter:
     def __init__(self, catalog: ActionCatalog):
         self.catalog = catalog
@@ -169,9 +178,22 @@ class AresActionAdapter:
         if type_name == "upgrade_ids":
             if not isinstance(value, list) or not value:
                 raise ResolveError.format(name, "a non-empty upgrade name list")
+            from sc2.dicts.upgrade_researched_from import UPGRADE_RESEARCHED_FROM
             from sc2.ids.upgrade_id import UpgradeId
 
-            return [self._resolve_enum(UpgradeId, item, name) for item in value]
+            upgrades = [self._resolve_enum(UpgradeId, item, name) for item in value]
+            unsupported = [
+                upgrade.name
+                for upgrade in upgrades
+                if upgrade not in UPGRADE_RESEARCHED_FROM
+            ]
+            if unsupported:
+                raise ResolveError.invalid_value(
+                    name,
+                    unsupported,
+                    "upgrade names supported by Ares UpgradeController",
+                )
+            return upgrades
         if type_name == "unit_role":
             from ares.consts import UnitRole
 
@@ -187,6 +209,8 @@ class AresActionAdapter:
         normalized = "".join(
             character for character in value.strip().casefold() if character.isalnum()
         )
+        if enum_type.__name__ == "UpgradeId":
+            normalized = UPGRADE_NAME_ALIASES.get(normalized, normalized)
         for member_name, member in enum_type.__members__.items():
             candidate = "".join(
                 character for character in member_name.casefold() if character.isalnum()

@@ -14,10 +14,10 @@ class FakeLLMClient:
 
 class FakeTelemetry:
     def __init__(self):
-        self.events = []
+        self.corrections = []
 
-    def event(self, name, **fields):
-        self.events.append((name, fields))
+    def correction_conversation(self, **fields):
+        self.corrections.append(fields)
 
 
 class CorrectionAgentTests(unittest.IsolatedAsyncioTestCase):
@@ -26,21 +26,26 @@ class CorrectionAgentTests(unittest.IsolatedAsyncioTestCase):
         telemetry = FakeTelemetry()
 
         actions = await agent.run(
-            "# Observation\n[Empty]",
+            "# Observation\n[None]",
             ["Start air technology."],
             [],
             [{"id": "UnknownAction", "args": {}}],
             ["Action 1: unknown action id: UnknownAction"],
             trace=telemetry,
             iteration=20,
+            attempt=2,
         )
 
         self.assertEqual(actions, [])
-        self.assertEqual(telemetry.events[0][0], "im_correction")
-        self.assertEqual(telemetry.events[0][1]["iteration"], 20)
-        self.assertTrue(telemetry.events[0][1]["valid"])
-        self.assertIn("request", telemetry.events[0][1])
-        self.assertIn("reply", telemetry.events[0][1])
+        correction = telemetry.corrections[0]
+        self.assertEqual(correction["iteration"], 20)
+        self.assertEqual(correction["attempt"], 2)
+        self.assertTrue(correction["valid"])
+        self.assertIn("request", correction)
+        self.assertIn("reply", correction)
+        self.assertIn("**Validation error:**", correction["request"][-1]["content"])
+        self.assertNotIn("validation_errors", correction)
+        self.assertNotIn("rejected_actions", correction)
 
     async def test_correction_agent_discards_cross_action_replacements(self):
         client = FakeLLMClient('{"actions":[{"id":"ProductionController","args":{}}]}')
@@ -48,7 +53,7 @@ class CorrectionAgentTests(unittest.IsolatedAsyncioTestCase):
         telemetry = FakeTelemetry()
 
         actions = await agent.run(
-            "# Observation\n[Empty]",
+            "# Observation\n[None]",
             [],
             [],
             [{"id": "Mining", "args": {}}],
@@ -59,7 +64,7 @@ class CorrectionAgentTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(actions, [])
         self.assertEqual(
-            telemetry.events[0][1]["discarded_actions"],
+            telemetry.corrections[0]["discarded_actions"],
             [{"id": "ProductionController", "args": {}}],
         )
 
@@ -70,7 +75,7 @@ class CorrectionAgentTests(unittest.IsolatedAsyncioTestCase):
         agent = CorrectionAgent(LLMConfig(), client)
 
         actions = await agent.run(
-            "# Observation\n[Empty]",
+            "# Observation\n[None]",
             [],
             [],
             [{"id": "BuildStructure", "args": {}}],

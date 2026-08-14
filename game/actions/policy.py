@@ -62,11 +62,10 @@ class PolicyValidator:
         bot: Any,
         actions: list[dict[str, Any]],
         context: EntityContext,
-        phase: str,
         surface: ActionSurface | None = None,
     ) -> tuple[bool, str]:
         """Compatibility wrapper for callers that need all-or-nothing status."""
-        review = self.review(bot, actions, context, phase, surface)
+        review = self.review(bot, actions, context, surface)
         return review.accepted, review.message
 
     def review(
@@ -74,7 +73,6 @@ class PolicyValidator:
         bot: Any,
         actions: list[dict[str, Any]],
         context: EntityContext,
-        phase: str,
         surface: ActionSurface | None = None,
     ) -> ActionReview:
         """Keep valid actions and report repairable failures individually.
@@ -130,7 +128,7 @@ class PolicyValidator:
                     raise ActionNameError.disabled(action_id)
 
                 normalized, notes = self._normalize_action(
-                    entry, current_action, bot, phase, context
+                    entry, current_action, bot, context
                 )
                 if surface is not None:
                     surface.validate(entry, normalized["args"])
@@ -179,7 +177,6 @@ class PolicyValidator:
         entry: dict[str, Any],
         action: dict[str, Any],
         bot: Any,
-        _phase: str,
         context: EntityContext,
     ) -> tuple[dict[str, Any], list[str]]:
         """Apply only lossless, local corrections before validation."""
@@ -195,8 +192,8 @@ class PolicyValidator:
             notes.append(f"normalized action name to {entry['name']!r}")
         # ``TECHLAB`` is a common human/LLM shorthand, but it is an abstract
         # UnitTypeId which Ares' TechUp cannot look up in its technology table.
-        # BC Rush has exactly one intended addon at this point: a Starport Tech
-        # Lab. Normalize only in the two phases where that intent is unambiguous.
+        # Normalize the concrete SC2 enum spelling without consulting a tactic
+        # or phase; action validation is deliberately strategy-agnostic.
         if (
             entry["id"] == "macro.tech_up"
             and normalized["args"].get("desired_tech") == "STARPORT_TECHLAB"

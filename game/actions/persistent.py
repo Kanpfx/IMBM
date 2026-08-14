@@ -28,6 +28,12 @@ PERSISTENT_ACTION_IDS = {
     "combat.group.path_group_to_target",
     "combat.group.stutter_group_back",
     "combat.group.stutter_group_forward",
+    "macro.expansion_controller",
+    "macro.gas_building_controller",
+    "macro.production_controller",
+    "macro.spawn_controller",
+    "macro.upgrade_c_cs",
+    "macro.upgrade_controller",
 }
 
 

@@ -1,12 +1,16 @@
 import json
+import io
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from sc2.data import Result
 
 from game.bot.main import MyBot
 from llm.telemetry import Telemetry
+from run import mirror_console
 
 
 class TelemetryTests(unittest.TestCase):
@@ -24,14 +28,26 @@ class TelemetryTests(unittest.TestCase):
                 "obs.jsonl",
                 "im.jsonl",
                 "bm.jsonl",
+                "correction.jsonl",
                 "accepted_actions.jsonl",
                 "events.jsonl",
             ):
                 self.assertTrue((telemetry.directory / filename).is_file())
 
-            telemetry.observation(iteration=10, resources={"minerals": 50})
+            telemetry.observation(iteration=10, observation="state")
             row = json.loads((telemetry.directory / "obs.jsonl").read_text("utf-8"))
             self.assertEqual(row["iteration"], 10)
+            telemetry.correction_conversation(
+                iteration=10,
+                attempt=1,
+                request=[{"role": "user", "content": "repair"}],
+                reply='{"actions":[]}',
+                valid=True,
+            )
+            correction = json.loads(
+                (telemetry.directory / "correction.jsonl").read_text("utf-8")
+            )
+            self.assertEqual(correction["attempt"], 1)
 
     def test_match_result_updates_metadata_without_touching_jsonl(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -39,16 +55,37 @@ class TelemetryTests(unittest.TestCase):
             accepted_path = telemetry.directory / "accepted_actions.jsonl"
             original_actions = accepted_path.read_text("utf-8")
 
-            telemetry.update_metadata(result="Victory", victory=True)
+            telemetry.update_metadata(result="Victory", game_time_seconds=480.0)
 
             metadata = json.loads(
                 (telemetry.directory / "metadata.json").read_text("utf-8")
             )
             self.assertEqual(
                 metadata,
-                {"model": "test", "result": "Victory", "victory": True},
+                {
+                    "model": "test",
+                    "result": "Victory",
+                    "game_time_seconds": 480.0,
+                },
             )
             self.assertEqual(accepted_path.read_text("utf-8"), original_actions)
+
+    def test_console_log_mirrors_stdout_and_stderr_verbatim(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "console.log"
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with patch.object(sys, "stdout", stdout), patch.object(
+                sys, "stderr", stderr
+            ), mirror_console(path):
+                print("standard output")
+                sys.stderr.write("standard error\n")
+
+            self.assertEqual(stdout.getvalue(), "standard output\n")
+            self.assertEqual(stderr.getvalue(), "standard error\n")
+            self.assertEqual(
+                path.read_text("utf-8"), "standard output\nstandard error\n"
+            )
 
     def test_bot_result_metadata_contains_basic_match_summary(self):
         score = type(
@@ -82,8 +119,9 @@ class TelemetryTests(unittest.TestCase):
         metadata = MyBot._result_metadata(bot, Result.Victory)
 
         self.assertEqual(metadata["result"], "Victory")
-        self.assertTrue(metadata["victory"])
         self.assertEqual(metadata["final_iteration"], 900)
-        self.assertEqual(metadata["game_time_formatted"], "08:00")
+        self.assertEqual(metadata["game_time_seconds"], 480.2)
+        self.assertNotIn("victory", metadata)
+        self.assertNotIn("game_time_formatted", metadata)
         self.assertEqual(metadata["final_resources"]["workers"], 52)
         self.assertEqual(metadata["score"]["collected_vespene"], 600)

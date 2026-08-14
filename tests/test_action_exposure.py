@@ -104,7 +104,7 @@ class ActionExposureTests(unittest.TestCase):
             self.exposure.build(object(), two).action_ids,
         )
 
-    def test_policy_acceptance_no_longer_depends_on_phase(self):
+    def test_policy_acceptance_has_no_phase_input(self):
         point = type("Point", (), {"x": 1, "y": 1})()
         unit = Unit("SCV")
         unit.tag = 1
@@ -116,13 +116,9 @@ class ActionExposureTests(unittest.TestCase):
         validator = PolicyValidator(self.catalog, GameConfig())
         action = {"id": "AMove", "args": {"unit": "1", "target": "main"}}
 
-        opening = validator.review(None, [action], context, "opening_tech", surface)
-        unrelated = validator.review(
-            None, [action], context, "some_other_tactic_phase", surface
-        )
+        review = validator.review(None, [action], context, surface)
 
-        self.assertTrue(opening.accepted, opening.message)
-        self.assertTrue(unrelated.accepted, unrelated.message)
+        self.assertTrue(review.accepted, review.message)
 
     def test_prompt_still_exposes_required_parameters_only(self):
         context = EntityContext(
@@ -140,3 +136,42 @@ class ActionExposureTests(unittest.TestCase):
             "`BuildStructure(base_location: Point, structure_id: UnitType)`", prompt
         )
         self.assertNotIn("`max_on_route`", prompt)
+
+    def test_prompt_lists_live_candidates_once_in_argument_types(self):
+        context = EntityContext(
+            own_entities={
+                "497": Unit("SCV"),
+                "641": Unit("SCV"),
+                "12": Unit("MARINE"),
+                "353": Unit("COMMANDCENTER", is_structure=True),
+            },
+            enemy_entities={"99": Unit("ZERGLING")},
+            positions={"main": object(), "enemy_main": object()},
+            grids={"ground": object(), "air": object()},
+        )
+        surface = self.exposure.build(object(), context)
+
+        prompt = im_messages("# Observation", [], surface.entries)[-1]["content"]
+
+        self.assertIn(
+            "- `Unit`: One unit or structure ID from the current observation.\n"
+            "  - Allowed values: `COMMANDCENTER[353]`; `MARINE[12]`; "
+            "`SCV[497,641]`; `enemy ZERGLING[99]`.",
+            prompt,
+        )
+        self.assertIn("- `Grid`:", prompt)
+        self.assertIn("  - Allowed values: `air`, `ground`.", prompt)
+        self.assertEqual(prompt.count("SCV[497,641]"), 1)
+        self.assertIn("<argument_types>", prompt)
+        self.assertIn("</argument_types>", prompt)
+        self.assertIn("<available_actions>", prompt)
+        self.assertIn("</available_actions>", prompt)
+        self.assertNotIn("<action_reference>", prompt)
+        self.assertNotIn("Argument types:", prompt)
+        self.assertNotIn("Available actions:", prompt)
+        self.assertNotIn("Availability [", prompt)
+        self.assertNotIn("Current actors:", prompt)
+        self.assertNotIn("Current group candidates:", prompt)
+        self.assertNotIn(
+            "  - `unit` (Unit): The unit that will attack-move. Allowed:", prompt
+        )

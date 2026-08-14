@@ -5,7 +5,7 @@
     "Keep Battlecruisers as the core army and Marines as support, developing toward roughly 80% Battlecruisers and 20% Marines.",
     "Prioritize Battlecruiser tech and sustained Battlecruiser production over nonessential spending.",
     "Preserve Battlecruisers and avoid unnecessary losses or unfavorable trades.",
-    "After the first Battlecruiser enters production, expand one base at a time and do not exceed four total bases."
+    "After the first Battlecruiser enters production, expand one base at a time; do not exceed four total bases, 90 workers, or four Starports with Tech Labs."
   ],
   "phases": [
     {
@@ -66,15 +66,14 @@
       "goal": "Apply continuous Battlecruiser-led pressure while scaling economy, production, and army strength.",
       "guidance": [
         "Start pressure as soon as the first Battlecruiser is ready rather than waiting for a large army.",
-        "Keep Battlecruisers as the main force and Marines as support, developing toward roughly 80% Battlecruisers and 20% Marines.",
-        "Continue Battlecruiser production while adding SCVs, Refineries, supply, production capacity, and expansions up to four total bases as resources allow.",
-        "Move Marines from main-base defense into offensive support after the first Battlecruiser is ready.",
-        "Prioritize significant enemy army concentrations when they present a useful engagement; otherwise pressure known enemy structures.",
-        "If no useful enemy target is known, pressure the enemy starting area, then search likely expansion locations.",
-        "Avoid concentrated anti-air threats and unsafe routes when possible.",
-        "Use Tactical Jump for long-distance engagement or repositioning, preferably to a safe position near the attack target.",
-        "Retreat badly damaged Battlecruisers, especially below roughly 225 health, rather than losing them unnecessarily.",
-        "Prioritize sustained Battlecruiser production over excessive expansion or Marine production."
+        "Keep Battlecruisers as the main force and Marines as offensive support, developing toward roughly 80% Battlecruisers and 20% Marines.",
+        "Prioritize continuous Battlecruiser production and limited Marine support when spending accumulated resources.",
+        "Add SCVs, Refineries, supply, production capacity, and expansions only as needed to sustain the army.",
+        "Do not exceed 90 workers, four total bases, or four Starports with Tech Labs; stop requesting additional growth after reaching each cap.",
+        "Avoid unrelated technology, upgrades, or static defense unless needed against a visible threat.",
+        "Prioritize significant enemy army concentrations when favorable; otherwise pressure known structures, the enemy starting area, and then likely expansions.",
+        "Avoid concentrated anti-air and unsafe routes; use Tactical Jump for long-distance engagement or safe repositioning near the target.",
+        "Retreat badly damaged Battlecruisers, especially below roughly 225 health, rather than losing them unnecessarily."
       ]
     }
   ]

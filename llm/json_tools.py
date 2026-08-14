@@ -37,17 +37,9 @@ def parse_json_object(text: str) -> dict[str, Any]:
 def parse_im_payload(text: str) -> dict[str, Any]:
     """Extract and validate the exact top-level object required from IM."""
     for payload in _json_objects(text):
-        if not {"actions", "request_background", "background_reason"}.issubset(payload):
+        if "actions" not in payload:
             continue
         if not isinstance(payload["actions"], list):
             raise OutputFormatError.field_type("actions", "a JSON list")
-        if not isinstance(payload["request_background"], bool):
-            raise OutputFormatError.field_type("request_background", "a JSON boolean")
-        if not isinstance(payload["background_reason"], str):
-            raise OutputFormatError.field_type("background_reason", "a JSON string")
-        return {
-            "actions": payload["actions"],
-            "request_background": payload["request_background"],
-            "background_reason": payload["background_reason"].strip(),
-        }
+        return {"actions": payload["actions"]}
     raise OutputFormatError.standard_json_required()

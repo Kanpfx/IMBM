@@ -5,88 +5,86 @@ from __future__ import annotations
 from typing import Any
 
 
+def _indent(content: str) -> str:
+    """Indent non-empty lines by one XML nesting level."""
+    return "\n".join(f"  {line}" if line else "" for line in content.splitlines())
+
+
 def _tag(name: str, content: str | list[str]) -> str:
     """Wrap one observation domain in a stable XML-like semantic tag."""
     if isinstance(content, list):
-        body = "\n\n".join(content) if content else "[Empty]"
+        body = "\n\n".join(content) if content else "[None]"
     else:
-        body = content or "[Empty]"
-    return f"<{name}>\n{body}\n</{name}>"
+        body = content or "[None]"
+    return f"<{name}>\n{_indent(body)}\n</{name}>"
 
 
-def _subsection(label: str, content: str | list[str], *, empty: str = "[Empty]") -> str:
+def _section(name: str, content: str | list[str], *, empty: str = "[None]") -> str:
     if isinstance(content, list):
-        body = "\n\n".join(content) if content else empty
-    else:
-        body = content or empty
-    return f"## {label}\n{body}"
+        content = "\n\n".join(content) if content else empty
+    return _tag(name, content or empty)
 
 
 def observation_text(data: dict[str, Any]) -> str:
     """Render the single factual observation read by both BM and IM."""
-
-    game_state = "\n".join(
-        (
-            f"Time: {data['time']}",
-            f"Race: Terran (you) vs {data['enemy_race']} (enemy).",
-            (
-                f"Resources: {data['minerals']} minerals, {data['vespene']} vespene, "
-                f"supply {data['supply_used']}/{data['supply_cap']} "
-                f"({data['supply_free']} free)."
-            ),
-            f"Units: army {data['army_supply']}, workers {data['workers']}.",
+    hint_sections = data["situational_hints"]
+    situation_alerts = (
+        "\n\n".join(
+            _section(
+                {
+                    "Combat": "combat",
+                    "Economy and operations": "economy_and_operations",
+                }[category],
+                "\n".join(f"- {item}" for item in items),
+            )
+            for category, items in hint_sections.items()
         )
-    )
-    economy = "\n".join(
-        (
-            f"Bases: {data['base_overview']}.",
-            (
-                f"Workers: {data['workers']} total — "
-                f"{data['workers_on_minerals']} mining minerals, "
-                f"{data['workers_on_gas']} mining gas, "
-                f"{data['idle_workers']} idle."
-            ),
-            f"Supply status: {data['supply_status']}.",
-        )
+        if hint_sections
+        else "[None]"
     )
     overview = "\n\n".join(
         (
-            _subsection("Game state", game_state),
-            _subsection("Economy", economy),
-            _subsection("Production and technology", data["production_and_technology"]),
+            _section("match", data["overview"]["match"]),
+            _section("resources_and_supply", data["overview"]["resources"]),
+            _section("economy", data["overview"]["economy"]),
+            _section("military_summary", data["overview"]["military"]),
+            _section("situation_alerts", situation_alerts),
         )
     )
-    own_forces = "\n\n".join(
+    technology = "\n".join(data["production_and_technology"])
+    own_state = "\n\n".join(
         (
-            _subsection("Units", data["own_unit_blocks"]),
-            _subsection("Structures", data["own_structure_blocks"]),
+            _section("units", data["own_unit_blocks"]),
+            _section("structures", data["own_structure_blocks"]),
+            _section("production_and_technology", technology),
         )
     )
-    visible_enemy = "\n\n".join(
+    enemy_state = "\n\n".join(
         (
-            _subsection(
-                "Units",
+            _section(
+                "visible_units",
                 data["enemy_unit_blocks"],
-                empty="[Empty \u2014 no enemy units are visible now.]",
+                empty="[None visible]",
             ),
-            _subsection(
-                "Structures",
+            _section(
+                "known_structures",
                 data["enemy_structure_blocks"],
-                empty="[Empty \u2014 no enemy structures are visible now.]",
+                empty="[None known]",
             ),
+            _section("last_known_units", data["last_known_enemy_blocks"]),
         )
     )
     recent_history = "\n\n".join(
         (
-            _subsection("Recent changes", data["recent_changes"]),
-            _subsection("Action history", data["action_history"]),
+            _section("state_changes", data["recent_changes"]),
+            _section("action_history", "\n".join(data["action_history"])),
         )
     )
     return "\n\n".join(
         (
             _tag("overview", overview),
-            _tag("own_forces", own_forces),
-            _tag("visible_enemy", visible_enemy),
+            _tag("own_state", own_state),
+            _tag("enemy_state", enemy_state),
             _tag("recent_history", recent_history),
         )
     )

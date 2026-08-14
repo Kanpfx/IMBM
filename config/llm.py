@@ -12,7 +12,7 @@ class LLMConfig:
     base_url: str = ""
     api_key: str = ""
     temperature: float = 0.1
-    max_tokens: int = 900
+    max_tokens: int = 2048
     timeout_s: float = 20.0
     transport_retries: int = 2
     max_refines: int = 2

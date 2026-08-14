@@ -19,8 +19,6 @@ Verifier = Callable[[list[dict[str, Any]]], tuple[bool, str]]
 @dataclass(frozen=True)
 class IMResult:
     actions: list[dict[str, Any]]
-    request_background: bool
-    background_reason: str
 
 
 class IMAgent(BaseAgent):
@@ -46,33 +44,26 @@ class IMAgent(BaseAgent):
             if not accepted:
                 raise InstructionError(
                     "verification failed",
-                    error or "the IM action list did not pass verification",
+                    error or "the submitted action list did not pass verification",
                 )
             if trace is not None:
                 trace.im_conversation(
                     iteration=iteration,
-                    attempt=0,
                     request=request_messages,
                     reply=response,
                     valid=True,
-                    validation=error,
                     actions=actions,
                     latency_ms=round((perf_counter() - started_at) * 1000),
                 )
-            return IMResult(
-                actions,
-                payload["request_background"],
-                payload["background_reason"],
-            )
+            return IMResult(actions)
         except Exception as exc:
             if trace is not None:
                 trace.im_conversation(
                     iteration=iteration,
-                    attempt=0,
                     request=request_messages,
                     reply=response,
                     valid=False,
-                    validation=str(exc),
+                    error=str(exc),
                     actions=actions,
                     latency_ms=round((perf_counter() - started_at) * 1000),
                 )

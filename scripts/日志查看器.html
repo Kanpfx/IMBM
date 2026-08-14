@@ -5,58 +5,263 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>IMBM 日志查看器</title>
   <style>
-    :root { --page:#f5f7fb; --card:#fff; --ink:#182235; --muted:#667085; --line:#dce3ef; --blue:#175cd3; --purple:#6938ef; --green:#027a48; --red:#b42318; --code:#101828; }
+    :root {
+      --page:#f4f7fb; --card:rgba(255,255,255,.92); --ink:#172033; --muted:#667085;
+      --line:#dfe6f0; --line-strong:#cdd7e6; --blue:#175cd3; --blue-soft:#eef4ff;
+      --purple:#6938ef; --green:#027a48; --orange:#b54708; --code:#0f172a;
+      --shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.045);
+    }
     * { box-sizing:border-box; }
-    body { margin:0; background:var(--page); color:var(--ink); font:14px/1.55 Inter,"Segoe UI",Arial,sans-serif; }
-    main { max-width:1280px; margin:auto; padding:30px 20px 56px; }
-    h1 { margin:0; font-size:27px; letter-spacing:-.5px; }
-    h2 { margin:0; font-size:16px; }
+    html { color-scheme:light; }
+    body {
+      margin:0; color:var(--ink); font:14px/1.55 Inter,"Segoe UI",Arial,sans-serif;
+      background:
+        radial-gradient(circle at 12% -8%,rgba(23,92,211,.08),transparent 28rem),
+        radial-gradient(circle at 92% 4%,rgba(105,56,239,.055),transparent 24rem),
+        var(--page);
+      min-height:100vh;
+    }
+    main { max-width:1360px; margin:auto; padding:34px 22px 64px; }
+    h1 { margin:0; font-size:28px; line-height:1.2; letter-spacing:-.65px; }
+    h2 { margin:0; font-size:15px; letter-spacing:-.1px; }
     p { margin:0; }
-    .sub { color:var(--muted); margin:4px 0 20px; }
-    .toolbar,.card { background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:0 1px 2px #10182808; }
-    .toolbar { padding:16px; display:grid; gap:12px; }
+    code { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:.92em; }
+
+    .page-header { display:flex; justify-content:space-between; align-items:flex-end; gap:24px; margin-bottom:20px; }
+    .eyebrow { display:flex; align-items:center; gap:7px; margin-bottom:7px; color:#52627a; font-size:11px; font-weight:700; letter-spacing:.9px; }
+    .eyebrow .dot { width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 4px rgba(2,122,72,.09); }
+    .sub { color:var(--muted); margin-top:6px; }
+    .sub code { padding:2px 6px; border:1px solid #dce5f1; border-radius:5px; background:rgba(255,255,255,.72); color:#344054; }
+    .privacy-badge { flex:none; color:#475467; background:rgba(255,255,255,.72); border:1px solid var(--line); border-radius:999px; padding:6px 10px; font-size:12px; box-shadow:0 1px 2px rgba(16,24,40,.03); }
+
+    .toolbar,.card,details,.metric { background:var(--card); border:1px solid var(--line); box-shadow:var(--shadow); backdrop-filter:blur(10px); }
+    .toolbar { padding:15px; display:grid; gap:13px; border-radius:14px; }
     .controls { display:flex; flex-wrap:wrap; align-items:center; gap:9px; }
-    button,.file-label { border:1px solid #b7c5df; border-radius:7px; background:#fff; color:#182235; padding:7px 11px; font:inherit; cursor:pointer; }
-    button.primary { background:var(--blue); border-color:var(--blue); color:#fff; }
-    button:disabled { cursor:not-allowed; opacity:.45; }
+    button,.file-label {
+      appearance:none; border:1px solid var(--line-strong); border-radius:8px; background:#fff; color:#243047;
+      padding:8px 12px; font:600 13px/1.2 inherit; cursor:pointer; transition:border-color .15s ease,box-shadow .15s ease,transform .15s ease,background .15s ease;
+    }
+    button:hover:not(:disabled),.file-label:hover { border-color:#9eb2d0; background:#fbfcff; box-shadow:0 2px 7px rgba(16,24,40,.07); }
+    button:active:not(:disabled),.file-label:active { transform:translateY(1px); }
+    button:focus-visible,.file-label:focus-visible,input[type=range]:focus-visible { outline:3px solid rgba(23,92,211,.16); outline-offset:2px; }
+    button.primary { background:linear-gradient(180deg,#2168dc,#175cd3); border-color:#175cd3; color:#fff; box-shadow:0 2px 5px rgba(23,92,211,.22); }
+    button.primary:hover:not(:disabled) { background:linear-gradient(180deg,#2a70e5,#175cd3); border-color:#175cd3; box-shadow:0 4px 10px rgba(23,92,211,.24); }
+    button:disabled { cursor:not-allowed; opacity:.42; box-shadow:none; }
     input[type=file] { display:none; }
-    input[type=range] { width:100%; accent-color:var(--blue); }
-    .tick-row { display:grid; grid-template-columns:92px 1fr 120px; gap:12px; align-items:center; }
-    .tick { font-variant-numeric:tabular-nums; color:var(--blue); font-weight:700; }
-    .status { color:var(--muted); min-height:22px; }
-    .summary { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin:16px 0; }
-    .metric { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:11px 13px; min-width:0; }
-    .metric b { display:block; font-size:18px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .metric span { color:var(--muted); font-size:12px; }
+    input[type=range] { width:100%; accent-color:var(--blue); cursor:pointer; }
+    input[type=range]:disabled { cursor:not-allowed; }
+    .tick-row { display:grid; grid-template-columns:104px minmax(180px,1fr) 190px; gap:14px; align-items:center; padding-top:1px; }
+    .tick { font-variant-numeric:tabular-nums; color:var(--blue); font-weight:750; letter-spacing:-.1px; }
+    .status { color:var(--muted); min-height:22px; text-align:right; font-size:12px; font-variant-numeric:tabular-nums; }
+
+    .summary { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; margin:16px 0; }
+    .metric { border-radius:12px; padding:12px 14px 11px; min-width:0; position:relative; overflow:hidden; }
+    .metric.opponent { grid-column:span 2; }
+    .metric::before { content:""; position:absolute; left:0; top:0; width:3px; height:100%; background:#d9e6fb; }
+    .metric b { display:block; font-size:17px; line-height:1.35; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-variant-numeric:tabular-nums; }
+    .metric span { display:block; margin-top:2px; color:var(--muted); font-size:11.5px; }
+
     .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-    .card { overflow:hidden; min-width:0; }
-    .head { display:flex; align-items:center; gap:8px; padding:12px 14px; border-bottom:1px solid var(--line); }
-    .tag { color:#fff; border-radius:99px; padding:2px 8px; font-size:11px; font-weight:700; letter-spacing:.4px; }
-    .im { background:var(--purple); } .bm { background:#0b6e99; } .ok { background:var(--green); } .event { background:#7a5af8; }
-    .body { padding:13px 14px; }
+    .card { overflow:hidden; min-width:0; border-radius:14px; }
+    .head { display:flex; align-items:center; gap:9px; min-height:46px; padding:11px 14px; border-bottom:1px solid var(--line); background:linear-gradient(180deg,rgba(248,250,252,.85),rgba(255,255,255,.45)); }
+    .tag { color:#fff; border-radius:999px; padding:3px 8px; font-size:10px; line-height:1.35; font-weight:800; letter-spacing:.55px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.14); }
+    .im { background:var(--purple); } .bm { background:#0b6e99; } .ok { background:var(--green); } .fix { background:var(--orange); } .event { background:#7a5af8; }
+    .body { padding:14px; }
+    .body p { color:#344054; }
+    .body strong { color:#1d2939; }
+    .body p + p { margin-top:6px; }
+    .body p + pre,.body pre + p { margin-top:10px; }
     .muted { color:var(--muted); }
     .guidance { margin:0; padding-left:20px; }
     .guidance li + li { margin-top:5px; }
-    pre { margin:0; overflow:auto; border-radius:8px; padding:11px; background:var(--code); color:#e6edf7; font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere; max-height:330px; }
-    .events { grid-column:1 / -1; }
-    .event-row { padding:8px 0; border-bottom:1px solid var(--line); }
+    pre {
+      margin:0; overflow:auto; border:1px solid #1e293b; border-radius:9px; padding:12px 13px;
+      background:linear-gradient(180deg,#111b30,var(--code)); color:#e6edf7;
+      font:12px/1.58 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre-wrap; overflow-wrap:anywhere;
+      max-height:330px; box-shadow:inset 0 1px 0 rgba(255,255,255,.035);
+      scrollbar-color:#475569 transparent; scrollbar-width:thin;
+    }
+    pre::-webkit-scrollbar { width:9px; height:9px; }
+    pre::-webkit-scrollbar-thumb { background:#475569; border:2px solid transparent; border-radius:999px; background-clip:padding-box; }
+    .wide { grid-column:1 / -1; }
+    .event-row { padding:9px 0 10px; border-bottom:1px solid var(--line); }
+    .event-row:first-child { padding-top:0; }
     .event-row:last-child { border:0; padding-bottom:0; }
-    details { margin-top:14px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px 13px; }
-    summary { cursor:pointer; color:#344054; font-weight:600; }
-    details pre { margin-top:10px; max-height:420px; }
+    .event-row > strong { display:block; margin-bottom:7px; }
+
+    details { margin-top:14px; border-radius:12px; padding:0; overflow:hidden; }
+    summary { cursor:pointer; color:#344054; font-weight:650; padding:11px 14px; user-select:none; background:rgba(248,250,252,.68); transition:background .15s ease; }
+    summary:hover { background:#f7f9fc; }
+    details[open] > summary { border-bottom:1px solid var(--line); }
+    details > pre,details > div { margin:12px 13px 13px; }
+    details pre { max-height:430px; }
     .raw-inputs { margin-top:14px; }
     .raw-inputs details { margin-top:10px; }
     .raw-inputs pre { max-height:620px; }
     .raw-inputs .attempt + .attempt { margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
-    .empty { color:var(--muted); padding:18px 0; }
+    .empty { color:var(--muted)!important; padding:18px 0; text-align:center; font-size:12.5px; }
     .hidden { display:none; }
-    @media (max-width:840px) { .summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .grid { grid-template-columns:1fr; } .events { grid-column:auto; } .tick-row { grid-template-columns:76px 1fr; } .tick-row span:last-child { grid-column:1 / -1; } }
+
+    /* Replay visualization */
+    .replay-card {
+      max-width:1040px; margin:16px auto; border-color:#d8e1ec; overflow:hidden;
+      box-shadow:0 1px 2px rgba(16,24,40,.04),0 8px 24px rgba(16,24,40,.045);
+    }
+    .replay-card > .head {
+      min-height:52px; padding:11px 15px; background:#fff;
+    }
+    .replay-title-group { display:flex; align-items:center; gap:10px; min-width:0; }
+    .replay-title-copy { min-width:0; }
+    .replay-title-copy h2 { font-size:15.5px; }
+    .replay-title-copy p { margin-top:2px; color:#7a8699; font-size:11.5px; }
+    .replay-head-meta { margin-left:auto; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:7px; }
+    .replay-chip {
+      display:inline-flex; align-items:center; gap:6px; min-height:27px; padding:4px 8px;
+      border:1px solid #dbe3ed; border-radius:999px; background:#f8fafc; color:#56657a;
+      font-size:11px; font-weight:650; font-variant-numeric:tabular-nums;
+    }
+    .replay-chip::before { content:""; width:6px; height:6px; border-radius:50%; background:#98a2b3; }
+    .replay-chip.live::before { background:#12b76a; }
+
+    .replay-layout {
+      display:grid; grid-template-columns:minmax(420px,680px) minmax(260px,300px); gap:16px;
+      justify-content:center; align-items:start; padding:16px; background:#f7f9fc;
+    }
+    .map-wrap {
+      position:relative; display:flex; align-items:center; justify-content:center; min-width:0; padding:10px;
+      overflow:hidden; border:1px solid #d8e1ec; border-radius:12px; background:#eef2f6;
+    }
+    #replay-canvas {
+      display:block; width:auto; height:auto; max-width:100%; max-height:620px;
+      background:#263347; border:1px solid #cbd5e1; border-radius:8px; cursor:crosshair;
+      box-shadow:0 2px 8px rgba(15,23,42,.10);
+    }
+    .map-hint {
+      position:absolute; right:18px; bottom:18px; z-index:2; pointer-events:none;
+      padding:4px 7px; border:1px solid rgba(255,255,255,.28); border-radius:6px;
+      background:rgba(15,23,42,.68); color:#edf2f7; backdrop-filter:blur(6px);
+      font-size:10.5px; line-height:1.25;
+    }
+    .map-tooltip {
+      position:absolute; z-index:4; min-width:190px; max-width:270px; pointer-events:none; padding:9px 11px;
+      border:1px solid rgba(255,255,255,.16); border-radius:8px; background:rgba(22,31,49,.94); color:#edf2f7;
+      box-shadow:0 10px 26px rgba(15,23,42,.24); font-size:11.5px; line-height:1.55; white-space:pre-line;
+    }
+
+    .replay-side {
+      min-width:0; padding:2px 2px 2px 0; color:#344054; background:transparent;
+    }
+    .replay-section {
+      padding:12px; border:1px solid #dfe6ef; border-radius:10px; background:#fff;
+    }
+    .replay-section + .replay-section { margin-top:10px; }
+    .replay-side h3 {
+      margin:0 0 9px; color:#667085; font-size:10.5px; line-height:1.2; text-transform:uppercase;
+      letter-spacing:.65px; font-weight:750;
+    }
+    #replay-time {
+      margin:0; color:#1d2939; font:700 12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;
+    }
+    .player-stat {
+      position:relative; padding:10px 10px 9px 12px; border:1px solid #e2e8f0;
+      border-radius:9px; background:#fbfcfe;
+    }
+    .player-stat::before { content:""; position:absolute; inset:0 auto 0 0; width:3px; border-radius:9px 0 0 9px; background:var(--player); }
+    .player-stat + .player-stat { margin-top:7px; }
+    .player-stat strong { display:flex; align-items:center; gap:7px; margin-bottom:8px; color:#243047; font-size:12px; }
+    .player-dot { width:7px; height:7px; flex:none; border-radius:50%; background:var(--player); }
+    .resource-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; }
+    .resource-cell { min-width:0; padding:5px 4px; border-radius:6px; background:#f3f6fa; text-align:center; }
+    .resource-cell b { display:block; overflow:hidden; color:#344054; font-size:10.5px; line-height:1.25; text-overflow:ellipsis; white-space:nowrap; }
+    .resource-cell span { display:block; margin-top:1px; color:#98a2b3; font-size:9px; }
+    .player-stat .no-stat { color:#98a2b3; font-size:11px; }
+
+    .map-legend { display:grid; gap:7px; color:#56657a; font-size:11px; }
+    .legend-row { display:flex; align-items:center; gap:8px; min-width:0; }
+    .legend-row > :last-child { min-width:0; }
+    .legend-symbol {
+      display:inline-grid; place-items:center; flex:none; width:17px; height:17px; color:#fff; background:#64748b;
+      border:1px solid #fff; box-shadow:0 0 0 1px #aab6c5; font-size:8px; font-weight:800; line-height:1;
+    }
+    .marker-ground { border-radius:50%; }
+    .marker-worker { border-radius:50%; position:relative; }
+    .marker-worker::after { content:""; width:4px; height:4px; border-radius:50%; background:#fff; }
+    .marker-air { clip-path:polygon(50% 4%,96% 92%,4% 92%); }
+    .marker-structure { border-radius:3px; }
+    .marker-townhall { border-radius:3px; box-shadow:inset 0 0 0 2px rgba(255,255,255,.55),0 0 0 1px #aab6c5; }
+    .marker-resource { transform:rotate(45deg); border-radius:2px; background:#4eb8c4; }
+    .marker-support { border-radius:50%; background:transparent; border:3px solid #64748b; box-shadow:0 0 0 1px #aab6c5; }
+    .marker-glyph { transform:none; font-size:7px; }
+    .height-key {
+      height:7px; border:1px solid #d0d8e4; border-radius:999px;
+      background:linear-gradient(90deg,#263347,#3f5268,#687b84,#9a866e);
+    }
+    .pathable-key { display:flex; align-items:center; gap:7px; }
+    .pathable-dots {
+      width:34px; height:12px; border:1px solid #d8e1ec; border-radius:4px;
+      background-color:#334257; background-image:radial-gradient(circle,#d9e6ef 1px,transparent 1.2px); background-size:6px 6px;
+    }
+    #unit-legend { grid-template-columns:1fr 1fr; gap:5px 8px; }
+    #unit-legend .legend-row {
+      padding:4px 5px; border-radius:6px; background:#f7f9fc; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+    }
+    #unit-legend .legend-row { font-size:10px; }
+    #unit-legend .legend-symbol { width:14px; height:14px; font-size:6.5px; }
+    .replay-note { margin:0; color:#7a8699; font-size:10.5px; line-height:1.55; }
+
+    @media (max-width:1040px) {
+      .summary { grid-template-columns:repeat(3,minmax(0,1fr)); }
+      .tick-row { grid-template-columns:98px 1fr; }
+      .status { grid-column:1 / -1; text-align:left; }
+      .replay-layout { grid-template-columns:minmax(0,1fr) 280px; }
+    }
+    @media (max-width:840px) {
+      main { padding:24px 15px 44px; }
+      .page-header { align-items:flex-start; margin-bottom:16px; }
+      .privacy-badge { display:none; }
+      .summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
+      .grid { grid-template-columns:1fr; }
+      .wide { grid-column:auto; }
+      .toolbar { padding:13px; }
+      .replay-layout { grid-template-columns:1fr; padding:12px; }
+      .replay-side { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:0; }
+      .replay-section + .replay-section { margin-top:0; }
+      .replay-section.players { grid-column:1 / -1; }
+    }
+    @media (max-width:520px) {
+      h1 { font-size:24px; }
+      .controls { display:grid; grid-template-columns:1fr 1fr; }
+      button,.file-label { text-align:center; }
+      .summary { grid-template-columns:1fr 1fr; }
+      .metric.opponent { grid-column:1 / -1; }
+      .metric { padding:10px 12px; }
+      .metric b { font-size:15px; }
+      .tick-row { grid-template-columns:1fr; gap:8px; }
+      .status { grid-column:auto; }
+      .replay-card > .head { align-items:flex-start; flex-wrap:wrap; }
+      .replay-head-meta { width:100%; margin-left:0; justify-content:flex-start; }
+      .replay-layout { padding:9px; gap:9px; }
+      .map-wrap { padding:6px; }
+      #replay-canvas { max-height:520px; }
+      .map-hint { display:none; }
+      .replay-side { grid-template-columns:1fr; }
+      .replay-section.players { grid-column:auto; }
+      #unit-legend { grid-template-columns:1fr 1fr; }
+      .resource-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+    }
+
   </style>
 </head>
 <body>
   <main>
-    <h1>IMBM 日志查看器</h1>
-    <p class="sub">选择一个 <code>logs/时间戳</code> 目录；所有解析均在本地浏览器中完成。</p>
+    <header class="page-header">
+      <div>
+        <div class="eyebrow"><span class="dot"></span>IMBM · LOCAL LOG INSPECTOR</div>
+        <h1>IMBM 日志查看器</h1>
+        <p class="sub">选择一个 <code>logs/时间戳</code> 目录；日志在浏览器读取，Replay 由本机进程在内存中静态解析。</p>
+      </div>
+      <span class="privacy-badge">本地解析 · 不上传</span>
+    </header>
 
     <section class="toolbar">
       <div class="controls">
@@ -75,6 +280,59 @@
 
     <section class="summary hidden" id="summary"></section>
 
+    <article class="card replay-card hidden" id="replay-viewer">
+      <header class="head">
+        <div class="replay-title-group">
+          <span class="tag event">MAP</span>
+          <div class="replay-title-copy">
+            <h2>Replay 战场</h2>
+            <p>Tracker 事件重建 · 与当前 iteration 同步</p>
+          </div>
+        </div>
+        <div class="replay-head-meta">
+          <span class="replay-chip live">已加载</span>
+          <span class="replay-chip" id="replay-header-time">--:--</span>
+        </div>
+      </header>
+      <div class="replay-layout">
+        <div class="map-wrap" id="map-wrap">
+          <canvas id="replay-canvas" width="640" height="640"></canvas>
+          <span class="map-hint">悬停标记查看单位详情</span>
+          <div class="map-tooltip hidden" id="map-tooltip"></div>
+        </div>
+        <aside class="replay-side">
+          <section class="replay-section">
+            <h3>当前帧</h3>
+            <div id="replay-time">Replay —</div>
+          </section>
+          <section class="replay-section players">
+            <h3>玩家状态</h3>
+            <div id="replay-players"></div>
+          </section>
+          <section class="replay-section">
+            <h3>标记说明</h3>
+            <div class="map-legend">
+              <div class="legend-row"><span class="legend-symbol marker-worker"></span><span>工人</span></div>
+              <div class="legend-row"><span class="legend-symbol marker-ground">M</span><span>地面单位</span></div>
+              <div class="legend-row"><span class="legend-symbol marker-air"></span><span>空中单位</span></div>
+              <div class="legend-row"><span class="legend-symbol marker-structure">B</span><span>建筑</span></div>
+              <div class="legend-row"><span class="legend-symbol marker-resource"></span><span>资源</span></div>
+              <div class="legend-row"><span style="width:34px;color:#7a8699">高度</span><div class="height-key" style="flex:1"></div></div>
+              <div class="pathable-key"><span class="pathable-dots"></span><span>地面可行域</span></div>
+            </div>
+          </section>
+          <section class="replay-section">
+            <h3>主要单位类型</h3>
+            <div class="map-legend" id="unit-legend"></div>
+          </section>
+          <section class="replay-section">
+            <h3>数据说明</h3>
+            <p class="replay-note">位置来自 Replay Tracker，为静态近似信息。视野在 playable area 外保留了安全边距，避免地图边缘单位被裁掉；普通 Replay 不含逐单位实时血量。</p>
+          </section>
+        </aside>
+      </div>
+    </article>
+
     <section class="grid hidden" id="viewer">
       <article class="card">
         <header class="head"><span class="tag im">IM</span><h2>IM 输出</h2></header>
@@ -89,6 +347,10 @@
         <div class="body" id="action-panel"></div>
       </article>
       <article class="card">
+        <header class="head"><span class="tag fix">FIX</span><h2>动作纠错</h2></header>
+        <div class="body" id="correction-panel"></div>
+      </article>
+      <article class="card wide">
         <header class="head"><span class="tag event">EVENT</span><h2>本 iteration 事件</h2></header>
         <div class="body" id="event-panel"></div>
       </article>
@@ -108,15 +370,30 @@
         <summary id="raw-bm-summary">原始 BM 输入</summary>
         <div id="raw-bm-panel"></div>
       </details>
+      <details>
+        <summary id="raw-correction-summary">原始纠错输入</summary>
+        <div id="raw-correction-panel"></div>
+      </details>
     </section>
+
+    <details class="hidden" id="metadata-details">
+      <summary>对局元数据</summary>
+      <pre id="metadata-panel"></pre>
+    </details>
+
+    <details class="hidden" id="console-details">
+      <summary>控制台原始输出</summary>
+      <pre id="console-panel"></pre>
+    </details>
   </main>
 
   <script>
     const wantedFiles = new Set([
       "metadata.json", "obs.jsonl", "im.jsonl", "bm.jsonl",
-      "accepted_actions.jsonl", "events.jsonl",
+      "correction.jsonl", "accepted_actions.jsonl", "events.jsonl", "console.log",
+      "replay.SC2Replay", "replay_view.json",
     ]);
-    const state = { metadata: {}, observations: [], im: [], bm: [], decisions: [], events: [], iterations: [] };
+    const state = { metadata: {}, observations: [], im: [], bm: [], corrections: [], decisions: [], events: [], console: "", iterations: [], replay: null };
     const rowIteration = row => Number(row.iteration ?? row.tick ?? row.loop);
     const byIteration = rows => new Map(rows.map(row => [rowIteration(row), row]));
     let indexes = {};
@@ -124,7 +401,6 @@
     const $ = id => document.getElementById(id);
     const text = (node, value) => { node.textContent = value; return node; };
     const formatJson = value => JSON.stringify(value ?? {}, null, 2);
-    const compactJson = value => JSON.stringify(value ?? [], null, 0);
     const noData = message => Object.assign(document.createElement("p"), { className: "empty", textContent: message });
 
     function parseJsonl(content, filename) {
@@ -137,26 +413,65 @@
       return rows;
     }
 
+    async function parseReplayInMemory(replayFile, metadata, mapFile) {
+      if (location.protocol === "file:") {
+        throw new Error("直接双击 HTML 无法启动 Replay 解析器；请先运行 python scripts/replay_view.py");
+      }
+      $("status").textContent = "正在内存解析 Replay…";
+      const metadataBytes = new TextEncoder().encode(JSON.stringify({
+        metadata,
+        map_filename: mapFile?.name || "",
+      }));
+      const replayBytes = new Uint8Array(await replayFile.arrayBuffer());
+      const mapBytes = mapFile ? new Uint8Array(await mapFile.arrayBuffer()) : new Uint8Array();
+      const header = new ArrayBuffer(12), view = new DataView(header);
+      view.setUint32(0, replayBytes.byteLength, true);
+      view.setUint32(4, mapBytes.byteLength, true);
+      view.setUint32(8, metadataBytes.byteLength, true);
+      const response = await fetch("/api/replay-view", {
+        method:"POST",
+        headers:{ "Content-Type":"application/octet-stream" },
+        body:new Blob([header, replayBytes, mapBytes, metadataBytes]),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || `Replay 解析失败（HTTP ${response.status}）`);
+      return prepareReplay(payload);
+    }
+
     async function loadFiles(files) {
       const selected = new Map();
-      for (const file of files) if (wantedFiles.has(file.name)) selected.set(file.name, file);
-      if (!selected.has("accepted_actions.jsonl")) throw new Error("未找到 accepted_actions.jsonl；请选择一局日志的直接目录。");
+      for (const file of files) {
+        if (wantedFiles.has(file.name)) selected.set(file.name, file);
+        else if (file.name.toLowerCase().endsWith(".sc2map") && !selected.has("__map__")) selected.set("__map__", file);
+      }
+      if (!selected.has("metadata.json") || !selected.has("im.jsonl")) throw new Error("未找到 metadata.json 或 im.jsonl；请选择一局新格式日志的直接目录。");
       const read = async name => selected.has(name) ? selected.get(name).text() : "";
-      const [metadata, obs, im, bm, decisions, events] = await Promise.all([
-        read("metadata.json"), read("obs.jsonl"), read("im.jsonl"), read("bm.jsonl"), read("accepted_actions.jsonl"), read("events.jsonl"),
+      const [metadata, obs, im, bm, corrections, decisions, events, consoleText, replayView] = await Promise.all([
+        read("metadata.json"), read("obs.jsonl"), read("im.jsonl"), read("bm.jsonl"), read("correction.jsonl"), read("accepted_actions.jsonl"), read("events.jsonl"), read("console.log"), read("replay_view.json"),
       ]);
       state.metadata = metadata ? JSON.parse(metadata) : {};
       state.observations = obs ? parseJsonl(obs, "obs.jsonl") : [];
       state.im = im ? parseJsonl(im, "im.jsonl") : [];
       state.bm = bm ? parseJsonl(bm, "bm.jsonl") : [];
-      state.decisions = parseJsonl(decisions, "accepted_actions.jsonl");
+      state.corrections = corrections ? parseJsonl(corrections, "correction.jsonl") : [];
+      state.decisions = decisions ? parseJsonl(decisions, "accepted_actions.jsonl") : [];
       state.events = events ? parseJsonl(events, "events.jsonl") : [];
-      state.iterations = [...new Set(state.decisions.map(rowIteration).filter(Number.isFinite))].sort((a, b) => a - b);
-      if (!state.iterations.length) throw new Error("accepted_actions.jsonl 中没有可浏览的 iteration。");
+      state.console = consoleText;
+      state.replay = selected.has("replay.SC2Replay") && location.protocol !== "file:"
+        ? await parseReplayInMemory(selected.get("replay.SC2Replay"), state.metadata, selected.get("__map__"))
+        : replayView
+          ? prepareReplay(JSON.parse(replayView))
+          : null;
+      state.iterations = [...new Set([
+        ...state.observations, ...state.im, ...state.bm, ...state.corrections,
+        ...state.decisions, ...state.events,
+      ].map(rowIteration).filter(Number.isFinite))].sort((a, b) => a - b);
+      if (!state.iterations.length) throw new Error("日志中没有可浏览的 iteration。");
       indexes = {
         observation: byIteration(state.observations),
         decision: byIteration(state.decisions),
         im: groupByIteration(state.im),
+        correction: groupByIteration(state.corrections),
         event: groupByIteration(state.events),
       };
       state.bm.sort((a, b) => rowIteration(a) - rowIteration(b));
@@ -170,7 +485,13 @@
       $("viewer").classList.remove("hidden");
       $("observation-details").classList.remove("hidden");
       $("raw-inputs").classList.remove("hidden");
+      $("metadata-details").classList.remove("hidden");
+      $("console-details").classList.remove("hidden");
+      $("replay-viewer").classList.toggle("hidden", !state.replay);
+      $("metadata-panel").textContent = formatJson(state.metadata);
+      $("console-panel").textContent = state.console || "该对局没有控制台输出。";
       renderSummary();
+      renderReplayLegend();
       renderCurrent();
     }
 
@@ -187,16 +508,19 @@
 
     function renderSummary() {
       const meta = state.metadata;
+      const opponent = [meta.enemy_race, meta.difficulty, meta.build_mode]
+        .filter(Boolean).join(" · ") || "未知对手";
       const metrics = [
-        [state.decisions.length, "IM 决策"],
-        [state.im.length, "IM 回复"],
-        [state.bm.length, "BM 回复"],
         [meta.map_name || "未知地图", "地图"],
+        [opponent, "对手"],
         [meta.model || "未知模型", "模型"],
+        [meta.result || "未完整结束", "结果"],
+        [meta.tactic || "未知战术", "战术"],
       ];
       const container = $("summary");
       container.replaceChildren(...metrics.map(([value, label]) => {
-        const item = document.createElement("div"); item.className = "metric";
+        const item = document.createElement("div");
+        item.className = label === "对手" ? "metric opponent" : "metric";
         item.innerHTML = `<b></b><span></span>`;
         text(item.querySelector("b"), value); text(item.querySelector("span"), label);
         return item;
@@ -209,16 +533,268 @@
       const decision = indexes.decision.get(iteration);
       const observation = indexes.observation.get(iteration);
       $("tick-label").textContent = `iteration ${iteration}`;
-      $("status").textContent = `${position + 1} / ${state.iterations.length} · ${decision?.time || "--:--"} · ${decision?.phase || "unknown"}`;
+      const phase = decision?.phase || observation?.phase || "unknown";
+      $("status").textContent = `${position + 1} / ${state.iterations.length} · ${decision?.time || observation?.time || "--:--"} · ${phase}`;
       $("previous").disabled = position === 0;
       $("next").disabled = position === state.iterations.length - 1;
       renderIm(iteration);
       renderBm(iteration);
       renderActions(decision);
+      renderCorrections(iteration);
       renderEvents(iteration);
       renderRawInputs(iteration);
+      renderReplay(iteration);
       $("observation-panel").textContent = observation?.observation || "该 iteration 没有保存观测文本。";
     }
+
+    function decodeRle(encoded) {
+      const result = [];
+      for (let index = 0; index < encoded.length; index += 2) {
+        const value = encoded[index], count = encoded[index + 1];
+        for (let offset = 0; offset < count; offset++) result.push(value);
+      }
+      return result;
+    }
+
+    function terrainColor(level) {
+      const colors = [[38,51,71],[56,74,94],[82,101,112],[126,116,96]];
+      const scaled = Math.max(0, Math.min(1, level / 4)) * (colors.length - 1);
+      const left = Math.floor(scaled), right = Math.min(colors.length - 1, left + 1), mix = scaled - left;
+      return colors[left].map((value, index) => Math.round(value + (colors[right][index] - value) * mix));
+    }
+
+    function prepareReplay(replay) {
+      const map = replay.map;
+      const rawView = map.playable || { left:0, bottom:0, right:map.width, top:map.height };
+      const rawLeft = Number(rawView.left) || 0, rawBottom = Number(rawView.bottom) || 0;
+      const rawRight = Number(rawView.right) || map.width, rawTop = Number(rawView.top) || map.height;
+      const playableWidth = Math.max(1, rawRight - rawLeft), playableHeight = Math.max(1, rawTop - rawBottom);
+      const margin = Math.max(5, Math.min(12, Math.round(Math.min(playableWidth, playableHeight) * 0.045)));
+      const left = Math.max(0, Math.floor(rawLeft - margin));
+      const bottom = Math.max(0, Math.floor(rawBottom - margin));
+      const right = Math.min(map.width, Math.ceil(rawRight + margin));
+      const top = Math.min(map.height, Math.ceil(rawTop + margin));
+      map.view = { left, bottom, right, top, width:right-left, height:top-bottom };
+      map.heights = decodeRle(map.height_rle || []);
+      map.pathable = decodeRle(map.pathable_rle || []);
+      const base = document.createElement("canvas"); base.width = map.width; base.height = map.height;
+      const context = base.getContext("2d"), pixels = context.createImageData(map.width, map.height);
+      for (let y = 0; y < map.height; y++) for (let x = 0; x < map.width; x++) {
+        const sourceY = map.height - 1 - y;
+        const level = map.heights[sourceY * map.height_width + x] || 0;
+        const color = terrainColor(level), offset = (y * map.width + x) * 4;
+        pixels.data[offset] = color[0]; pixels.data[offset + 1] = color[1]; pixels.data[offset + 2] = color[2]; pixels.data[offset + 3] = 255;
+      }
+      context.putImageData(pixels, 0, 0); map.base = base;
+      const canvas = $("replay-canvas"), longest = 640;
+      if (map.view.width >= map.view.height) {
+        canvas.width = longest; canvas.height = Math.max(1, Math.round(longest * map.view.height / map.view.width));
+      } else {
+        canvas.height = longest; canvas.width = Math.max(1, Math.round(longest * map.view.width / map.view.height));
+      }
+      canvas.style.aspectRatio = `${map.view.width} / ${map.view.height}`;
+      return replay;
+    }
+
+    function replayStateAt(gameLoop) {
+      const units = new Map(), byIndex = new Map();
+      for (const event of state.replay.events) {
+        if (event[1] > gameLoop) break;
+        const [kind] = event;
+        if (kind === "b" || kind === "i") {
+          const unit = { id:event[2], index:event[3], owner:event[4], type:event[5], x:event[6], y:event[7], started:event[1], complete:kind === "b" };
+          units.set(unit.id, unit); byIndex.set(unit.index, unit);
+        } else if (kind === "f") { const unit = units.get(event[2]); if (unit) unit.complete = true;
+        } else if (kind === "d") { const unit = units.get(event[2]); if (unit) byIndex.delete(unit.index); units.delete(event[2]);
+        } else if (kind === "t") { const unit = units.get(event[2]); if (unit) unit.type = event[3];
+        } else if (kind === "o") { const unit = units.get(event[2]); if (unit) unit.owner = event[3];
+        } else if (kind === "p") { const unit = byIndex.get(event[2]); if (unit) { unit.x = event[3]; unit.y = event[4]; } }
+      }
+      return [...units.values()];
+    }
+
+    function replayStatsAt(gameLoop) {
+      const latest = new Map();
+      for (const row of state.replay.stats) {
+        if (row[0] > gameLoop) break;
+        latest.set(row[1], row);
+      }
+      return latest;
+    }
+
+    const markerGlyphs = {
+      Marine:"M", Marauder:"Ma", Reaper:"R", Ghost:"G", Hellion:"H", HellionTank:"Ht",
+      SiegeTank:"T", SiegeTankSieged:"T", Cyclone:"Cy", Thor:"Th", VikingFighter:"V", VikingAssault:"V",
+      Medivac:"Md", Liberator:"Li", LiberatorAG:"Li", Raven:"Rv", Banshee:"Bn", Battlecruiser:"BC",
+      SCV:"S", Probe:"P", Drone:"D", MULE:"Mu", Zealot:"Z", Stalker:"St", Sentry:"Se", Adept:"A",
+      HighTemplar:"HT", DarkTemplar:"DT", Immortal:"I", Colossus:"C", Disruptor:"Di", Archon:"Ar",
+      Phoenix:"Ph", VoidRay:"VR", Oracle:"O", Tempest:"Te", Carrier:"Ca", Mothership:"Mo",
+      Zergling:"Z", Baneling:"Ba", Roach:"Ro", Ravager:"Ra", Hydralisk:"Hy", LurkerMP:"Lu", Queen:"Q",
+      Infestor:"In", SwarmHostMP:"SH", Ultralisk:"Ul", Mutalisk:"Mu", Corruptor:"Co", BroodLord:"BL",
+      Viper:"Vi", Overlord:"Ov", Overseer:"Os"
+    };
+    const workerPattern = /^(SCV|Probe|Drone|MULE)$/i;
+    const townhallPattern = /(CommandCenter|OrbitalCommand|PlanetaryFortress|Nexus|Hatchery|Lair|Hive)/i;
+    const airPattern = /(VikingFighter|Medivac|Liberator|Raven|Banshee|Battlecruiser|Phoenix|VoidRay|Oracle|Tempest|Carrier|Mothership|Observer|WarpPrism|Overlord|Overseer|Mutalisk|Corruptor|BroodLord|Viper|Interceptor)/i;
+    const supportPattern = /(Medivac|Raven|Observer|WarpPrism|Overlord|Overseer)/i;
+
+    function markerGlyph(type) {
+      if (markerGlyphs[type]) return markerGlyphs[type];
+      const cleaned = String(type || "").replace(/(Burrowed|Sieged|Flying|Lowered|Uprooted|Phasing|Transport)$/i, "");
+      const capitals = cleaned.match(/[A-Z][a-z0-9]*/g);
+      if (capitals?.length > 1) return capitals.slice(0, 2).map(part => part[0]).join("");
+      return cleaned.slice(0, 2);
+    }
+
+    function markerInfo(type, meta = {}) {
+      const name = String(type || "");
+      if (meta.kind === "resource") return { kind:"resource", className:"marker-resource", radius:3.2, glyph:"", rank:0 };
+      if (meta.kind === "structure") {
+        if (townhallPattern.test(name)) return { kind:"townhall", className:"marker-townhall", radius:7.2, glyph:markerGlyph(name), rank:1 };
+        return { kind:"structure", className:"marker-structure", radius:5.4, glyph:markerGlyph(name), rank:1 };
+      }
+      if (workerPattern.test(name)) return { kind:"worker", className:"marker-worker", radius:3.6, glyph:"", rank:2 };
+      const isAir = Boolean(meta.flying ?? meta.is_flying ?? meta.air) || airPattern.test(name);
+      if (isAir && supportPattern.test(name)) return { kind:"support", className:"marker-support", radius:5.4, glyph:markerGlyph(name), rank:4 };
+      if (isAir) return { kind:"air", className:"marker-air", radius:5.8, glyph:markerGlyph(name), rank:5 };
+      return { kind:"ground", className:"marker-ground", radius:4.7, glyph:markerGlyph(name), rank:3 };
+    }
+
+    function drawReplayMarker(context, x, y, marker, color, complete) {
+      const r = marker.radius;
+      context.save();
+      context.globalAlpha = complete ? 1 : .62;
+      context.fillStyle = color;
+      context.strokeStyle = "rgba(255,255,255,.90)";
+      context.lineWidth = marker.kind === "townhall" ? 1.4 : 1.05;
+      context.setLineDash(complete ? [] : [2, 2]);
+      context.beginPath();
+      if (marker.kind === "structure" || marker.kind === "townhall") {
+        context.rect(x-r, y-r, r*2, r*2);
+      } else if (marker.kind === "resource") {
+        context.moveTo(x, y-r); context.lineTo(x+r, y); context.lineTo(x, y+r); context.lineTo(x-r, y); context.closePath();
+      } else if (marker.kind === "air") {
+        context.moveTo(x, y-r); context.lineTo(x+r*.9, y+r*.78); context.lineTo(x-r*.9, y+r*.78); context.closePath();
+      } else {
+        context.arc(x, y, r, 0, Math.PI*2);
+      }
+      if (marker.kind !== "support") context.fill();
+      context.stroke();
+      context.setLineDash([]);
+
+      if (marker.kind === "townhall") {
+        context.strokeStyle = "rgba(255,255,255,.55)";
+        context.lineWidth = .8;
+        context.strokeRect(x-r+2.2, y-r+2.2, (r-2.2)*2, (r-2.2)*2);
+      } else if (marker.kind === "worker") {
+        context.fillStyle = "rgba(255,255,255,.95)";
+        context.beginPath(); context.arc(x, y, 1.2, 0, Math.PI*2); context.fill();
+      } else if (marker.kind === "support") {
+        context.fillStyle = color;
+        context.globalAlpha = complete ? .85 : .5;
+        context.beginPath(); context.arc(x, y, Math.max(1.8, r-2.5), 0, Math.PI*2); context.fill();
+      }
+
+      if (marker.glyph && marker.kind !== "resource" && marker.kind !== "worker" && marker.radius >= 4.5) {
+        context.globalAlpha = complete ? .96 : .72;
+        context.font = `700 ${marker.glyph.length > 1 ? 6.2 : 7.2}px ui-monospace, SFMono-Regular, Consolas, monospace`;
+        context.textAlign = "center"; context.textBaseline = "middle";
+        context.lineWidth = 2.2; context.strokeStyle = "rgba(15,23,42,.62)";
+        context.strokeText(marker.glyph, x, y+.2);
+        context.fillStyle = "#fff"; context.fillText(marker.glyph, x, y+.2);
+      }
+      context.restore();
+    }
+
+    function renderReplayLegend() {
+      if (!state.replay) return;
+      const counts = new Map();
+      for (const event of state.replay.events) if (event[0] === "b" || event[0] === "i") counts.set(event[5], (counts.get(event[5]) || 0) + 1);
+      const entries = [...counts].filter(([name]) => state.replay.unit_meta[name]?.kind !== "resource").sort((a,b) => b[1] - a[1]).slice(0, 14);
+      $("unit-legend").replaceChildren(...entries.map(([name]) => {
+        const meta = state.replay.unit_meta[name] || {}, marker = markerInfo(name, meta);
+        const row = document.createElement("div"); row.className = "legend-row";
+        const symbol = document.createElement("span");
+        symbol.className = `legend-symbol ${marker.className}`;
+        if (marker.kind !== "worker" && marker.kind !== "resource" && marker.kind !== "air") symbol.textContent = marker.glyph;
+        row.append(symbol, document.createTextNode(name)); return row;
+      }));
+    }
+
+    let replayHits = [];
+    function renderReplay(iteration) {
+      if (!state.replay) return;
+      const gameLoop = iteration * Number(state.replay.alignment?.game_step || 2);
+      const units = replayStateAt(gameLoop), stats = replayStatsAt(gameLoop), replay = state.replay;
+      const canvas = $("replay-canvas"), context = canvas.getContext("2d");
+      const width = canvas.width, height = canvas.height, view = replay.map.view;
+      const scaleX = width / view.width, scaleY = height / view.height;
+      context.clearRect(0, 0, width, height); context.imageSmoothingEnabled = false;
+      context.drawImage(
+        replay.map.base,
+        view.left, replay.map.height - view.top, view.width, view.height,
+        0, 0, width, height,
+      );
+      context.fillStyle = "rgba(225,236,244,.17)";
+      for (let y = Math.ceil(view.bottom); y < view.top; y += 2) for (let x = Math.ceil(view.left); x < view.right; x += 2) {
+        if (!replay.map.pathable[y * replay.map.width + x]) continue;
+        context.fillRect((x + .5 - view.left) * scaleX, (view.top - y - .5) * scaleY, .9, .9);
+      }
+      replayHits = [];
+      const ordered = units.sort((a,b) => markerInfo(a.type, replay.unit_meta[a.type]).rank - markerInfo(b.type, replay.unit_meta[b.type]).rank);
+      for (const unit of ordered) {
+        if (!Number.isFinite(unit.x) || !Number.isFinite(unit.y)) continue;
+        if (unit.x < view.left || unit.x > view.right || unit.y < view.bottom || unit.y > view.top) continue;
+        const meta = replay.unit_meta[unit.type] || {}, marker = markerInfo(unit.type, meta);
+        const x = (unit.x - view.left) * scaleX, y = (view.top - unit.y) * scaleY;
+        const player = replay.replay.players.find(item => item.id === unit.owner);
+        const color = meta.kind === "resource" ? "#4eb8c4" : player?.color || "#b8c2cf";
+        drawReplayMarker(context, x, y, marker, color, unit.complete);
+        replayHits.push({ x, y, radius:Math.max(6, marker.radius), unit, meta, marker, player });
+      }
+      const seconds = Math.floor(gameLoop / 22.4), mm = String(Math.floor(seconds / 60)).padStart(2,"0"), ss = String(seconds % 60).padStart(2,"0");
+      $("replay-time").textContent = `${mm}:${ss} · loop ${gameLoop} · ${units.length} entities`;
+      $("replay-header-time").textContent = `${mm}:${ss} · ${units.length} entities`;
+      $("replay-players").replaceChildren(...replay.replay.players.map(player => {
+        const row = stats.get(player.id), node = document.createElement("div");
+        node.className = "player-stat"; node.style.setProperty("--player", player.color);
+        const title = document.createElement("strong");
+        const dot = document.createElement("span"); dot.className = "player-dot";
+        const name = document.createElement("span"); text(name, `${player.name} · ${player.race}`);
+        title.append(dot, name); node.append(title);
+        if (!row) {
+          const empty = document.createElement("span"); empty.className = "no-stat"; empty.textContent = "暂无资源采样";
+          node.append(empty); return node;
+        }
+        const grid = document.createElement("div"); grid.className = "resource-grid";
+        [["矿物", row[2]], ["瓦斯", row[3]], ["人口", `${row[4]}/${row[5]}`], ["工人", row[6]]].forEach(([label, value]) => {
+          const cell = document.createElement("div"); cell.className = "resource-cell";
+          const valueNode = document.createElement("b"); text(valueNode, String(value ?? "—"));
+          const labelNode = document.createElement("span"); text(labelNode, label);
+          cell.append(valueNode, labelNode); grid.append(cell);
+        });
+        node.append(grid); return node;
+      }));
+    }
+
+    $("replay-canvas").addEventListener("mousemove", event => {
+      if (!state.replay) return;
+      const canvas = event.currentTarget, rect = canvas.getBoundingClientRect();
+      const x = (event.clientX - rect.left) * canvas.width / rect.width, y = (event.clientY - rect.top) * canvas.height / rect.height;
+      const hit = [...replayHits].reverse().find(item => Math.hypot(item.x - x, item.y - y) <= item.radius + 2), tooltip = $("map-tooltip");
+      if (!hit) { tooltip.classList.add("hidden"); return; }
+      const owner = hit.player?.name || "中立", hp = hit.meta.hp ? `最大生命 ${hit.meta.hp}${hit.meta.shield ? ` · 最大护盾 ${hit.meta.shield}` : ""}` : "生命值数据未知";
+      tooltip.textContent = `${hit.unit.type}\n${owner} · tag ${hit.unit.id}\n坐标 (${hit.unit.x}, ${hit.unit.y})\n${hp}\n${hit.unit.complete ? "已完成" : "建造中"}`;
+      const wrapRect = $("map-wrap").getBoundingClientRect();
+      tooltip.classList.remove("hidden");
+      const desiredLeft = event.clientX - wrapRect.left + 14;
+      const desiredTop = event.clientY - wrapRect.top + 14;
+      const maxLeft = Math.max(8, wrapRect.width - tooltip.offsetWidth - 8);
+      const maxTop = Math.max(8, wrapRect.height - tooltip.offsetHeight - 8);
+      tooltip.style.left = `${Math.max(8, Math.min(maxLeft, desiredLeft))}px`;
+      tooltip.style.top = `${Math.max(8, Math.min(maxTop, desiredTop))}px`;
+    });
+    $("replay-canvas").addEventListener("mouseleave", () => $("map-tooltip").classList.add("hidden"));
 
     function replacePanel(id, children) { $(id).replaceChildren(...children); }
     function pre(value) { return text(document.createElement("pre"), value); }
@@ -232,10 +808,12 @@
       const rows = indexes.im.get(iteration) || [];
       if (!rows.length) return replacePanel("im-panel", [noData("该 iteration 没有 IM 对话记录。")] );
       const nodes = [];
-      rows.forEach((row, index) => {
-        if (rows.length > 1) nodes.push(line("尝试", String((row.attempt ?? index) + 1)));
-        nodes.push(line("结果", row.valid ? "通过 IM JSON 格式检查" : `无效：${row.validation || "未知原因"}`));
-        if (row.reply) nodes.push(pre(row.reply));
+      rows.forEach(row => {
+        nodes.push(line("结果", row.valid ? "JSON 格式有效" : `无效：${row.error || "未知原因"}`));
+        if (row.latency_ms != null) nodes.push(line("模型耗时", `${row.latency_ms} ms`));
+        nodes.push(pre(row.valid
+          ? formatJson({ actions: row.actions || [] })
+          : row.reply || "[没有模型输出]"));
       });
       replacePanel("im-panel", nodes);
     }
@@ -243,29 +821,47 @@
     function renderBm(iteration) {
       const latest = [...state.bm].reverse().find(row => rowIteration(row) <= iteration);
       if (!latest) return replacePanel("bm-panel", [noData("此时尚无已完成的 BM 输出。")] );
+      const heading = document.createElement("p");
+      const headingText = document.createElement("strong");
+      text(headingText, `BM iteration@${rowIteration(latest)}`);
+      heading.append(headingText);
       const nodes = [
-        line("BM iteration", String(rowIteration(latest))),
-        line("阶段", String(latest.phase || "unknown")),
+        heading,
         line("触发", String(latest.trigger_reason || "unknown")),
         line("耗时", latest.latency_ms == null ? "未知" : `${latest.latency_ms} ms`),
       ];
       if (latest.valid === false) nodes.push(line("结果", `无效：${latest.validation || "未知原因"}`));
-      else if (Array.isArray(latest.guidance)) {
-        const list = document.createElement("ol"); list.className = "guidance";
-        latest.guidance.forEach(item => list.append(text(document.createElement("li"), item)));
-        nodes.push(list);
-      }
+      nodes.push(pre(latest.valid === false
+        ? latest.reply || "[没有模型输出]"
+        : formatJson({ phase: latest.phase || "unknown", guidance: latest.guidance || [] })));
       replacePanel("bm-panel", nodes);
     }
 
     function renderActions(decision) {
       if (!decision) return replacePanel("action-panel", [noData("没有最终动作记录。")] );
       const nodes = [
-        line("指导来源", decision.guidance_source === "BM" ? "BM（具体内容见 BM 面板）" : "无"),
-        line("IM 耗时", decision.latency_ms == null ? "未知" : `${decision.latency_ms} ms`),
-        pre(compactJson({ actions: decision.actions || [], deferred_actions: decision.deferred_actions || [] })),
+        line("决策耗时", decision.latency_ms == null ? "未知" : `${decision.latency_ms} ms`),
+        pre(formatJson({ actions: decision.actions || [], deferred_actions: decision.deferred_actions || [] })),
       ];
       replacePanel("action-panel", nodes);
+    }
+
+    function renderCorrections(iteration) {
+      const rows = indexes.correction.get(iteration) || [];
+      if (!rows.length) return replacePanel("correction-panel", [noData("该 iteration 没有动作纠错调用。")]);
+      const nodes = [];
+      rows.forEach(row => {
+        nodes.push(line("纠错轮次", String(row.attempt)));
+        nodes.push(line("结果", row.valid ? "返回格式有效" : `失败：${row.error || "未知原因"}`));
+        if (row.latency_ms != null) nodes.push(line("模型耗时", `${row.latency_ms} ms`));
+        nodes.push(pre(row.valid
+          ? formatJson({
+              corrected_actions: row.corrected_actions || [],
+              discarded_actions: row.discarded_actions || [],
+            })
+          : row.reply || "[没有模型输出]"));
+      });
+      replacePanel("correction-panel", nodes);
     }
 
     function renderEvents(iteration) {
@@ -298,12 +894,9 @@
       $("raw-im-summary").textContent = `原始 IM 输入 · iteration ${iteration}`;
       if (!imRows.length) replacePanel("raw-im-panel", [noData("该 iteration 没有 IM 输入记录。")]);
       else {
-        const nodes = imRows.map((row, index) => {
+        const nodes = imRows.map(row => {
           const section = document.createElement("div"); section.className = "attempt";
-          section.append(
-            line("尝试", String((row.attempt ?? index) + 1)),
-            pre(formatRequest(row.request)),
-          );
+          section.append(pre(formatRequest(row.request)));
           return section;
         });
         replacePanel("raw-im-panel", nodes);
@@ -316,6 +909,15 @@
       if (!latestBm) replacePanel("raw-bm-panel", [noData("此时尚无 BM 输入记录。")]);
       else if (!latestBm.request) replacePanel("raw-bm-panel", [noData("这条 BM 日志没有保存 request 字段。")]);
       else replacePanel("raw-bm-panel", [pre(formatRequest(latestBm.request))]);
+
+      const correctionRows = indexes.correction.get(iteration) || [];
+      $("raw-correction-summary").textContent = `原始纠错输入 · iteration ${iteration}`;
+      if (!correctionRows.length) replacePanel("raw-correction-panel", [noData("该 iteration 没有纠错输入记录。")]);
+      else replacePanel("raw-correction-panel", correctionRows.map(row => {
+        const section = document.createElement("div"); section.className = "attempt";
+        section.append(line("纠错轮次", String(row.attempt)), pre(formatRequest(row.request)));
+        return section;
+      }));
     }
 
     $("tick-slider").addEventListener("input", renderCurrent);
@@ -333,6 +935,11 @@
         for (const name of wantedFiles) {
           try { files.push(await (await directory.getFileHandle(name)).getFile()); }
           catch (_) { /* Optional log file is absent. */ }
+        }
+        for await (const [name, handle] of directory.entries()) {
+          if (handle.kind === "file" && name.toLowerCase().endsWith(".sc2map")) {
+            files.push(await handle.getFile()); break;
+          }
         }
         await loadFiles(files);
         $("status").textContent = "日志加载成功。";

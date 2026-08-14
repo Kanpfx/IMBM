@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
@@ -35,14 +34,11 @@ class Telemetry:
             "obs.jsonl",
             "im.jsonl",
             "bm.jsonl",
+            "correction.jsonl",
             "accepted_actions.jsonl",
             "events.jsonl",
         ):
             (self.directory / filename).touch()
-
-    @staticmethod
-    def text_hash(text: str) -> str:
-        return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
     def event(self, name: str, **fields: Any) -> None:
         self._append("events.jsonl", {"event": name, **fields})
@@ -55,6 +51,9 @@ class Telemetry:
 
     def bm_conversation(self, **fields: Any) -> None:
         self._append("bm.jsonl", fields)
+
+    def correction_conversation(self, **fields: Any) -> None:
+        self._append("correction.jsonl", fields)
 
     def accepted_decision(self, **fields: Any) -> None:
         self._append("accepted_actions.jsonl", fields)

@@ -19,15 +19,43 @@ class InvalidPhaseLLMClient:
         return '{"phase":"invented_phase","guidance":["Build a Factory."]}'
 
 
+class CustomTacticLLMClient:
+    async def complete(self, _messages):
+        return '{"phase":"proxy_attack_window","guidance":["Attack now."]}'
+
+
 class BMAgentTests(unittest.IsolatedAsyncioTestCase):
-    def test_bm_planning_horizon_is_thirty_game_seconds(self):
-        self.assertIn("30 seconds of gameplay", BM_ROLE)
-        self.assertNotIn("60 game seconds", BM_ROLE)
+    def test_bm_planning_horizon_is_twenty_game_seconds(self):
+        self.assertIn("20 seconds of gameplay", BM_ROLE)
+        self.assertIn("Output only one valid JSON object", BM_ROLE)
+        self.assertNotIn("30 seconds of gameplay", BM_ROLE)
+
+    async def test_bm_accepts_phase_ids_defined_only_by_the_selected_tactic(self):
+        agent = BMAgent(LLMConfig(), CustomTacticLLMClient())
+        result = await agent.run(
+            "# Observation\n[None]",
+            {
+                "concept": "Execute a proxy attack.",
+                "rules": [],
+                "phases": [
+                    {
+                        "id": "proxy_attack_window",
+                        "enter_when": ["The proxy force is ready."],
+                        "goal": "Attack before the enemy stabilizes.",
+                        "guidance": ["Attack immediately."],
+                    }
+                ],
+            },
+            [],
+            "cold_start",
+        )
+
+        self.assertEqual(result.phase, "proxy_attack_window")
 
     async def test_bm_accepts_guidance_without_a_length_constraint(self):
         agent = BMAgent(LLMConfig(), FakeLLMClient())
         result = await agent.run(
-            "# Observation\n[Empty]",
+            "# Observation\n[None]",
             {
                 "concept": "Build Battlecruisers.",
                 "rules": ["Stay safe."],
@@ -63,4 +91,4 @@ class BMAgentTests(unittest.IsolatedAsyncioTestCase):
         }
 
         with self.assertRaisesRegex(ValueError, "phase must be an ID"):
-            await agent.run("# Observation\n[Empty]", tactic, [], "cold_start")
+            await agent.run("# Observation\n[None]", tactic, [], "cold_start")

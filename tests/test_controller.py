@@ -49,7 +49,7 @@ class FlakyBM(ImmediateBM):
 
 
 class RetryingPolicy:
-    def review(self, _bot, actions, _context, _phase, _surface):
+    def review(self, _bot, actions, _context, _surface):
         valid = []
         issues = []
         for index, action in enumerate(actions):
@@ -111,7 +111,7 @@ def make_controller(bm, *, enabled=True):
 
 
 def observation(iteration):
-    return Observation(iteration, {}, "# Round state\n[Empty]", EntityContext())
+    return Observation(iteration, {}, "# Round state\n[None]", EntityContext())
 
 
 class ControllerBMTests(unittest.IsolatedAsyncioTestCase):
@@ -146,19 +146,6 @@ class ControllerBMTests(unittest.IsolatedAsyncioTestCase):
                 ),
             ],
         )
-
-    def test_quick_counts_includes_pending_battlecruiser(self):
-        class Bot:
-            units = []
-            structures = []
-
-            @staticmethod
-            def already_pending(unit_type):
-                return 1 if unit_type.name == "BATTLECRUISER" else 0
-
-        counts = LLMGameController._quick_counts(Bot())
-
-        self.assertEqual(counts["pending:BATTLECRUISER"], 1)
 
     async def test_cold_start_can_be_awaited_before_the_first_im_decision(self):
         bm = ImmediateBM()
@@ -258,7 +245,6 @@ class ControllerCorrectionTests(unittest.IsolatedAsyncioTestCase):
             observation=observation(20),
             guidance=[],
             entries=[],
-            phase="opening_tech",
             surface=None,
             iteration=20,
         )
@@ -291,7 +277,6 @@ class ControllerCorrectionTests(unittest.IsolatedAsyncioTestCase):
             observation=observation(20),
             guidance=[],
             entries=[],
-            phase="opening_tech",
             surface=None,
             iteration=20,
         )

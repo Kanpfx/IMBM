@@ -7,10 +7,7 @@ from llm.agents.im_agent import IMAgent
 
 class FakeLLMClient:
     async def complete(self, _messages):
-        return (
-            '{"actions":[],"request_background":true,'
-            '"background_reason":"Need a strategic response to enemy air tech."}'
-        )
+        return '{"actions":[]}'
 
 
 class InvalidJSONClient:
@@ -28,18 +25,16 @@ class IMAgentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(config.temperature, 0.1)
         self.assertEqual(config.max_refines, 2)
 
-    async def test_im_returns_actions_and_background_request(self):
+    async def test_im_returns_actions(self):
         agent = IMAgent(LLMConfig(max_refines=0), FakeLLMClient())
         result = await agent.run(
-            "# Game state\n[none]",
+            "# Game state\n[None]",
             ["Protect the main base."],
             [],
             lambda actions: (actions == [], "accepted"),
         )
 
         self.assertEqual(result.actions, [])
-        self.assertTrue(result.request_background)
-        self.assertIn("enemy air tech", result.background_reason)
 
     async def test_invalid_json_skips_the_decision_without_an_im_retry(self):
         client = InvalidJSONClient()

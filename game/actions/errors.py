@@ -53,8 +53,7 @@ class OutputFormatError(ActionError):
     def standard_json_required(cls) -> "OutputFormatError":
         return cls(
             "invalid JSON output",
-            "a standard JSON object with actions, request_background, and "
-            "background_reason is required",
+            "a standard JSON object containing an actions list is required",
         )
 
     @classmethod
@@ -76,15 +75,15 @@ class ActionNameError(InstructionError):
     def unknown(cls, value: Any) -> "ActionNameError":
         return cls(
             "unknown action",
-            f"'{value}' is not defined in the action catalog",
+            f"'{value}' is not listed in `<available_actions>`",
             actual=value,
         )
 
     @classmethod
     def disabled(cls, value: Any) -> "ActionNameError":
         return cls(
-            "disabled action",
-            f"'{value}' is not enabled for LLM output",
+            "unavailable action",
+            f"'{value}' is not currently listed in `<available_actions>`",
             actual=value,
         )
 

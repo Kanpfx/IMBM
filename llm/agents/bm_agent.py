@@ -38,14 +38,16 @@ class BMAgent(BaseAgent):
             phase = payload.get("phase")
             phase_ids = {item["id"] for item in tactic["phases"]}
             if phase not in phase_ids:
-                raise ValueError("BM phase must be an ID from the tactical card")
+                raise ValueError(
+                    "the selected phase must be an ID from the tactical reference"
+                )
             guidance = payload.get("guidance")
             if (
                 not isinstance(guidance, list)
                 or not guidance
                 or not all(isinstance(item, str) and item.strip() for item in guidance)
             ):
-                raise ValueError("BM guidance must contain non-empty strings")
+                raise ValueError("strategic guidance must contain non-empty strings")
             cleaned = [item.strip() for item in guidance]
             if trace is not None:
                 trace.bm_conversation(

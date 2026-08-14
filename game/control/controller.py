@@ -22,8 +22,6 @@ from game.actions.persistent import PersistentActionRegistry
 from game.actions.policy import ActionReview, PolicyValidator, ValidationIssue
 from game.control.automation import AutomationController
 from game.control.directive import BMDirective, DirectiveStore
-from game.control.macro_plan import MacroPlanController
-from game.control.phase import PhaseResolver
 from game.observation.builder import Observation, ObservationBuilder
 from game.observation.state import TagIdMapper
 from knowledge.loader import ActionCatalog, load_tactic, normalize_catalog_name
@@ -68,14 +66,19 @@ class LLMGameController:
         self.adapter = AresActionAdapter(self.catalog)
         self.policy = PolicyValidator(self.catalog, self.game_config)
         self.observation_builder = ObservationBuilder(TagIdMapper())
-        self.phase_resolver = PhaseResolver()
         self.automation = AutomationController()
-        self.macro_plan = MacroPlanController(self.catalog)
         self.directive_store = DirectiveStore()
         self.telemetry = Telemetry(
             {
                 "model": self.llm_config.model,
-                "enable_bm": enable_bm,
+                "temperature": self.llm_config.temperature,
+                "max_tokens": self.llm_config.max_tokens,
+                "max_correction_attempts": min(
+                    2, max(0, self.llm_config.max_refines)
+                ),
+                "action_interval_iterations": self.game_config.im_interval_iterations,
+                "strategy_refresh_iterations": self.game_config.bm_refresh_iterations,
+                "strategic_planning_enabled": enable_bm,
                 "tactic": tactic_name,
                 **(run_metadata or {}),
             },
@@ -106,6 +109,7 @@ class LLMGameController:
     async def run_iteration(self, bot: Any, iteration: int) -> None:
         """Run automation and the blocking IM decision on its iteration interval."""
         await self.automation.run(bot, iteration)
+        self.observation_builder.collect_frame(bot)
         persistent_context = self.observation_builder.execution_context(bot)
         completed_persistent, failed_persistent = self.persistent_actions.run(
             bot, iteration, self.adapter, persistent_context
@@ -126,11 +130,10 @@ class LLMGameController:
             )
         await self._poll_bm(iteration)
         if not self.active or iteration % self.game_config.im_interval_iterations != 0:
-            self.macro_plan.register(bot, self.adapter, persistent_context)
+            self.automation.register_worker_production(bot)
             return
 
-        phase_state = self.phase_resolver.resolve(self._quick_counts(bot))
-        observation = self.observation_builder.build(bot, iteration, phase_state.id)
+        observation = self.observation_builder.build(bot, iteration)
 
         # With BM enabled, the first directive is a startup gate. Later refreshes
         # remain asynchronous and the previous directive stays active meanwhile.
@@ -140,17 +143,14 @@ class LLMGameController:
         if self.enable_bm and directive is None:
             await self._await_first_bm(observation, iteration, bm_surface.entries)
             directive = self.directive_store.read(iteration)
-        phase = directive.phase if directive is not None else phase_state.id
+        # Phase IDs are tactic data interpreted exclusively by BM. The runtime
+        # stores the selected ID but never derives or assigns semantics to it.
+        phase = directive.phase if directive is not None else "unassigned"
 
         self.telemetry.observation(
             iteration=iteration,
             time=getattr(bot, "time_formatted", "00:00"),
             phase=phase,
-            resources={
-                "minerals": int(bot.minerals),
-                "vespene": int(bot.vespene),
-                "supply": f"{int(bot.supply_used)}/{int(bot.supply_cap)}",
-            },
             observation=observation.text,
         )
 
@@ -194,7 +194,6 @@ class LLMGameController:
                 actions=ready_deferred,
             )
 
-        guidance_source = "BM" if directive is not None else "none"
         guidance = list(directive.guidance) if directive is not None else []
         guidance_reference = (
             f"BM@{directive.issued_at_iteration}" if directive is not None else "none"
@@ -209,7 +208,7 @@ class LLMGameController:
                 observation.text,
                 guidance,
                 entries,
-                lambda _actions: (True, "submitted for recoverable policy review"),
+                lambda _actions: (True, ""),
                 trace=self.telemetry,
                 iteration=iteration,
             )
@@ -219,7 +218,6 @@ class LLMGameController:
                 observation,
                 guidance,
                 entries,
-                phase,
                 im_surface,
                 iteration,
             )
@@ -237,12 +235,20 @@ class LLMGameController:
                     actions=[issue.action for issue in review.issues],
                 )
 
-            macro_actions, other_actions = self.macro_plan.replace_cycle(review.actions)
+            worker_override: dict[str, Any] | None = None
             direct_immediate_actions: list[dict[str, Any]] = []
-            immediate_actions: list[dict[str, Any]] = list(macro_actions)
+            immediate_actions: list[dict[str, Any]] = []
             queued_actions: list[dict[str, Any]] = []
             resource_blocked_actions: list[dict[str, Any]] = []
-            for action in other_actions:
+            for action in review.actions:
+                action_id = self.catalog.get(action["id"])["id"]
+                if action_id == "macro.build_workers":
+                    # Automation owns worker production. The first valid IM
+                    # target silently overrides its default for this cycle.
+                    if worker_override is None:
+                        worker_override = action
+                        immediate_actions.append(action)
+                    continue
                 resource_status = self.deferred_actions.resource_status(bot, action)
                 if resource_status == DeferredActionQueue.QUEUED:
                     if self.deferred_actions.enqueue(action, iteration):
@@ -252,12 +258,24 @@ class LLMGameController:
                 else:
                     direct_immediate_actions.append(action)
                     immediate_actions.append(action)
+            (
+                previous_worker_override,
+                worker_override_changed,
+            ) = self.automation.replace_worker_override(worker_override)
+            if worker_override_changed and previous_worker_override is not None:
+                self.observation_builder.record_completed_actions(
+                    [previous_worker_override], current_time
+                )
             if direct_immediate_actions:
                 self.adapter.compile_and_register(
                     bot, direct_immediate_actions, observation.context
                 )
             if immediate_actions:
-                active_actions = list(macro_actions) + [
+                active_actions = (
+                    [worker_override]
+                    if worker_override is not None and worker_override_changed
+                    else []
+                ) + [
                     action
                     for action in direct_immediate_actions
                     if self.persistent_actions.is_persistent(action)
@@ -302,26 +320,12 @@ class LLMGameController:
                         for action in resource_blocked_actions
                     ],
                 )
-            self.telemetry.event(
-                "im_accepted",
-                iteration=iteration,
-                phase=phase,
-                directive_age=directive.age(iteration) if directive else None,
-                actions=immediate_actions,
-                deferred_actions=queued_actions,
-                request_background=result.request_background,
-                latency_ms=round((perf_counter() - im_started_at) * 1000),
-            )
             self.telemetry.accepted_decision(
                 iteration=iteration,
                 time=getattr(bot, "time_formatted", "00:00"),
                 phase=phase,
                 actions=immediate_actions,
                 deferred_actions=queued_actions,
-                guidance_source=guidance_source,
-                guidance=guidance,
-                request_background=result.request_background,
-                background_reason=result.background_reason,
                 latency_ms=round((perf_counter() - im_started_at) * 1000),
             )
             readable_actions = immediate_actions + queued_actions
@@ -351,25 +355,16 @@ class LLMGameController:
                 error=str(exc),
                 latency_ms=latency_ms,
             )
-            self.observation_builder.record_validation_error(str(exc))
             logger.error(
                 "[IM iteration={}] validation/request failed after {}ms: {}\n",
                 iteration,
                 latency_ms,
                 exc,
             )
-            self.macro_plan.register(bot, self.adapter, observation.context)
+            self.automation.register_worker_production(bot)
             return
 
-        if self.enable_bm and result.request_background:
-            self.telemetry.event(
-                "im_background_request_noted",
-                iteration=iteration,
-                reason=result.background_reason,
-                scheduling="periodic_refresh_only",
-            )
-
-        self.macro_plan.register(bot, self.adapter, observation.context)
+        self.automation.register_worker_production(bot)
 
     async def _review_im_actions(
         self,
@@ -378,12 +373,11 @@ class LLMGameController:
         observation: Observation,
         guidance: list[str],
         entries: list[dict[str, Any]],
-        phase: str,
         surface: Any,
         iteration: int,
     ) -> ActionReview:
         """Keep valid actions and retry only rejected actions up to two times."""
-        initial = self.policy.review(bot, actions, observation.context, phase, surface)
+        initial = self.policy.review(bot, actions, observation.context, surface)
         accepted = list(initial.actions)
         pending = list(initial.issues)
         discarded: list[ValidationIssue] = []
@@ -401,16 +395,11 @@ class LLMGameController:
                     entries,
                     proposed,
                     [issue.text() for issue in pending],
+                    attempt=attempt,
                     trace=self.telemetry,
                     iteration=iteration,
                 )
             except Exception as correction_error:
-                self.telemetry.event(
-                    "im_correction_failed",
-                    iteration=iteration,
-                    attempt=attempt,
-                    error=str(correction_error),
-                )
                 break
 
             returned = Counter(
@@ -427,7 +416,6 @@ class LLMGameController:
                 bot,
                 repaired_actions,
                 observation.context,
-                phase,
                 surface,
             )
             accepted.extend(repaired_review.actions)
@@ -457,7 +445,6 @@ class LLMGameController:
             bot,
             accepted[:limit],
             observation.context,
-            phase,
             surface,
         )
         normalizations.extend(final_review.normalizations)
@@ -519,8 +506,6 @@ class LLMGameController:
                 iteration=iteration,
                 phase=result.phase,
                 trigger_reason=pending.trigger_reason,
-                guidance=result.guidance,
-                latency_ms=round((perf_counter() - pending.started_at) * 1000),
             )
             logger.info(
                 "[BM iteration={}] phase={} bm={:.2f}s trigger={}\n{}\n",
@@ -611,36 +596,3 @@ class LLMGameController:
     def cancel_background_tasks(self) -> None:
         if self.bm_pending is not None and not self.bm_pending.task.done():
             self.bm_pending.task.cancel()
-
-    @staticmethod
-    def _quick_counts(bot: Any) -> dict[str, int]:
-        counts: dict[str, int] = {}
-        for unit in list(bot.units) + list(bot.structures):
-            name = getattr(unit.type_id, "name", "UNKNOWN")
-            counts[name] = counts.get(name, 0) + 1
-            is_ready = bool(
-                getattr(
-                    unit,
-                    "is_ready",
-                    float(getattr(unit, "build_progress", 1.0)) >= 1.0,
-                )
-            )
-            if is_ready:
-                ready_name = f"ready:{name}"
-                counts[ready_name] = counts.get(ready_name, 0) + 1
-        for name in (
-            "FACTORY",
-            "STARPORT",
-            "FUSIONCORE",
-            "STARPORTTECHLAB",
-            "BATTLECRUISER",
-        ):
-            try:
-                from sc2.ids.unit_typeid import UnitTypeId
-
-                counts[f"pending:{name}"] = int(
-                    bot.already_pending(getattr(UnitTypeId, name))
-                )
-            except (AttributeError, KeyError):
-                counts[f"pending:{name}"] = 0
-        return counts

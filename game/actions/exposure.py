@@ -144,6 +144,10 @@ class ActionExposure:
                     else "allowed_values"
                 )
                 param[key] = sorted(allowed)
+                if key == "allowed_values":
+                    groups = self._entity_value_groups(allowed, context)
+                    if groups:
+                        param["allowed_value_groups"] = groups
             prompt_entries.append(prompt_entry)
             domains[entry["id"]] = availability.domains
         return ActionSurface(
@@ -151,6 +155,21 @@ class ActionExposure:
             frozenset(entry["id"] for entry in prompt_entries),
             domains,
         )
+
+    @staticmethod
+    def _entity_value_groups(
+        values: Iterable[str], context: EntityContext
+    ) -> dict[str, list[str]]:
+        """Group prompt-only observation IDs without changing validation domains."""
+        groups: dict[str, list[str]] = {}
+        for alias in sorted(values):
+            entity = context.entities.get(alias)
+            if entity is None:
+                continue
+            type_name = getattr(getattr(entity, "type_id", None), "name", "UNKNOWN")
+            side = "enemy " if alias in context.enemy_entities else ""
+            groups.setdefault(f"{side}{type_name}", []).append(alias)
+        return groups
 
     def _availability(
         self, entry: dict[str, Any], bot: Any, context: EntityContext

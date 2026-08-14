@@ -26,6 +26,7 @@ class CorrectionAgent(BaseAgent):
         errors: list[str],
         trace: Telemetry | None = None,
         iteration: int | None = None,
+        attempt: int = 1,
     ) -> list[dict[str, Any]]:
         messages = correction_messages(
             observation, guidance, action_entries, proposed_actions, errors
@@ -45,28 +46,26 @@ class CorrectionAgent(BaseAgent):
                 actions, proposed_actions, action_entries
             )
             if trace is not None:
-                trace.event(
-                    "im_correction",
+                trace.correction_conversation(
                     iteration=iteration,
+                    attempt=attempt,
                     request=request_messages,
                     reply=response,
                     valid=True,
-                    errors=errors,
-                    actions=actions,
+                    corrected_actions=actions,
                     discarded_actions=discarded_actions,
                     latency_ms=round((perf_counter() - started_at) * 1000),
                 )
             return actions
         except Exception as exc:
             if trace is not None:
-                trace.event(
-                    "im_correction",
+                trace.correction_conversation(
                     iteration=iteration,
+                    attempt=attempt,
                     request=request_messages,
                     reply=response,
                     valid=False,
-                    errors=errors,
-                    validation=str(exc),
+                    error=str(exc),
                     latency_ms=round((perf_counter() - started_at) * 1000),
                 )
             raise

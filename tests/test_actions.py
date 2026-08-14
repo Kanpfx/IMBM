@@ -49,7 +49,7 @@ class ActionRuntimeTests(unittest.TestCase):
         ):
             with self.subTest(action_id=action_id):
                 with self.assertRaisesRegex(
-                    InstructionError, "not enabled for LLM output"
+                    InstructionError, "not currently listed in `<available_actions>`"
                 ):
                     adapter._validate_shape({"id": action_id, "args": {}})
 
@@ -92,7 +92,6 @@ class ActionRuntimeTests(unittest.TestCase):
             bot=None,
             actions=[{"id": "GasBuildingController", "args": {"to_count": 1}}],
             context=EntityContext(),
-            phase="opening_tech",
         )
 
         self.assertTrue(accepted, reason)
@@ -114,23 +113,17 @@ class ActionRuntimeTests(unittest.TestCase):
             {"actions": []},
         )
 
-    def test_im_parser_accepts_common_wrappers_and_requires_the_full_contract(self):
-        expected = {
-            "actions": [],
-            "request_background": False,
-            "background_reason": "",
-        }
-        raw = '{"actions":[],"request_background":false,' '"background_reason":""}'
+    def test_im_parser_accepts_common_wrappers_and_requires_actions(self):
+        expected = {"actions": []}
+        raw = '{"actions":[]}'
 
         self.assertEqual(parse_im_payload(raw), expected)
         self.assertEqual(parse_im_payload(f"```json\n{raw}\n```"), expected)
         self.assertEqual(parse_im_payload(f"Result:\n{raw}\nDone."), expected)
         with self.assertRaisesRegex(OutputFormatError, "standard JSON object"):
             parse_im_payload('{"actions":[]')
-        with self.assertRaisesRegex(OutputFormatError, "request_background"):
-            parse_im_payload(
-                '{"actions":[],"request_background":"false",' '"background_reason":""}'
-            )
+        with self.assertRaisesRegex(OutputFormatError, "actions"):
+            parse_im_payload('{"actions":"none"}')
 
     def test_catalog_and_policy_apply_basic_case_and_separator_tolerance(self):
         catalog = ActionCatalog.load()
@@ -150,7 +143,6 @@ class ActionRuntimeTests(unittest.TestCase):
                 }
             ],
             context=EntityContext(positions={"main": main}),
-            phase="opening_tech",
         )
 
         self.assertTrue(review.accepted, review.message)
@@ -183,6 +175,44 @@ class ActionRuntimeTests(unittest.TestCase):
 
         self.assertEqual(gas["to_count"], 2)
         self.assertEqual(group["group_tags"], {42})
+
+    def test_adapter_normalizes_supported_terran_upgrade_names(self):
+        from sc2.ids.upgrade_id import UpgradeId
+
+        catalog = ActionCatalog.load()
+        adapter = AresActionAdapter(catalog)
+        context = EntityContext(positions={"main": object()})
+
+        resolved = adapter._resolve_arguments(
+            catalog.get("UpgradeController"),
+            {
+                "upgrade_list": ["CombatShield", "ConcussiveShells"],
+                "base_location": "main",
+            },
+            context,
+        )
+
+        self.assertEqual(
+            resolved["upgrade_list"],
+            [UpgradeId.SHIELDWALL, UpgradeId.PUNISHERGRENADES],
+        )
+
+    def test_adapter_rejects_upgrade_without_ares_research_mapping(self):
+        catalog = ActionCatalog.load()
+        adapter = AresActionAdapter(catalog)
+        context = EntityContext(positions={"main": object()})
+
+        with self.assertRaisesRegex(
+            InstructionError, "supported by Ares UpgradeController"
+        ):
+            adapter._resolve_arguments(
+                catalog.get("UpgradeController"),
+                {
+                    "upgrade_list": ["COMBATDRUGS"],
+                    "base_location": "main",
+                },
+                context,
+            )
 
     def test_adapter_resolves_numeric_and_bracketed_observation_ids(self):
         catalog = ActionCatalog.load()
@@ -226,7 +256,6 @@ class ActionRuntimeTests(unittest.TestCase):
                 {"id": "AMoveGroup", "args": {"group": [1, "[2]"], "target": "main"}}
             ],
             context=EntityContext(own_entities=units, positions={"main": object()}),
-            phase="bc_pressure",
         )
 
         self.assertTrue(review.accepted, review.message)
@@ -267,7 +296,6 @@ class ActionRuntimeTests(unittest.TestCase):
                 }
             ],
             context=EntityContext(),
-            phase="first_bc_preparation",
         )
 
         self.assertTrue(review.accepted, review.message)
@@ -295,7 +323,6 @@ class ActionRuntimeTests(unittest.TestCase):
                 }
             ],
             context=EntityContext(),
-            phase="bc_pressure",
         )
 
         self.assertTrue(review.accepted, review.message)
@@ -325,7 +352,6 @@ class ActionRuntimeTests(unittest.TestCase):
                 }
             ],
             context=EntityContext(),
-            phase="bc_pressure",
         )
 
         self.assertTrue(review.accepted, review.message)
@@ -384,7 +410,6 @@ class ActionRuntimeTests(unittest.TestCase):
             bot=None,
             actions=[{"id": "TacticalJump", "args": {"unit": "m1", "target": "main"}}],
             context=context,
-            phase="bc_pressure",
         )
 
         self.assertFalse(review.accepted)
@@ -407,7 +432,6 @@ class ActionRuntimeTests(unittest.TestCase):
                 positions={"main": type("Point", (), {"x": 1, "y": 1})()},
                 grids={"air": object()},
             ),
-            phase="bc_pressure",
         )
 
         self.assertFalse(review.accepted)
@@ -428,7 +452,6 @@ class ActionRuntimeTests(unittest.TestCase):
                 own_entities={"scv1": scv},
                 positions={"main": type("Point", (), {"x": 1, "y": 1})()},
             ),
-            phase="bc_pressure",
         )
 
         self.assertTrue(review.accepted, review.message)
@@ -446,7 +469,6 @@ class ActionRuntimeTests(unittest.TestCase):
                 }
             ],
             context=EntityContext(positions={"main": point}),
-            phase="opening_tech",
         )
 
         self.assertFalse(accepted)
@@ -467,7 +489,6 @@ class ActionRuntimeTests(unittest.TestCase):
                 },
             ],
             context=EntityContext(positions={"main": point}),
-            phase="opening_tech",
         )
 
         self.assertFalse(review.accepted)
@@ -498,7 +519,6 @@ class ActionRuntimeTests(unittest.TestCase):
                 }
             ],
             context=EntityContext(own_entities={"1": unit}),
-            phase="bc_pressure",
         )
 
         self.assertTrue(review.accepted, review.message)
@@ -523,7 +543,6 @@ class ActionRuntimeTests(unittest.TestCase):
             context=EntityContext(
                 positions={"main": type("Point", (), {"x": 1, "y": 1})()}
             ),
-            phase="opening_tech",
         )
 
         self.assertTrue(review.accepted, review.message)
@@ -612,3 +631,18 @@ class ActionRuntimeTests(unittest.TestCase):
         self.assertEqual(adapter.calls, 9)
         self.assertEqual(completed, [action])
         self.assertEqual(failed, [])
+
+    def test_macro_controllers_persist_without_a_macro_plan(self):
+        catalog = ActionCatalog.load()
+        registry = PersistentActionRegistry(catalog, duration_iterations=30)
+
+        for action_id in (
+            "ExpansionController",
+            "GasBuildingController",
+            "ProductionController",
+            "SpawnController",
+            "UpgradeCCs",
+            "UpgradeController",
+        ):
+            with self.subTest(action_id=action_id):
+                self.assertTrue(registry.is_persistent({"id": action_id, "args": {}}))

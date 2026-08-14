@@ -1,18 +1,28 @@
-"""Reliable, low-latency rules that are intentionally outside the IM action space."""
+"""Reliable, low-latency rules that run independently of IM decisions."""
 
 from __future__ import annotations
 
 from typing import Any
 
+from ares.behaviors.macro import AutoSupply, BuildWorkers
 from ares.behaviors.macro.mining import Mining
 from sc2.ids.ability_id import AbilityId
 from sc2.ids.unit_typeid import UnitTypeId
 
 
 class AutomationController:
+    """Own baseline economy and safety behaviors without using ``MacroPlan``."""
+
+    def __init__(self, default_worker_target: int = 20) -> None:
+        self.default_worker_target = default_worker_target
+        self.worker_target = default_worker_target
+        self._worker_override: dict[str, Any] | None = None
+
     async def run(self, bot: Any, iteration: int) -> None:
+        """Register automatic behaviors that should run before IM spending."""
         workers_per_gas = 3 if bot.supply_workers >= 13 else 0
         bot.register_behavior(Mining(workers_per_gas=workers_per_gas))
+        bot.register_behavior(AutoSupply(base_location=bot.start_location))
         bot._mules()
         bot._general_repair()
         if getattr(bot, "tactic_name", "") != "WorkerRush":
@@ -22,3 +32,25 @@ class AutomationController:
             for depot in depots:
                 if depot.is_ready and depot.type_id == UnitTypeId.SUPPLYDEPOT:
                     depot(AbilityId.MORPH_SUPPLYDEPOT_LOWER)
+
+    def replace_worker_override(
+        self, action: dict[str, Any] | None
+    ) -> tuple[dict[str, Any] | None, bool]:
+        """Replace the IM worker target for the next decision cycle.
+
+        Returns the previous override and whether the effective override changed,
+        allowing the observation history to close an old active intent cleanly.
+        """
+        previous = self._worker_override
+        changed = previous != action
+        self._worker_override = action
+        self.worker_target = (
+            int(action["args"]["to_count"])
+            if action is not None
+            else self.default_worker_target
+        )
+        return previous, changed
+
+    def register_worker_production(self, bot: Any) -> None:
+        """Register worker production after foreground IM spending behaviors."""
+        bot.register_behavior(BuildWorkers(to_count=self.worker_target))

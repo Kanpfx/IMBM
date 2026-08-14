@@ -7,9 +7,13 @@ from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 
+from game.actions.formatting import format_action
 from game.actions.resolver import EntityContext
+from game.observation.hints import SituationHintBuilder
+from game.observation.overview import OverviewBuilder
 from game.observation.renderer import observation_text
 from game.observation.state import TagIdMapper
+from game.observation.technology import ProductionTechnologyBuilder
 
 PENDING_NAMES = (
     "COMMANDCENTER",
@@ -21,6 +25,20 @@ PENDING_NAMES = (
     "STARPORT",
     "FUSIONCORE",
     "STARPORTTECHLAB",
+    "MARINE",
+    "REAPER",
+    "MARAUDER",
+    "GHOST",
+    "HELLION",
+    "WIDOWMINE",
+    "CYCLONE",
+    "SIEGETANK",
+    "THOR",
+    "VIKINGFIGHTER",
+    "MEDIVAC",
+    "LIBERATOR",
+    "BANSHEE",
+    "RAVEN",
     "BATTLECRUISER",
 )
 
@@ -31,6 +49,23 @@ IMPORTANT_UNIT_NAMES = {
     "GHOST",
     "SIEGETANK",
 }
+LAST_KNOWN_UNIT_NAMES = IMPORTANT_UNIT_NAMES | {
+    "BANSHEE",
+    "BROODLORD",
+    "CARRIER",
+    "COLOSSUS",
+    "DARKTEMPLAR",
+    "DISRUPTOR",
+    "HIGHTEMPLAR",
+    "INFESTOR",
+    "LURKERMP",
+    "MOTHERSHIP",
+    "MUTALISK",
+    "TEMPEST",
+    "ULTRALISK",
+    "VIPER",
+    "VOIDRAY",
+}
 IMPORTANT_STRUCTURE_NAMES = {
     "COMMANDCENTER",
     "ORBITALCOMMAND",
@@ -40,9 +75,6 @@ IMPORTANT_STRUCTURE_NAMES = {
     "FUSIONCORE",
     "STARPORTTECHLAB",
 }
-PRODUCTION_STRUCTURE_NAMES = {"BARRACKS", "FACTORY", "STARPORT"}
-
-
 @dataclass
 class Observation:
     iteration: int
@@ -70,9 +102,13 @@ class ActionHistoryEntry:
 
 
 def _type_name(unit: Any) -> str:
-    return getattr(
-        getattr(unit, "type_id", None), "name", getattr(unit, "name", "UNKNOWN")
-    )
+    type_name = getattr(getattr(unit, "type_id", None), "name", None)
+    if type_name:
+        return type_name
+    try:
+        return getattr(unit, "name", "UNKNOWN") or "UNKNOWN"
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return "UNKNOWN"
 
 
 def _count(units: list[Any]) -> dict[str, int]:
@@ -88,28 +124,26 @@ class ObservationBuilder:
 
     def __init__(self, ids: TagIdMapper):
         self.ids = ids
+        self.overview_builder = OverviewBuilder()
+        self.hint_builder = SituationHintBuilder()
+        self.technology_builder = ProductionTechnologyBuilder()
         self._action_history: list[ActionHistoryEntry] = []
-        self._last_validation_error = ""
         self._previous_facts: dict[str, int | str] | None = None
-        self._battlecruiser_ever_ready = False
 
     def record_registered_actions(
         self, actions: list[dict[str, Any]], time: str = "--:--"
     ) -> None:
         self._record_actions(actions, time, "completed", replace_statuses={"queued"})
-        self._last_validation_error = ""
 
     def record_deferred_actions(
         self, actions: list[dict[str, Any]], time: str = "--:--"
     ) -> None:
         self._record_actions(actions, time, "queued")
-        self._last_validation_error = ""
 
     def record_active_actions(
         self, actions: list[dict[str, Any]], time: str = "--:--"
     ) -> None:
         self._record_actions(actions, time, "active")
-        self._last_validation_error = ""
 
     def record_completed_actions(
         self, actions: list[dict[str, Any]], time: str = "--:--"
@@ -137,8 +171,6 @@ class ObservationBuilder:
         replace_statuses: set[str] | None = None,
     ) -> None:
         for action in actions:
-            action_id = str(action.get("id", "unknown action"))
-            args = action.get("args", {})
             key = json.dumps(action, sort_keys=True, separators=(",", ":"))
             if replace_statuses:
                 waiting = next(
@@ -156,23 +188,29 @@ class ObservationBuilder:
                 ActionHistoryEntry(
                     time,
                     key,
-                    f"{action_id}{self._action_detail(action_id, args)}",
+                    format_action(action),
                     status,
                 )
             )
         self._action_history = self._action_history[-10:]
 
-    def record_validation_error(self, error: str) -> None:
-        # Network failures are not action validation feedback and would only
-        # distract the next IM decision.
-        if error:
-            self._last_validation_error = self._friendly_validation_error(error)
+    def collect_frame(self, bot: Any) -> None:
+        """Collect short-lived facts even when no model observation is due."""
+        self.hint_builder.collect_frame(bot)
 
-    def build(self, bot: Any, iteration: int, _phase: str) -> Observation:
+    def build(self, bot: Any, iteration: int) -> Observation:
         own_units = list(bot.units)
         structures = list(bot.structures)
         enemies = [
-            unit for unit in bot.enemy_units if getattr(unit, "is_visible", True)
+            unit
+            for unit in bot.enemy_units
+            if getattr(unit, "is_visible", True)
+            and not getattr(unit, "is_memory", False)
+        ]
+        remembered_enemies = [
+            unit
+            for unit in bot.enemy_units
+            if getattr(unit, "is_memory", False)
         ]
         enemy_structures = [
             unit for unit in bot.enemy_structures if getattr(unit, "is_visible", True)
@@ -180,18 +218,6 @@ class ObservationBuilder:
         own_counts = _count(own_units)
         structure_counts = _count(structures)
         pending = self._pending_counts(bot)
-        if any(
-            _type_name(unit) == "BATTLECRUISER"
-            and bool(
-                getattr(
-                    unit,
-                    "is_ready",
-                    float(getattr(unit, "build_progress", 1.0)) >= 1.0,
-                )
-            )
-            for unit in own_units
-        ):
-            self._battlecruiser_ever_ready = True
         counts = dict(own_counts)
         counts.update(structure_counts)
         counts.update({f"pending:{name}": value for name, value in pending.items()})
@@ -206,31 +232,26 @@ class ObservationBuilder:
             enemy_structures, context, bot, own=False
         )
         facts = self._facts(own_counts, structures, enemies, enemy_structures, bot)
+        overview = self.overview_builder.build(
+            bot,
+            structures,
+            own_units,
+            self._area_label,
+        )
         data = {
-            "time": getattr(bot, "time_formatted", "00:00"),
-            "enemy_race": getattr(getattr(bot, "enemy_race", None), "name", "Unknown"),
-            "minerals": int(bot.minerals),
-            "vespene": int(bot.vespene),
-            "supply_used": int(bot.supply_used),
-            "supply_cap": int(bot.supply_cap),
-            "supply_free": int(bot.supply_cap - bot.supply_used),
-            "army_supply": int(
-                getattr(
-                    bot,
-                    "supply_army",
-                    sum(1 for unit in own_units if _type_name(unit) != "SCV"),
-                )
-            ),
-            **self._economy(bot, structures),
+            "overview": overview,
+            "situational_hints": self.hint_builder.build(bot),
             "own_unit_blocks": own_unit_blocks,
             "own_structure_blocks": own_structure_blocks,
             "enemy_unit_blocks": enemy_unit_blocks,
             "enemy_structure_blocks": enemy_structure_blocks,
-            "production_and_technology": self._production_and_technology(
-                structures, pending
+            "last_known_enemy_blocks": self._last_known_enemy_blocks(
+                remembered_enemies, bot
             ),
-            "base_overview": self._base_overview(bot, enemies),
-            "action_history": self._history_blocks(),
+            "production_and_technology": self.technology_builder.build(
+                bot, structures, pending
+            ),
+            "action_history": self._action_history_blocks(),
             "recent_changes": self._recent_changes(facts),
         }
         self._previous_facts = facts
@@ -275,43 +296,6 @@ class ObservationBuilder:
             if hasattr(UnitTypeId, name):
                 pending[name] = int(bot.already_pending(getattr(UnitTypeId, name)))
         return pending
-
-    def _economy(self, bot: Any, structures: list[Any]) -> dict[str, int | str]:
-        workers = list(bot.workers)
-        idle = sum(bool(getattr(worker, "is_idle", False)) for worker in workers)
-        on_gas = self._workers_on_gas(bot)
-        active_bases = sum(
-            bool(getattr(base, "is_ready", True))
-            for base in getattr(bot, "townhalls", [])
-        )
-        building_bases = len(getattr(bot, "townhalls", [])) - active_bases
-        supply_status = (
-            "blocked" if bot.supply_cap - bot.supply_used <= 0 else "not blocked"
-        )
-        depot_progress = [
-            int(float(getattr(structure, "build_progress", 1.0)) * 100)
-            for structure in structures
-            if _type_name(structure) == "SUPPLYDEPOT"
-            and float(getattr(structure, "build_progress", 1.0)) < 1.0
-        ]
-        if depot_progress:
-            supply_status = f"Supply Depot building ({max(depot_progress)}%)"
-        return {
-            "active_bases": active_bases,
-            "building_bases": building_bases,
-            "workers": len(workers),
-            "workers_on_gas": on_gas,
-            "idle_workers": idle,
-            "workers_on_minerals": max(0, len(workers) - on_gas - idle),
-            "supply_status": supply_status,
-        }
-
-    def _unit_overview(self, units: list[Any]) -> str:
-        counts = _count(units)
-        workers = counts.pop("SCV", 0)
-        army_total = sum(counts.values())
-        army = self._summary_counts(counts) if army_total else "none"
-        return f"Units: army {army_total} ({army}); workers {workers} SCVs."
 
     def _role_labels(self, bot: Any) -> dict[int, str]:
         """Translate only the few Ares roles that make sense to a commander."""
@@ -374,9 +358,6 @@ class ObservationBuilder:
         energy = self._energy_line(structure)
         if energy:
             lines.append(energy)
-        production = self._production_text(structure)
-        if production:
-            lines.append(production)
         return "\n".join(lines)
 
     @staticmethod
@@ -408,11 +389,11 @@ class ObservationBuilder:
     def _position_label(self, unit: Any, bot: Any) -> str:
         position = getattr(unit, "position", None)
         if position is None:
-            return "unknown"
+            return "[Unknown]"
         try:
             coordinates = f"({int(position.x)}, {int(position.y)})"
         except (AttributeError, TypeError, ValueError):
-            coordinates = "unknown"
+            coordinates = "[Unknown]"
         candidates = (
             ("our main", getattr(bot, "start_location", None)),
             ("our natural", self._safe_mediator(bot, "get_own_nat")),
@@ -436,121 +417,6 @@ class ObservationBuilder:
         if nearest_distance <= 400:
             return f"{coordinates}, near {nearest_name}"
         return coordinates
-
-    def _production_and_technology(
-        self, structures: list[Any], pending: dict[str, int]
-    ) -> list[str]:
-        counts = _count(structures)
-        infrastructure_order = (
-            "COMMANDCENTER",
-            "ORBITALCOMMAND",
-            "BARRACKS",
-            "FACTORY",
-            "STARPORT",
-        )
-        infrastructure = [
-            f"{count} {self._display_name(name, plural=count != 1)}"
-            for name in infrastructure_order
-            if (count := counts.get(name, 0))
-        ]
-        lines = [
-            "Infrastructure: "
-            + (", ".join(infrastructure) if infrastructure else "[Empty]")
-            + "."
-        ]
-        technology = [
-            self._display_name(_type_name(structure))
-            for structure in structures
-            if _type_name(structure) in {"FUSIONCORE", "STARPORTTECHLAB"}
-            and float(getattr(structure, "build_progress", 1.0)) >= 1.0
-        ]
-        if technology:
-            lines.append(
-                "Technology: " + "; ".join(f"{name} ready" for name in technology) + "."
-            )
-        pending_items = [
-            f"{count} {self._display_name(name, plural=count != 1)}"
-            for name, count in pending.items()
-            if count > 0
-        ]
-        if pending_items:
-            lines.append("In production or pending: " + ", ".join(pending_items) + ".")
-        if self._battlecruiser_ever_ready:
-            lines.append(
-                "Battlecruiser history: at least one Battlecruiser is ready now "
-                "or was ready earlier."
-            )
-        production = []
-        idle = []
-        in_progress = []
-        for structure in structures:
-            name = _type_name(structure)
-            progress = float(getattr(structure, "build_progress", 1.0))
-            alias = self.ids.alias(structure.tag)
-            if progress < 1.0:
-                in_progress.append(
-                    f"{self._display_name(name)} ({int(progress * 100)}%)"
-                )
-                continue
-            if name in PRODUCTION_STRUCTURE_NAMES:
-                queue = self._production_text(structure)
-                if queue:
-                    production.append(
-                        f"{self._display_name(name)} [{alias}] {queue[12:]}"
-                    )
-                elif getattr(structure, "is_idle", False):
-                    idle.append(f"{self._display_name(name)} [{alias}]")
-        if production:
-            lines.append("Production: " + "; ".join(production) + ".")
-        if idle:
-            lines.append("Idle production: " + ", ".join(idle) + ".")
-        if in_progress:
-            lines.append("In progress: " + ", ".join(in_progress) + ".")
-        return lines
-
-    def _base_overview(self, bot: Any, enemies: list[Any]) -> str:
-        ground = self._safe_mediator(bot, "get_ground_enemy_near_bases") or {}
-        air = self._safe_mediator(bot, "get_flying_enemy_near_bases") or {}
-        entries: list[str] = []
-        for index, base in enumerate(getattr(bot, "townhalls", [])):
-            label = ("main", "natural")[index] if index < 2 else f"base {index + 1}"
-            if bool(getattr(base, "is_ready", True)):
-                state = "active"
-            else:
-                progress = int(float(getattr(base, "build_progress", 0.0)) * 100)
-                state = f"building {progress}%"
-            ground_tags = set(ground.get(base.tag, set()))
-            air_tags = set(air.get(base.tag, set()))
-            if not ground_tags and not air_tags:
-                threat = "no visible ground or air threat"
-            else:
-                threats: list[str] = []
-                if ground_tags:
-                    threats.append(
-                        "ground threat: "
-                        + self._summary_units_for_tags(enemies, ground_tags)
-                    )
-                if air_tags:
-                    threats.append(
-                        "air threat: " + self._summary_units_for_tags(enemies, air_tags)
-                    )
-                threat = "; ".join(threats)
-            entries.append(f"{label} ({state}, {threat})")
-        return "; ".join(entries) if entries else "[Empty]"
-
-    def _summary_units_for_tags(self, units: list[Any], tags: set[int]) -> str:
-        selected = [unit for unit in units if unit.tag in tags]
-        return (
-            self._summary_counts(_count(selected))
-            if selected
-            else f"{len(tags)} enemy units"
-        )
-
-    def _summary_counts(self, counts: dict[str, int]) -> str:
-        parts = []
-        for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0])):
-            parts.append(f"{count} {self._display_name(name, plural=count != 1)}")
-        return ", ".join(parts)
 
     def _own_unit_blocks(
         self, units: list[Any], context: EntityContext, bot: Any
@@ -590,6 +456,25 @@ class ObservationBuilder:
             )
             grouped[(name, state, detail)].append(unit)
         return self._group_blocks(grouped, context.enemy_entities)
+
+    def _last_known_enemy_blocks(self, units: list[Any], bot: Any) -> list[str]:
+        """Keep enemy memory brief and clearly separate from current vision."""
+        grouped: dict[tuple[str, str, int], int] = defaultdict(int)
+        for unit in units:
+            name = _type_name(unit)
+            if name not in LAST_KNOWN_UNIT_NAMES:
+                continue
+            try:
+                age = max(0, int(float(getattr(unit, "age", 0.0))))
+            except (AttributeError, TypeError, ValueError):
+                age = 0
+            grouped[(name, self._area_label(unit, bot), age)] += 1
+        lines = [
+            f"{count} {self._display_name(name, plural=count > 1)} last seen "
+            f"{location}, {age}s ago."
+            for (name, location, age), count in grouped.items()
+        ]
+        return lines[:3]
 
     def _structure_blocks(
         self, structures: list[Any], context: EntityContext, bot: Any, *, own: bool
@@ -696,7 +581,7 @@ class ObservationBuilder:
         """Return a compact descriptive region without exposing raw coordinates."""
         position = getattr(unit, "position", None)
         if position is None:
-            return "unknown location"
+            return "[Unknown]"
         candidates = (
             ("our main", getattr(bot, "start_location", None)),
             ("our natural", self._safe_mediator(bot, "get_own_nat")),
@@ -731,27 +616,6 @@ class ObservationBuilder:
         if getattr(structure, "is_idle", False):
             return "ready and idle"
         return "ready"
-
-    @staticmethod
-    def _production_text(structure: Any) -> str:
-        names = []
-        for order in getattr(structure, "orders", []):
-            ability = getattr(order, "ability", None)
-            name = getattr(ability, "friendly_name", getattr(ability, "name", ""))
-            if name:
-                names.append(str(name).replace("Train ", ""))
-        return f"production: {', '.join(names)}" if names else ""
-
-    @staticmethod
-    def _health_label(unit: Any, *, include: bool) -> str:
-        if not include:
-            return ""
-        percentage = float(getattr(unit, "health_percentage", 1.0))
-        if percentage < 0.3:
-            return f"critical ({int(percentage * 100)}%)"
-        if percentage < 0.9:
-            return f"damaged ({int(percentage * 100)}%)"
-        return "healthy"
 
     def _facts(
         self,
@@ -847,39 +711,11 @@ class ObservationBuilder:
                 break
         return changes
 
-    def _history_blocks(self) -> list[str]:
-        history = [
+    def _action_history_blocks(self) -> list[str]:
+        return [
             f"{item.time} {item.description} status: {item.status}"
             for item in self._action_history
         ]
-        if self._last_validation_error:
-            history.append(f"Previous validation error: {self._last_validation_error}")
-        return history
-
-    @staticmethod
-    def _action_detail(action_id: str, args: Any) -> str:
-        if not isinstance(args, dict):
-            return ""
-        if action_id in {"macro.build_structure", "BuildStructure"}:
-            return f" ({args.get('structure_id', 'structure')} near {args.get('base_location', 'base')})"
-        if action_id in {"macro.gas_building_controller", "GasBuildingController"}:
-            return f" (target: {args.get('to_count', '?')} Refineries)"
-        return ""
-
-    @staticmethod
-    def _friendly_validation_error(error: str) -> str:
-        if error.isdigit():
-            return "An action used a numeric enum value. Use the documented enum name instead."
-        return error
-
-    @staticmethod
-    def _workers_on_gas(bot: Any) -> int:
-        gas_tags = {gas.tag for gas in getattr(bot, "gas_buildings", [])}
-        return sum(
-            1
-            for worker in bot.workers
-            if getattr(worker, "order_target", None) in gas_tags
-        )
 
     @staticmethod
     def _safe_mediator(bot: Any, attribute: str) -> Any:
