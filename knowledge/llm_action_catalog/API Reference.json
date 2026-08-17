@@ -26,7 +26,6 @@
         {
           "name": "container_tag",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "Tag of the container to unload."
@@ -34,7 +33,6 @@
         {
           "name": "index",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": false,
           "description": "Zero-based index of the cargo item to unload.",
@@ -62,7 +60,6 @@
         {
           "name": "structure_unit_types",
           "type": "unit_type_ids",
-          "python_type": "set[UnitID]",
           "input": "runtime",
           "required": true,
           "description": "Structure unit types."
@@ -70,7 +67,6 @@
         {
           "name": "unit_type",
           "type": "unit_type_id",
-          "python_type": "UnitID",
           "input": "runtime",
           "required": true,
           "description": "Unit type."
@@ -78,7 +74,6 @@
         {
           "name": "build_dict",
           "type": "json_value",
-          "python_type": "Any",
           "input": "runtime",
           "required": false,
           "description": "Build dict.",
@@ -87,7 +82,6 @@
         {
           "name": "ignored_build_from_tags",
           "type": "json_value",
-          "python_type": "Any",
           "input": "runtime",
           "required": false,
           "description": "Ignored build from tags.",
@@ -115,7 +109,6 @@
         {
           "name": "order",
           "type": "ability_id",
-          "python_type": "AbilityId",
           "input": "runtime",
           "required": true,
           "description": "Ability order issued to every selected unit."
@@ -123,7 +116,6 @@
         {
           "name": "unit_tags",
           "type": "integer_list",
-          "python_type": "Union[List[int], set[int]]",
           "input": "runtime",
           "required": true,
           "description": "Tags of the units that receive the order."
@@ -131,7 +123,6 @@
         {
           "name": "target",
           "type": "point_or_integer",
-          "python_type": "Optional[Union[Point2, int]]",
           "input": "runtime",
           "required": false,
           "description": "Optional target position or target unit tag.",
@@ -195,7 +186,6 @@
         {
           "name": "unit",
           "type": "unit_ref",
-          "python_type": "Unit",
           "input": "runtime",
           "required": true,
           "description": "Acting unit."
@@ -222,7 +212,6 @@
         {
           "name": "unit",
           "type": "unit_ref",
-          "python_type": "Unit",
           "input": "runtime",
           "required": true,
           "description": "Acting unit."
@@ -249,7 +238,6 @@
         {
           "name": "game_result",
           "type": "json_value",
-          "python_type": "Result",
           "input": "runtime",
           "required": true,
           "description": "Game result."
@@ -294,7 +282,6 @@
         {
           "name": "iteration",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "Iteration."
@@ -321,7 +308,6 @@
         {
           "name": "unit",
           "type": "unit_ref",
-          "python_type": "Unit",
           "input": "runtime",
           "required": true,
           "description": "Acting unit."
@@ -348,7 +334,6 @@
         {
           "name": "unit_tag",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "Unit tag."
@@ -375,7 +360,6 @@
         {
           "name": "unit",
           "type": "unit_ref",
-          "python_type": "Unit",
           "input": "runtime",
           "required": true,
           "description": "Acting unit."
@@ -383,7 +367,6 @@
         {
           "name": "amount_damage_taken",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": true,
           "description": "Amount damage taken."
@@ -410,7 +393,6 @@
         {
           "name": "behavior",
           "type": "json_value",
-          "python_type": "Behavior",
           "input": "runtime",
           "required": true,
           "description": "Behavior."
@@ -455,7 +437,6 @@
         {
           "name": "templar",
           "type": "unit_refs",
-          "python_type": "list[Unit]",
           "input": "runtime",
           "required": true,
           "description": "Templar units to combine for the Archon morph."
@@ -482,7 +463,6 @@
         {
           "name": "base_location",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Base location around which placement should be found."
@@ -490,7 +470,6 @@
         {
           "name": "structure_type",
           "type": "unit_type_id",
-          "python_type": "UnitID",
           "input": "runtime",
           "required": true,
           "description": "Zerg structure type to place."
@@ -517,7 +496,6 @@
         {
           "name": "structure_type",
           "type": "unit_type_id",
-          "python_type": "UnitID",
           "input": "runtime",
           "required": true,
           "description": "Structure type."
@@ -544,7 +522,6 @@
         {
           "name": "structure_type",
           "type": "unit_type_id",
-          "python_type": "UnitID",
           "input": "runtime",
           "required": true,
           "description": "Structure type."
@@ -571,7 +548,6 @@
         {
           "name": "unit_type",
           "type": "unit_type_id",
-          "python_type": "UnitID",
           "input": "runtime",
           "required": true,
           "description": "Unit type."

@@ -80,7 +80,7 @@ BattleCruiserRush 战术和 BM。
 
 ```powershell
 python run.py `
-  --map_name MagannathaAIE_v2 `
+  --map_name IncorporealAIE_v4 `
   --difficulty VeryHard `
   --build_mode RandomBuild `
   --enemy_race Terran `

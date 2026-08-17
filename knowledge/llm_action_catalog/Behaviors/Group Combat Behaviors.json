@@ -13,7 +13,7 @@
     {
       "id": "combat.group.a_move_group",
       "name": "AMoveGroup",
-      "description": "A-Move group to a target.",
+      "description": "Attack-move a group toward a target.",
       "tags": ["combat", "movement"],
       "availability": {
         "param": "group",
@@ -21,14 +21,12 @@
       },
       "api": {
         "import": "ares.behaviors.combat.group.a_move_group.AMoveGroup",
-        "source_path": "ares-sc2/src/ares/behaviors/combat/group/a_move_group.py",
-        "dispatch": "register_behavior"
+        "source_path": "ares-sc2/src/ares/behaviors/combat/group/a_move_group.py"
       },
       "params": [
         {
           "name": "group",
           "type": "unit_refs",
-          "python_type": "list[Unit]",
           "input": "model",
           "required": true,
           "description": "Units we want to control."
@@ -36,7 +34,6 @@
         {
           "name": "group_tags",
           "type": "integer_list",
-          "python_type": "set[int]",
           "input": "derived",
           "required": true,
           "description": "The group unit tags."
@@ -44,10 +41,9 @@
         {
           "name": "target",
           "type": "point_or_unit_ref",
-          "python_type": "Union[Point2, Unit]",
           "input": "model",
           "required": true,
-          "description": "Where the unit is going."
+          "description": "Attack-move target."
         }
       ],
       "llm_exposure": "eligible"
@@ -55,7 +51,7 @@
     {
       "id": "combat.group.group_use_ability",
       "name": "GroupUseAbility",
-      "description": "Issue a single ability command for a group of units.",
+      "description": "Use one ability with a group of units.",
       "tags": ["combat", "ability"],
       "availability": {
         "param": "group",
@@ -63,22 +59,19 @@
       },
       "api": {
         "import": "ares.behaviors.combat.group.group_use_ability.GroupUseAbility",
-        "source_path": "ares-sc2/src/ares/behaviors/combat/group/group_use_ability.py",
-        "dispatch": "register_behavior"
+        "source_path": "ares-sc2/src/ares/behaviors/combat/group/group_use_ability.py"
       },
       "params": [
         {
           "name": "ability",
           "type": "ability_id",
-          "python_type": "AbilityId",
           "input": "model",
           "required": true,
-          "description": "Ability we want to use."
+          "description": "Ability to use."
         },
         {
           "name": "group",
           "type": "unit_refs",
-          "python_type": "list[Unit]",
           "input": "model",
           "required": true,
           "description": "Units we want to control."
@@ -86,7 +79,6 @@
         {
           "name": "group_tags",
           "type": "integer_list",
-          "python_type": "set[int]",
           "input": "derived",
           "required": true,
           "description": "The group unit tags."
@@ -94,15 +86,13 @@
         {
           "name": "target",
           "type": "point_or_unit_ref",
-          "python_type": "Union[Point2, Unit, None]",
           "input": "model",
           "required": true,
-          "description": "The target for this ability."
+          "description": "Ability target."
         },
         {
           "name": "sync_command",
           "type": "boolean",
-          "python_type": "bool",
           "input": "model",
           "required": false,
           "description": "(default=True) If True, wait for all units to be ready before trying ability.",
@@ -114,7 +104,7 @@
     {
       "id": "combat.group.keep_group_safe",
       "name": "KeepGroupSafe",
-      "description": "Keep every unit in a group safe, optionally attacking a nearby enemy when its weapon is ready.",
+      "description": "Move threatened units to safety; attack when possible.",
       "tags": ["combat", "defense"],
       "availability": {
         "param": "group",
@@ -122,14 +112,12 @@
       },
       "api": {
         "import": "ares.behaviors.combat.group.keep_group_safe.KeepGroupSafe",
-        "source_path": "ares-sc2/src/ares/behaviors/combat/group/keep_group_safe.py",
-        "dispatch": "register_behavior"
+        "source_path": "ares-sc2/src/ares/behaviors/combat/group/keep_group_safe.py"
       },
       "params": [
         {
           "name": "group",
           "type": "unit_refs",
-          "python_type": "list[Unit]",
           "input": "model",
           "required": true,
           "description": "Units we want to control."
@@ -137,23 +125,20 @@
         {
           "name": "close_enemy",
           "type": "unit_refs",
-          "python_type": "Union[Units, list[Unit]]",
           "input": "model",
           "required": true,
-          "description": "Nearby enemy."
+          "description": "Nearby enemies."
         },
         {
           "name": "grid",
           "type": "grid_ref",
-          "python_type": "np.ndarray",
           "input": "model",
           "required": true,
-          "description": "Grid we should check for safety."
+          "description": "Safety grid."
         },
         {
           "name": "attack_in_range_enemy",
           "type": "boolean",
-          "python_type": "bool",
           "input": "model",
           "required": false,
           "description": "Whether to attack in range if weapon is ready. Defaults to True.",
@@ -165,7 +150,7 @@
     {
       "id": "combat.group.path_group_to_target",
       "name": "PathGroupToTarget",
-      "description": "Path a group to its target destination.",
+      "description": "Path a group toward a target.",
       "tags": ["combat", "movement"],
       "availability": {
         "param": "group",
@@ -173,46 +158,40 @@
       },
       "api": {
         "import": "ares.behaviors.combat.group.path_group_to_target.PathGroupToTarget",
-        "source_path": "ares-sc2/src/ares/behaviors/combat/group/path_group_to_target.py",
-        "dispatch": "register_behavior"
+        "source_path": "ares-sc2/src/ares/behaviors/combat/group/path_group_to_target.py"
       },
       "params": [
         {
           "name": "start",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "model",
           "required": true,
-          "description": "Where to start the path query."
+          "description": "Path starting point."
         },
         {
           "name": "group",
           "type": "unit_refs",
-          "python_type": "list[Unit]",
           "input": "model",
           "required": true,
-          "description": "The actual group units."
+          "description": "Units to move."
         },
         {
           "name": "group_tags",
           "type": "integer_list",
-          "python_type": "set[int]",
           "input": "derived",
           "required": true,
-          "description": "The units to path."
+          "description": "Unit tags."
         },
         {
           "name": "grid",
           "type": "grid_ref",
-          "python_type": "np.ndarray",
           "input": "model",
           "required": true,
-          "description": "2D grid to path on."
+          "description": "Pathing grid."
         },
         {
           "name": "target",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "model",
           "required": true,
           "description": "Target destination."
@@ -220,7 +199,6 @@
         {
           "name": "distance_check_squared",
           "type": "number",
-          "python_type": "float",
           "input": "model",
           "required": false,
           "description": "Distance check squared.",
@@ -229,7 +207,6 @@
         {
           "name": "success_at_distance",
           "type": "number",
-          "python_type": "float",
           "input": "model",
           "required": false,
           "description": "If the group's supplied start position is this close to the target, do not issue a pathing command. Defaults to 0.0.",
@@ -238,7 +215,6 @@
         {
           "name": "sensitivity",
           "type": "integer",
-          "python_type": "int",
           "input": "model",
           "required": false,
           "description": "Pathfinding precision. Defaults to 12.",
@@ -247,7 +223,6 @@
         {
           "name": "smoothing",
           "type": "boolean",
-          "python_type": "bool",
           "input": "model",
           "required": false,
           "description": "Whether to smooth out the path. Defaults to False.",
@@ -256,7 +231,6 @@
         {
           "name": "sense_danger",
           "type": "boolean",
-          "python_type": "bool",
           "input": "model",
           "required": false,
           "description": "Whether to check for dangers. If none are present, the pathing query is skipped. Defaults to False.",
@@ -265,7 +239,6 @@
         {
           "name": "danger_distance",
           "type": "number",
-          "python_type": "float",
           "input": "model",
           "required": false,
           "description": "If `sense_danger` is True, how far to check for dangers. Defaults to 20.0.",
@@ -274,7 +247,6 @@
         {
           "name": "danger_threshold",
           "type": "number",
-          "python_type": "float",
           "input": "model",
           "required": false,
           "description": "Influence at which a danger is respected. Defaults to 5.0.",
@@ -283,7 +255,6 @@
         {
           "name": "prevent_duplicate",
           "type": "boolean",
-          "python_type": "bool",
           "input": "model",
           "required": false,
           "description": "Whether to try to prevent spamming actions. Defaults to True.",
@@ -295,7 +266,7 @@
     {
       "id": "combat.group.stutter_group_back",
       "name": "StutterGroupBack",
-      "description": "Stutter a group back in unison.",
+      "description": "Attack when ready; retreat the group during cooldown.",
       "tags": ["combat", "movement"],
       "availability": {
         "param": "group",
@@ -303,14 +274,12 @@
       },
       "api": {
         "import": "ares.behaviors.combat.group.stutter_group_back.StutterGroupBack",
-        "source_path": "ares-sc2/src/ares/behaviors/combat/group/stutter_group_back.py",
-        "dispatch": "register_behavior"
+        "source_path": "ares-sc2/src/ares/behaviors/combat/group/stutter_group_back.py"
       },
       "params": [
         {
           "name": "group",
           "type": "unit_refs",
-          "python_type": "list[Unit]",
           "input": "model",
           "required": true,
           "description": "The group of units we want to control."
@@ -318,7 +287,6 @@
         {
           "name": "group_tags",
           "type": "integer_list",
-          "python_type": "set[int]",
           "input": "derived",
           "required": true,
           "description": "The group unit tags."
@@ -326,26 +294,23 @@
         {
           "name": "group_position",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "model",
           "required": true,
-          "description": "The position where this group is situated."
+          "description": "Current group center."
         },
         {
           "name": "target",
           "type": "point_or_unit_ref",
-          "python_type": "Union[Point2, Unit]",
           "input": "model",
           "required": true,
-          "description": "Target for the group."
+          "description": "Engagement target."
         },
         {
           "name": "grid",
           "type": "grid_ref",
-          "python_type": "np.ndarray",
           "input": "model",
           "required": true,
-          "description": "Grid this group will use to path on."
+          "description": "Retreat safety grid."
         }
       ],
       "llm_exposure": "eligible"
@@ -353,7 +318,7 @@
     {
       "id": "combat.group.stutter_group_forward",
       "name": "StutterGroupForward",
-      "description": "Stutter a group forward in unison.",
+      "description": "Attack when ready; advance the group during cooldown.",
       "tags": ["combat", "movement"],
       "availability": {
         "param": "group",
@@ -361,14 +326,12 @@
       },
       "api": {
         "import": "ares.behaviors.combat.group.stutter_group_forward.StutterGroupForward",
-        "source_path": "ares-sc2/src/ares/behaviors/combat/group/stutter_group_forward.py",
-        "dispatch": "register_behavior"
+        "source_path": "ares-sc2/src/ares/behaviors/combat/group/stutter_group_forward.py"
       },
       "params": [
         {
           "name": "group",
           "type": "unit_refs",
-          "python_type": "list[Unit]",
           "input": "model",
           "required": true,
           "description": "The group of units we want to control."
@@ -376,7 +339,6 @@
         {
           "name": "group_tags",
           "type": "integer_list",
-          "python_type": "set[int]",
           "input": "derived",
           "required": true,
           "description": "The group unit tags."
@@ -384,26 +346,23 @@
         {
           "name": "group_position",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "model",
           "required": true,
-          "description": "Accepted for API compatibility; currently ignored by the implementation."
+          "description": "Compatibility-only; currently ignored."
         },
         {
           "name": "target",
           "type": "point_or_unit_ref",
-          "python_type": "Union[Point2, Unit]",
           "input": "model",
           "required": true,
-          "description": "Reference target used while coordinating the group. This behavior does nothing when no enemies are supplied."
+          "description": "Coordination target; requires `enemies`."
         },
         {
           "name": "enemies",
           "type": "unit_refs",
-          "python_type": "Union[Units, list[Unit]]",
           "input": "model",
           "required": true,
-          "description": "The enemy units we want to stutter towards."
+          "description": "Enemies to advance toward."
         }
       ],
       "llm_exposure": "eligible"

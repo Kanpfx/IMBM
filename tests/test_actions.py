@@ -55,8 +55,21 @@ class ActionRuntimeTests(unittest.TestCase):
 
     def test_static_macro_options_match_the_fixed_ares_source(self):
         from ares.behaviors.macro.addon_swap import ADDON_TYPES
-        from ares.consts import ADD_ONS
+        from ares.behaviors.macro.tech_up import BUILD_TECHLAB_FROM
+        from ares.consts import (
+            ADD_ONS,
+            ALL_STRUCTURES,
+            GATEWAY_UNITS,
+            TECHLAB_TYPES,
+            UnitRole,
+        )
+        from ares.dicts.aoe_ability_to_range import AOE_ABILITY_SPELLS_INFO
         from ares.dicts.structure_to_building_size import STRUCTURE_TO_BUILDING_SIZE
+        from ares.dicts.unit_tech_requirement import UNIT_TECH_REQUIREMENT
+        from sc2.dicts.unit_trained_from import UNIT_TRAINED_FROM
+        from sc2.dicts.upgrade_researched_from import UPGRADE_RESEARCHED_FROM
+        from sc2.ids.unit_typeid import UnitTypeId
+        from sc2.ids.upgrade_id import UpgradeId
 
         catalog = ActionCatalog.load()
 
@@ -82,6 +95,68 @@ class ActionRuntimeTests(unittest.TestCase):
         self.assertEqual(
             options("UpgradeCCs", "to"),
             ["ORBITALCOMMAND", "PLANETARYFORTRESS"],
+        )
+        self.assertEqual(
+            options("AddonSwap", "precise_addon_structure_id"),
+            sorted(item.name for item in ADD_ONS),
+        )
+        self.assertEqual(
+            options("UseAOEAbility", "ability_id"),
+            sorted(item.name for item in AOE_ABILITY_SPELLS_INFO),
+        )
+        self.assertEqual(
+            options("PickUpCargo", "cargo_switch_to_role"),
+            sorted(item.name for item in UnitRole),
+        )
+        self.assertEqual(
+            options("PickUpAndDropCargo", "cargo_switch_to_role"),
+            sorted(item.name for item in UnitRole),
+        )
+        trainable_units = sorted(item.name for item in UNIT_TRAINED_FROM)
+        self.assertEqual(
+            options("ProductionController", "army_composition_dict"),
+            trainable_units,
+        )
+        self.assertEqual(
+            options("SpawnController", "army_composition_dict"),
+            trainable_units,
+        )
+        self.assertEqual(
+            options("UpgradeController", "upgrade_list"),
+            sorted(item.name for item in UPGRADE_RESEARCHED_FROM),
+        )
+
+        def valid_tech_source(source):
+            if source in TECHLAB_TYPES:
+                return source in BUILD_TECHLAB_FROM
+            return source in UNIT_TECH_REQUIREMENT
+
+        tech_options = []
+        for target in UnitTypeId:
+            if target in ALL_STRUCTURES:
+                valid = target in UNIT_TECH_REQUIREMENT
+            elif target in UNIT_TRAINED_FROM:
+                sources = (
+                    {UnitTypeId.GATEWAY}
+                    if target in GATEWAY_UNITS
+                    else set(UNIT_TRAINED_FROM[target])
+                )
+                valid = bool(sources) and all(
+                    valid_tech_source(source) for source in sources
+                )
+            else:
+                valid = False
+            if valid:
+                tech_options.append(target.name)
+        tech_options.extend(
+            target.name
+            for target in UpgradeId
+            if (source := UPGRADE_RESEARCHED_FROM.get(target)) is not None
+            and valid_tech_source(source)
+        )
+        self.assertEqual(
+            options("TechUp", "desired_tech"),
+            sorted(set(tech_options)),
         )
 
     def test_policy_accepts_short_action_names(self):

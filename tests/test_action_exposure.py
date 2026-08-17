@@ -76,6 +76,54 @@ class ActionExposureTests(unittest.TestCase):
             frozenset({"2"}),
         )
 
+    def test_transport_actions_only_expose_supported_containers(self):
+        context = EntityContext(
+            own_entities={
+                "1": Unit("MARINE"),
+                "2": Unit("MEDIVAC"),
+                "3": Unit("NYDUSNETWORK", is_structure=True, has_cargo=True),
+            },
+            positions={"main": object()},
+            grids={"ground": object()},
+        )
+
+        surface = self.exposure.build(object(), context)
+
+        self.assertEqual(
+            surface.parameter_domains["combat.individual.pick_up_cargo"]["unit"],
+            frozenset({"2"}),
+        )
+        self.assertEqual(
+            surface.parameter_domains["combat.individual.pick_up_and_drop_cargo"][
+                "unit"
+            ],
+            frozenset({"2"}),
+        )
+        self.assertEqual(
+            surface.parameter_domains["combat.individual.drop_cargo"]["unit"],
+            frozenset({"3"}),
+        )
+
+    def test_spawn_controller_catalog_lists_actual_production_sources(self):
+        entry = self.catalog.get("macro.spawn_controller")
+
+        self.assertEqual(
+            set(entry["availability"]["types"]),
+            {
+                "BARRACKS",
+                "FACTORY",
+                "STARPORT",
+                "GATEWAY",
+                "WARPGATE",
+                "ROBOTICSFACILITY",
+                "STARGATE",
+                "HATCHERY",
+                "LAIR",
+                "HIVE",
+                "LARVA",
+            },
+        )
+
     def test_enemy_dependent_actions_are_hidden_without_visible_enemies(self):
         context = EntityContext(
             own_entities={"1": Unit("MARINE")},
@@ -155,10 +203,11 @@ class ActionExposureTests(unittest.TestCase):
 
         self.assertIn(
             "- `Unit`: One unit or structure ID from the current observation.\n"
-            "  - Allowed values: `COMMANDCENTER[353]`; `MARINE[12]`; "
-            "`SCV[497,641]`; `enemy ZERGLING[99]`.",
+            "  - Allowed values: `MARINE[12]`; `SCV[497,641]`; "
+            "`enemy ZERGLING[99]`.",
             prompt,
         )
+        self.assertNotIn("COMMANDCENTER[353]", prompt)
         self.assertIn("- `Grid`:", prompt)
         self.assertIn("  - Allowed values: `air`, `ground`.", prompt)
         self.assertEqual(prompt.count("SCV[497,641]"), 1)

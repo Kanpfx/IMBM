@@ -26,7 +26,6 @@
         {
           "name": "managers",
           "type": "json_array",
-          "python_type": "list['Manager']",
           "input": "runtime",
           "required": true,
           "description": "List of all Managers capable of handling ManagerRequests."
@@ -53,7 +52,6 @@
         {
           "name": "unit",
           "type": "unit_ref",
-          "python_type": "Unit",
           "input": "runtime",
           "required": true,
           "description": "The unit to be added to the nydus travellers.",
@@ -62,7 +60,6 @@
         {
           "name": "entry_nydus_tag",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "The tag of the nydus we are entering.",
@@ -71,7 +68,6 @@
         {
           "name": "exit_nydus_tag",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "The tag of the nydus we are exiting.",
@@ -80,7 +76,6 @@
         {
           "name": "exit_towards",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "The direction out of the exit nydus.",
@@ -108,7 +103,6 @@
         {
           "name": "tag",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "Tag of the unit to be assigned.",
@@ -117,7 +111,6 @@
         {
           "name": "role",
           "type": "unit_role",
-          "python_type": "UnitRole",
           "input": "runtime",
           "required": true,
           "description": "What role the unit should have.",
@@ -126,7 +119,6 @@
         {
           "name": "remove_from_squad",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Attempt to remove this unit from squad bookkeeping. Default is True.",
@@ -155,7 +147,6 @@
         {
           "name": "tags",
           "type": "integer_list",
-          "python_type": "Union[List[int], Set[int]]",
           "input": "runtime",
           "required": true,
           "description": "Tags of the units to assign to a role.",
@@ -164,7 +155,6 @@
         {
           "name": "role",
           "type": "unit_role",
-          "python_type": "UnitRole",
           "input": "runtime",
           "required": true,
           "description": "The role the units should be assigned to.",
@@ -192,7 +182,6 @@
         {
           "name": "worker",
           "type": "unit_ref",
-          "python_type": "Unit",
           "input": "runtime",
           "required": true,
           "description": "The chosen worker.",
@@ -201,7 +190,6 @@
         {
           "name": "structure_type",
           "type": "unit_type_id",
-          "python_type": "UnitID",
           "input": "runtime",
           "required": true,
           "description": "What type of structure to build.",
@@ -210,7 +198,6 @@
         {
           "name": "pos",
           "type": "point_or_unit_ref",
-          "python_type": "Union[Point2, Unit]",
           "input": "runtime",
           "required": true,
           "description": "Where the structure should be placed.",
@@ -219,7 +206,6 @@
         {
           "name": "assign_role",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Assign role.",
@@ -229,7 +215,6 @@
         {
           "name": "building_purpose",
           "type": "json_value",
-          "python_type": "BuildingPurpose",
           "input": "runtime",
           "required": false,
           "description": "Why the structure is being placed.",
@@ -260,7 +245,6 @@
         {
           "name": "worker_tag",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "The worker attempting to build the structure.",
@@ -269,7 +253,6 @@
         {
           "name": "position",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Where the structure is attempting to be placed.",
@@ -297,7 +280,6 @@
         {
           "name": "position",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "The intended building position.",
@@ -306,7 +288,6 @@
         {
           "name": "structure_type",
           "type": "unit_type_id",
-          "python_type": "UnitID",
           "input": "runtime",
           "required": true,
           "description": "Structure type we want to place.",
@@ -315,7 +296,6 @@
         {
           "name": "include_addon",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "For Terran structures, check addon will place too.",
@@ -344,7 +324,6 @@
         {
           "name": "own_units",
           "type": "unit_refs",
-          "python_type": "Units",
           "input": "runtime",
           "required": true,
           "description": "Our units involved in the battle.",
@@ -353,7 +332,6 @@
         {
           "name": "enemy_units",
           "type": "unit_refs",
-          "python_type": "Units",
           "input": "runtime",
           "required": true,
           "description": "The enemy units.",
@@ -362,7 +340,6 @@
         {
           "name": "timing_adjust",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Whether to consider the distance between units.",
@@ -372,7 +349,6 @@
         {
           "name": "good_positioning",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Whether to assume units are decently split.",
@@ -382,7 +358,6 @@
         {
           "name": "workers_do_no_damage",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Whether to ignore workers' damage.",
@@ -411,7 +386,6 @@
         {
           "name": "structure",
           "type": "unit_ref",
-          "python_type": "Unit",
           "input": "runtime",
           "required": true,
           "description": "The actual structure to cancel.",
@@ -457,7 +431,6 @@
         {
           "name": "tag",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "Tag of the unit to clear the role of.",
@@ -485,7 +458,6 @@
         {
           "name": "from_pos",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Where the search starts from.",
@@ -494,7 +466,6 @@
         {
           "name": "grid",
           "type": "grid_ref",
-          "python_type": "np.ndarray",
           "input": "runtime",
           "required": true,
           "description": "The grid to find the low-cost point on.",
@@ -503,7 +474,6 @@
         {
           "name": "radius",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": false,
           "description": "How far away the safe point can be.",
@@ -532,7 +502,6 @@
         {
           "name": "start",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Start point of the path.",
@@ -541,7 +510,6 @@
         {
           "name": "target",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Desired end point of the path.",
@@ -550,7 +518,6 @@
         {
           "name": "grid",
           "type": "grid_ref",
-          "python_type": "np.ndarray",
           "input": "runtime",
           "required": true,
           "description": "The grid that should be used for pathing.",
@@ -578,7 +545,6 @@
         {
           "name": "from_pos",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Point to start the search from.",
@@ -587,7 +553,6 @@
         {
           "name": "radius",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": true,
           "description": "How far away the returned points can be.",
@@ -596,7 +561,6 @@
         {
           "name": "grid",
           "type": "grid_ref",
-          "python_type": "np.ndarray",
           "input": "runtime",
           "required": true,
           "description": "Which grid to query for lowest cost points.",
@@ -624,7 +588,6 @@
         {
           "name": "position",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Where to search from",
@@ -633,7 +596,6 @@
         {
           "name": "search_radius",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "How far to search for creep edge position.",
@@ -643,7 +605,6 @@
         {
           "name": "closest_valid",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "If True find the closest valid edge tile from `position`. Else find the furthest Default is True.",
@@ -653,7 +614,6 @@
         {
           "name": "spread_dist",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "How much distance between existing tumors? Default is 4.0",
@@ -663,7 +623,6 @@
         {
           "name": "townhall_avoid_dist",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "Townhall avoid dist.",
@@ -673,7 +632,6 @@
         {
           "name": "unit_tag",
           "type": "json_value",
-          "python_type": "int | None",
           "input": "runtime",
           "required": false,
           "description": "Unit tag to check if queen ability is available, by default None",
@@ -683,7 +641,6 @@
         {
           "name": "cache_result",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Should we cache the result to save computation? unit_tag should be set if this is True by default False",
@@ -712,7 +669,6 @@
         {
           "name": "base_location",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Base location.",
@@ -721,7 +677,6 @@
         {
           "name": "min_base_distance",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "Min base distance.",
@@ -731,7 +686,6 @@
         {
           "name": "max_nydus_distance",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "Max nydus distance.",
@@ -741,7 +695,6 @@
         {
           "name": "max_cost",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": false,
           "description": "Max cost.",
@@ -770,7 +723,6 @@
         {
           "name": "start",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Start point of the path.",
@@ -779,7 +731,6 @@
         {
           "name": "target",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Desired end point of the path.",
@@ -788,7 +739,6 @@
         {
           "name": "grid",
           "type": "grid_ref",
-          "python_type": "np.ndarray",
           "input": "runtime",
           "required": true,
           "description": "The grid that should be used for pathing.",
@@ -797,7 +747,6 @@
         {
           "name": "large",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Large.",
@@ -807,7 +756,6 @@
         {
           "name": "sensitivity",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": false,
           "description": "Amount of points that should be skipped in the full path between tiles that are returned. Default value is 5.",
@@ -817,7 +765,6 @@
         {
           "name": "smoothing",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Optional path smoothing where nodes are removed if it's possible to jump ahead some tiles in a straight line with a lower cost. Default value is False.",
@@ -846,7 +793,6 @@
         {
           "name": "start",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Start point of the path.",
@@ -855,7 +801,6 @@
         {
           "name": "target",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Desired end point of the path.",
@@ -864,7 +809,6 @@
         {
           "name": "grid",
           "type": "grid_ref",
-          "python_type": "np.ndarray",
           "input": "runtime",
           "required": true,
           "description": "The grid that should be used for pathing.",
@@ -873,7 +817,6 @@
         {
           "name": "sensitivity",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": false,
           "description": "Amount of points that should be skipped in the full path between tiles that are returned. Default value is 5.",
@@ -883,7 +826,6 @@
         {
           "name": "smoothing",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Optional path smoothing where nodes are removed if it's possible to jump ahead some tiles in a straight line with a lower cost. Default value is False.",
@@ -893,7 +835,6 @@
         {
           "name": "sense_danger",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Check to see if there are any dangerous tiles near the starting point. If this is True and there are no dangerous tiles near the starting point, the pathing query is skipped and the target is returned. Default value is True.",
@@ -903,7 +844,6 @@
         {
           "name": "danger_distance",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": false,
           "description": "How far away from the start to look for danger. Default value is 20.",
@@ -913,7 +853,6 @@
         {
           "name": "danger_threshold",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "Minimum value for a tile to be considered dangerous. Default value is 5.",
@@ -942,7 +881,6 @@
         {
           "name": "start",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Start point of the path.",
@@ -951,7 +889,6 @@
         {
           "name": "target",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Desired end point of the path.",
@@ -960,7 +897,6 @@
         {
           "name": "grid",
           "type": "grid_ref",
-          "python_type": "np.ndarray",
           "input": "runtime",
           "required": true,
           "description": "The grid that should be used for pathing.",
@@ -969,7 +905,6 @@
         {
           "name": "sensitivity",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "Amount of points that should be skipped in the full path between tiles that are returned.",
@@ -1069,7 +1004,6 @@
         {
           "name": "roles",
           "type": "unit_roles",
-          "python_type": "Set[UnitRole]",
           "input": "runtime",
           "required": true,
           "description": "Roles to get units from.",
@@ -1078,7 +1012,6 @@
         {
           "name": "excluded",
           "type": "unit_type_ids",
-          "python_type": "Set[UnitID]",
           "input": "runtime",
           "required": true,
           "description": "Unit types that should not be included.",
@@ -1106,7 +1039,6 @@
         {
           "name": "positions",
           "type": "point_refs",
-          "python_type": "Union[List[Point2], List[List[float]]]",
           "input": "runtime",
           "required": true,
           "description": "list[Point2]",
@@ -1115,7 +1047,6 @@
         {
           "name": "radius",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": true,
           "description": "Radius.",
@@ -1161,7 +1092,6 @@
         {
           "name": "th_pos",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Position of townhall to find points behind the mineral line of.",
@@ -1297,7 +1227,6 @@
         {
           "name": "pos",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "The position to search for closest creep tile.",
@@ -1325,7 +1254,6 @@
         {
           "name": "from_pos",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Position the Overlord spot should be closest to.",
@@ -1893,7 +1821,6 @@
         {
           "name": "start_point",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Where to start the flood fill.",
@@ -1902,7 +1829,6 @@
         {
           "name": "max_dist",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": false,
           "description": "Only include points closer than this distance to the start point.",
@@ -2093,7 +2019,6 @@
         {
           "name": "unit",
           "type": "point_or_unit_ref",
-          "python_type": "Unit | Point2",
           "input": "runtime",
           "required": true,
           "description": "Unit.",
@@ -2102,7 +2027,6 @@
         {
           "name": "by_enemy",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "By enemy.",
@@ -2275,7 +2199,6 @@
         {
           "name": "grid",
           "type": "grid_ref",
-          "python_type": "np.ndarray",
           "input": "runtime",
           "required": true,
           "description": "A 2D array to path on.",
@@ -2284,7 +2207,6 @@
         {
           "name": "from_pos",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "The starting position from which the path is evaluated.",
@@ -2293,7 +2215,6 @@
         {
           "name": "to_pos",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "The target position on the grid where the path leads.",
@@ -2302,7 +2223,6 @@
         {
           "name": "max_distance",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "The maximum allowable distance from the `from_pos` to the next tumor position. Default is 999.9.",
@@ -2312,7 +2232,6 @@
         {
           "name": "min_distance",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "The minimum allowable distance from the `from_pos` to the next tumor position. Default is 0.0.",
@@ -2322,7 +2241,6 @@
         {
           "name": "min_separation",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "The minimum distance required between the new tumor and existing tumors/queen routes. Default is 3.0.",
@@ -2332,7 +2250,6 @@
         {
           "name": "find_alternative",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Find an alternative position if the closest position is too close to existing tumors Switch to False if possible to avoid unnecessary checks. Default is True.",
@@ -2451,7 +2368,6 @@
         {
           "name": "overlords",
           "type": "unit_refs",
-          "python_type": "Units | list[Unit]",
           "input": "runtime",
           "required": true,
           "description": "The overlords that will be positioned for creep vision",
@@ -2460,7 +2376,6 @@
         {
           "name": "target_pos",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Target pos.",
@@ -2596,7 +2511,6 @@
         {
           "name": "unit_type_id",
           "type": "unit_type_id",
-          "python_type": "UnitID",
           "input": "runtime",
           "required": true,
           "description": "Unit type to count.",
@@ -2605,7 +2519,6 @@
         {
           "name": "include_alias",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Check aliases. (default=True)",
@@ -2615,7 +2528,6 @@
         {
           "name": "include_pending",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Include pending.",
@@ -2662,7 +2574,6 @@
         {
           "name": "position",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "The position to check.",
@@ -2690,7 +2601,6 @@
         {
           "name": "role",
           "type": "unit_role",
-          "python_type": "UnitRole",
           "input": "runtime",
           "required": true,
           "description": "Get the squads for this unit role.",
@@ -2808,7 +2718,6 @@
         {
           "name": "position",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "The position to search from.",
@@ -2817,7 +2726,6 @@
         {
           "name": "max_attempts",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": false,
           "description": "Maximum attempts to find a valid position.",
@@ -2864,7 +2772,6 @@
         {
           "name": "role",
           "type": "unit_role",
-          "python_type": "UnitRole",
           "input": "runtime",
           "required": true,
           "description": "Get the squads for this unit role.",
@@ -2873,7 +2780,6 @@
         {
           "name": "squad_radius",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "The threshold as to which separate squads are formed.",
@@ -2883,7 +2789,6 @@
         {
           "name": "unit_type",
           "type": "unit_type_ids",
-          "python_type": "Optional[Union[UnitID, set[UnitID]]]",
           "input": "runtime",
           "required": false,
           "description": "If specified, only form squads with these unit types WARNING: Will not remove units that have already been assigned to a squad.",
@@ -2948,7 +2853,6 @@
         {
           "name": "position",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Tumor position.",
@@ -3012,7 +2916,6 @@
         {
           "name": "role",
           "type": "unit_role",
-          "python_type": "UnitRole",
           "input": "runtime",
           "required": true,
           "description": "Role to get units from.",
@@ -3021,7 +2924,6 @@
         {
           "name": "unit_type",
           "type": "unit_type_ids",
-          "python_type": "Optional[Union[UnitID, Set[UnitID]]]",
           "input": "runtime",
           "required": false,
           "description": "Type(s) of units that should be returned. If omitted, all units with the role will be returned.",
@@ -3031,7 +2933,6 @@
         {
           "name": "restrict_to",
           "type": "unit_refs",
-          "python_type": "Optional[Units]",
           "input": "runtime",
           "required": false,
           "description": "If supplied, only take Units with the given role and type if they also exist here.",
@@ -3060,7 +2961,6 @@
         {
           "name": "roles",
           "type": "unit_roles",
-          "python_type": "Set[UnitRole]",
           "input": "runtime",
           "required": true,
           "description": "Roles to get units from.",
@@ -3069,7 +2969,6 @@
         {
           "name": "unit_type",
           "type": "unit_type_ids",
-          "python_type": "Union[None, UnitID, Set[UnitID]]",
           "input": "runtime",
           "required": false,
           "description": "Type(s) of units that should be returned. If omitted, all units with the role will be returned.",
@@ -3098,7 +2997,6 @@
         {
           "name": "tags",
           "type": "integer_list",
-          "python_type": "Union[List[int], Set[int]]",
           "input": "runtime",
           "required": true,
           "description": "Tags of the units to retrieve.",
@@ -3126,7 +3024,6 @@
         {
           "name": "start_points",
           "type": "json_array",
-          "python_type": "List[Union[Unit, Tuple[float, float]]]",
           "input": "runtime",
           "required": true,
           "description": "List of `Unit`s or positions to search for units from.",
@@ -3135,7 +3032,6 @@
         {
           "name": "distances",
           "type": "json_value",
-          "python_type": "Union[float, List[float]]",
           "input": "runtime",
           "required": true,
           "description": "How far away from each point to query. Must broadcast to the length of `start_points`.",
@@ -3144,7 +3040,6 @@
         {
           "name": "query_tree",
           "type": "json_value",
-          "python_type": "UnitTreeQueryType",
           "input": "runtime",
           "required": true,
           "description": "Which KDTree should be queried.",
@@ -3153,7 +3048,6 @@
         {
           "name": "return_as_dict",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Sets whether the returned units in range should be a dictionary or list. Default is False.",
@@ -3272,7 +3166,6 @@
         {
           "name": "grid",
           "type": "grid_ref",
-          "python_type": "np.ndarray",
           "input": "runtime",
           "required": true,
           "description": "The grid to evaluate safety on.",
@@ -3281,7 +3174,6 @@
         {
           "name": "position",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "The position to check the safety of.",
@@ -3290,7 +3182,6 @@
         {
           "name": "weight_safety_limit",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "The maximum value the point can have on the grid to be considered safe. Default value is 1.0.",
@@ -3319,7 +3210,6 @@
         {
           "name": "size",
           "type": "json_value",
-          "python_type": "Any",
           "input": "runtime",
           "required": true,
           "description": "The building size.",
@@ -3328,7 +3218,6 @@
         {
           "name": "base_location",
           "type": "point_ref",
-          "python_type": "Any",
           "input": "runtime",
           "required": true,
           "description": "Expansion location this placement is near.",
@@ -3337,7 +3226,6 @@
         {
           "name": "building_pos",
           "type": "point_ref",
-          "python_type": "Any",
           "input": "runtime",
           "required": true,
           "description": "Unique building placement.",
@@ -3346,7 +3234,6 @@
         {
           "name": "tag",
           "type": "integer",
-          "python_type": "optional",
           "input": "runtime",
           "required": false,
           "description": "Tag of existing structure.",
@@ -3375,7 +3262,6 @@
         {
           "name": "receiver",
           "type": "json_value",
-          "python_type": "ManagerName",
           "input": "runtime",
           "required": true,
           "description": "Manager receiving the request."
@@ -3383,7 +3269,6 @@
         {
           "name": "request",
           "type": "json_value",
-          "python_type": "ManagerRequestType",
           "input": "runtime",
           "required": true,
           "description": "Requested attribute/function call."
@@ -3391,7 +3276,6 @@
         {
           "name": "reason",
           "type": "string",
-          "python_type": "str",
           "input": "runtime",
           "required": false,
           "description": "Why the request is being made.",
@@ -3400,7 +3284,6 @@
         {
           "name": "kwargs",
           "type": "json_object",
-          "python_type": "**kwargs",
           "input": "runtime",
           "required": false,
           "description": "Keyword arguments (if any) to be passed to the requested function."
@@ -3427,7 +3310,6 @@
         {
           "name": "structure",
           "type": "unit_ref",
-          "python_type": "Unit",
           "input": "runtime",
           "required": true,
           "description": "The structure to be moved or landed.",
@@ -3436,7 +3318,6 @@
         {
           "name": "target",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "The target location for the structure.",
@@ -3445,7 +3326,6 @@
         {
           "name": "should_land",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Whether the structure should land after moving. Defaults to False.",
@@ -3474,7 +3354,6 @@
         {
           "name": "unit_tag",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "The unit tag to be removed from the nydus travellers.",
@@ -3502,7 +3381,6 @@
         {
           "name": "gas_building_tag",
           "type": "json_value",
-          "python_type": "Any",
           "input": "runtime",
           "required": true,
           "description": "The tag of the gas building to remove.",
@@ -3530,7 +3408,6 @@
         {
           "name": "mineral_field_tag",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "The tag of the mineral patch to remove.",
@@ -3558,7 +3435,6 @@
         {
           "name": "tag",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "Get the squads for this unit role.",
@@ -3586,7 +3462,6 @@
         {
           "name": "worker_tag",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "Tag of the worker to be removed.",
@@ -3614,7 +3489,6 @@
         {
           "name": "base_location",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "The general area where the placement should be near. This should be an expansion location.",
@@ -3623,7 +3497,6 @@
         {
           "name": "structure_type",
           "type": "unit_type_id",
-          "python_type": "UnitID",
           "input": "runtime",
           "required": true,
           "description": "Structure type requested.",
@@ -3632,7 +3505,6 @@
         {
           "name": "first_pylon",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Try to take designated first pylon if available. Default value is False.",
@@ -3642,7 +3514,6 @@
         {
           "name": "static_defence",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Try to take designated static defence placements if available. Default value is False.",
@@ -3652,7 +3523,6 @@
         {
           "name": "wall",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Request a wall structure placement. Will find alternative if no wall placements available. Default value is False.",
@@ -3662,7 +3532,6 @@
         {
           "name": "find_alternative",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "If no placements available at base_location, find an alternative at a nearby base. Default value is True.",
@@ -3672,7 +3541,6 @@
         {
           "name": "reserve_placement",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Reserve this booking for a while, so another customer doesn't request it. Default value is True.",
@@ -3682,7 +3550,6 @@
         {
           "name": "within_psionic_matrix",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Protoss specific -> calculated position have power? Default value is False.",
@@ -3692,7 +3559,6 @@
         {
           "name": "pylon_build_progress",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "Only relevant if `within_psionic_matrix = True`. Default value is 1.0.",
@@ -3702,7 +3568,6 @@
         {
           "name": "closest_to",
           "type": "point_ref",
-          "python_type": "Optional[Point2]",
           "input": "runtime",
           "required": false,
           "description": "Find placement at base closest to this.",
@@ -3712,7 +3577,6 @@
         {
           "name": "supply_depot",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Supply depot.",
@@ -3722,7 +3586,6 @@
         {
           "name": "production",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Production.",
@@ -3732,7 +3595,6 @@
         {
           "name": "upgrade_structure",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Upgrade structure.",
@@ -3742,7 +3604,6 @@
         {
           "name": "missile_turret",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Missile turret.",
@@ -3752,7 +3613,6 @@
         {
           "name": "sensor_tower",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Sensor tower.",
@@ -3762,7 +3622,6 @@
         {
           "name": "bunker",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Bunker.",
@@ -3772,7 +3631,6 @@
         {
           "name": "reaper_wall",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Reaper wall.",
@@ -3801,7 +3659,6 @@
         {
           "name": "build_from",
           "type": "unit_type_id",
-          "python_type": "UnitID",
           "input": "runtime",
           "required": true,
           "description": "Build from.",
@@ -3810,7 +3667,6 @@
         {
           "name": "unit_type",
           "type": "unit_type_id",
-          "python_type": "UnitID",
           "input": "runtime",
           "required": true,
           "description": "The unit we want to warp in.",
@@ -3819,7 +3675,6 @@
         {
           "name": "target",
           "type": "point_ref",
-          "python_type": "Optional[Point2]",
           "input": "runtime",
           "required": true,
           "description": "If provided, attempt to find spot closest to this location.",
@@ -3847,7 +3702,6 @@
         {
           "name": "target_position",
           "type": "point_ref",
-          "python_type": "Point2",
           "input": "runtime",
           "required": true,
           "description": "Location to get the closest workers to.",
@@ -3856,7 +3710,6 @@
         {
           "name": "force_close",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "Select the available worker closest to `target_position` if True.",
@@ -3866,7 +3719,6 @@
         {
           "name": "select_persistent_builder",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "If True, we can select the persistent_builder if it's available.",
@@ -3876,7 +3728,6 @@
         {
           "name": "only_select_persistent_builder",
           "type": "boolean",
-          "python_type": "bool",
           "input": "runtime",
           "required": false,
           "description": "If True, don't find an alternative worker.",
@@ -3886,7 +3737,6 @@
         {
           "name": "min_health_perc",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "Only select workers above this health percentage.",
@@ -3896,7 +3746,6 @@
         {
           "name": "min_shield_perc",
           "type": "number",
-          "python_type": "float",
           "input": "runtime",
           "required": false,
           "description": "Only select workers above this shield percentage.",
@@ -3925,7 +3774,6 @@
         {
           "name": "amount",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "Num workers to assign to each gas building",
@@ -3953,7 +3801,6 @@
         {
           "name": "from_role",
           "type": "unit_role",
-          "python_type": "UnitRole",
           "input": "runtime",
           "required": true,
           "description": "Role the units currently have.",
@@ -3962,7 +3809,6 @@
         {
           "name": "to_role",
           "type": "unit_role",
-          "python_type": "UnitRole",
           "input": "runtime",
           "required": true,
           "description": "Role to assign to the units.",
@@ -3990,7 +3836,6 @@
         {
           "name": "ability",
           "type": "ability_id",
-          "python_type": "AbilityId",
           "input": "runtime",
           "required": true,
           "description": "The AbilityId that was used.",
@@ -3999,7 +3844,6 @@
         {
           "name": "unit_tag",
           "type": "integer",
-          "python_type": "int",
           "input": "runtime",
           "required": true,
           "description": "The tag of the Unit that used the ability.",

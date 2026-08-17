@@ -44,21 +44,6 @@ TOWNHALL_TYPES = {
     "LAIR",
     "HIVE",
 }
-PRODUCTION_TYPES = {
-    "BARRACKS",
-    "FACTORY",
-    "STARPORT",
-    "GATEWAY",
-    "WARPGATE",
-    "ROBOTICSFACILITY",
-    "STARGATE",
-    "HATCHERY",
-    "LAIR",
-    "HIVE",
-    "LARVA",
-}
-
-
 class ActionSurfaceError(AvailabilityError):
     pass
 
@@ -258,8 +243,6 @@ class ActionExposure:
             getattr(getattr(entity, "type_id", None), "name", "UNKNOWN")
             for entity in context.own_entities.values()
         }
-        if action_id == "macro.spawn_controller":
-            return bool(own_types & PRODUCTION_TYPES)
         if action_id in {"macro.tech_up", "macro.upgrade_controller"}:
             return bool(own_types & WORKER_TYPES) and bool(own_types & TOWNHALL_TYPES)
         if action_id == "macro.auto_supply":

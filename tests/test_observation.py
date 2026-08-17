@@ -476,7 +476,10 @@ class ObservationTests(unittest.TestCase):
         prompt = im_messages("# Round state\n[None]", [], entries)[-1]["content"]
 
         self.assertIn("- `AMove(unit: Unit, target: Point | Unit)`", prompt)
-        self.assertIn(": A-Move a unit to a target.", prompt)
+        self.assertIn(
+            ": Attack-move a unit toward a target.",
+            prompt,
+        )
         self.assertIn("<argument_types>", prompt)
         self.assertIn("Argument types, value formats, and current constraints", prompt)
         self.assertIn("All `proportion` values must sum to `1.0`.", prompt)
@@ -586,17 +589,15 @@ class ObservationTests(unittest.TestCase):
 
         self.assertEqual(
             catalog.get("combat.group.keep_group_safe")["description"],
-            "Keep every unit in a group safe, optionally attacking a nearby "
-            "enemy when its weapon is ready.",
+            "Move threatened units to safety; attack when possible.",
         )
         self.assertEqual(
             catalog.get("combat.individual.use_ability")["description"],
-            "Order a unit to cast a specified ability, optionally at a target.",
+            "Use an ability, optionally on a target.",
         )
         self.assertEqual(
             catalog.get("macro.upgrade_c_cs")["description"],
-            "Upgrade an idle Terran Command Center to an Orbital Command or "
-            "Planetary Fortress.",
+            "Upgrade a Command Center to Orbital or Planetary.",
         )
         drop_target = next(
             param
