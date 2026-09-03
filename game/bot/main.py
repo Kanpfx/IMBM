@@ -29,7 +29,6 @@ class MyBot(AresBot):
         game_step_override: int | None = None,
         *,
         tactic_name: str = "BattleCruiserRush",
-        enable_bm: bool = False,
         run_metadata: dict[str, str | bool] | None = None,
         log_directory: Path | None = None,
     ) -> None:
@@ -39,7 +38,6 @@ class MyBot(AresBot):
         self._terran_bunker_finder_activated: bool = False
         self._last_iteration: int = -1
         self.tactic_name = tactic_name
-        self.enable_bm = enable_bm
         self.run_metadata = run_metadata or {}
         self.log_directory = log_directory
         self.llm_controller: LLMGameController | None = None
@@ -48,21 +46,19 @@ class MyBot(AresBot):
         await super().on_start()
         self.llm_controller = LLMGameController(
             tactic_name=self.tactic_name,
-            enable_bm=self.enable_bm,
             run_metadata=self.run_metadata,
             log_directory=self.log_directory,
         )
         if not self.llm_controller.active:
             raise RuntimeError(
-                "LLM_IMBM_MODEL, LLM_IMBM_BASE_URL and LLM_IMBM_API_KEY are required"
+                "LLM_IM_MODEL, LLM_IM_BASE_URL and LLM_IM_API_KEY are required"
             )
         # Preserve Ares manager updates while permanently disabling its YAML
         # BuildOrderRunner. IM is now the only non-automatic decision source.
         self.build_order_runner.set_build_completed()
         logger.info(
-            "IMBM mode started (tactic: {}, BM enabled: {}, logs: {})",
+            "Single-IM mode started (tactic: {}, logs: {})",
             self.tactic_name,
-            self.enable_bm,
             self.llm_controller.telemetry.directory,
         )
 
@@ -73,16 +69,15 @@ class MyBot(AresBot):
             await self.client.leave()
 
         if self.llm_controller is None:
-            raise RuntimeError("IMBM controller was not initialized")
+            raise RuntimeError("IM controller was not initialized")
         await self.llm_controller.run_iteration(self, iteration)
         if not self.opening_chat_tag and self.time > 5.0:
-            await self.chat_send("Tag: LLM-IMBM", team_only=True)
+            await self.chat_send("Tag: LLM-IM", team_only=True)
             await self.chat_send(f"Tag: {self.race.name}", team_only=True)
             self.opening_chat_tag = True
 
     async def on_end(self, game_result: Result) -> None:
         if self.llm_controller is not None:
-            self.llm_controller.cancel_background_tasks()
             try:
                 self.llm_controller.telemetry.update_metadata(
                     **self._result_metadata(game_result),

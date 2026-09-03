@@ -1,10 +1,7 @@
-"""IMBM foreground-IM / background-BM scheduler for python-sc2 iterations."""
+"""Single-IM scheduler for python-sc2 iterations."""
 
 from __future__ import annotations
 
-import asyncio
-from collections import Counter
-from dataclasses import dataclass
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -21,32 +18,16 @@ from game.actions.formatting import format_indexed_actions
 from game.actions.persistent import PersistentActionRegistry
 from game.actions.policy import ActionReview, PolicyValidator, ValidationIssue
 from game.control.automation import AutomationController
-from game.control.directive import BMDirective, DirectiveStore
 from game.observation.builder import Observation, ObservationBuilder
 from game.observation.state import TagIdMapper
-from knowledge.loader import ActionCatalog, load_tactic, normalize_catalog_name
-from llm.agents.bm_agent import BMAgent, BMResult
-from llm.agents.correction_agent import CorrectionAgent
+from knowledge.loader import ActionCatalog, load_tactic
 from llm.agents.im_agent import IMAgent
 from llm.client import LLMClient
 from llm.telemetry import Telemetry
 
 
-@dataclass
-class PendingBM:
-    task: asyncio.Task[BMResult]
-    observation: Observation
-    trigger_reason: str
-    started_at: float
-
-
 class LLMGameController:
-    """Make IM the only non-automatic foreground decision maker.
-
-    ``run_iteration`` awaits IM on every decision iteration. The first enabled
-    BM call is awaited before IM starts; later BM refreshes run in the background
-    and can never register an Ares behavior themselves.
-    """
+    """Make one IM request for every non-automatic decision cycle."""
 
     def __init__(
         self,
@@ -54,7 +35,6 @@ class LLMGameController:
         llm_config: LLMConfig | None = None,
         *,
         tactic_name: str = "BattleCruiserRush",
-        enable_bm: bool = False,
         run_metadata: dict[str, Any] | None = None,
         log_directory: Path | None = None,
     ):
@@ -67,27 +47,19 @@ class LLMGameController:
         self.policy = PolicyValidator(self.catalog, self.game_config)
         self.observation_builder = ObservationBuilder(TagIdMapper())
         self.automation = AutomationController()
-        self.directive_store = DirectiveStore()
         self.telemetry = Telemetry(
             {
                 "model": self.llm_config.model,
                 "temperature": self.llm_config.temperature,
                 "max_tokens": self.llm_config.max_tokens,
-                "max_correction_attempts": min(
-                    2, max(0, self.llm_config.max_refines)
-                ),
                 "action_interval_iterations": self.game_config.im_interval_iterations,
-                "strategy_refresh_iterations": self.game_config.bm_refresh_iterations,
-                "strategic_planning_enabled": enable_bm,
                 "tactic": tactic_name,
                 **(run_metadata or {}),
             },
             directory=log_directory,
         )
         self.client = LLMClient(self.llm_config)
-        self.bm = BMAgent(self.llm_config, self.client)
         self.im = IMAgent(self.llm_config, self.client)
-        self.corrector = CorrectionAgent(self.llm_config, self.client)
         self.deferred_actions = DeferredActionQueue(
             self.catalog,
             self.game_config.deferred_action_ttl_iterations,
@@ -97,13 +69,11 @@ class LLMGameController:
         self.persistent_actions = PersistentActionRegistry(
             self.catalog, self.game_config.persistent_action_iterations
         )
-        self.enable_bm = enable_bm
-        self.bm_pending: PendingBM | None = None
-        self._last_bm_started_iteration = -(10**9)
+        self._previous_validation_feedback: list[dict[str, Any]] = []
 
     @property
     def active(self) -> bool:
-        """LLM control is valid only when it was enabled and fully configured."""
+        """LLM control is valid only when the model endpoint is configured."""
         return self.llm_config.configured
 
     async def run_iteration(self, bot: Any, iteration: int) -> None:
@@ -128,29 +98,15 @@ class LLMGameController:
                 iteration=iteration,
                 actions=failed_persistent,
             )
-        await self._poll_bm(iteration)
         if not self.active or iteration % self.game_config.im_interval_iterations != 0:
             self.automation.register_worker_production(bot)
             return
 
         observation = self.observation_builder.build(bot, iteration)
 
-        # With BM enabled, the first directive is a startup gate. Later refreshes
-        # remain asynchronous and the previous directive stays active meanwhile.
-        bm_surface = self.action_exposure.build(bot, observation.context)
-        await self._maybe_start_bm(observation, iteration, bm_surface.entries)
-        directive = self.directive_store.read(iteration)
-        if self.enable_bm and directive is None:
-            await self._await_first_bm(observation, iteration, bm_surface.entries)
-            directive = self.directive_store.read(iteration)
-        # Phase IDs are tactic data interpreted exclusively by BM. The runtime
-        # stores the selected ID but never derives or assigns semantics to it.
-        phase = directive.phase if directive is not None else "unassigned"
-
         self.telemetry.observation(
             iteration=iteration,
             time=getattr(bot, "time_formatted", "00:00"),
-            phase=phase,
             observation=observation.text,
         )
 
@@ -194,32 +150,38 @@ class LLMGameController:
                 actions=ready_deferred,
             )
 
-        guidance = list(directive.guidance) if directive is not None else []
-        guidance_reference = (
-            f"BM@{directive.issued_at_iteration}" if directive is not None else "none"
-        )
         im_surface = self.action_exposure.build(bot, observation.context)
         entries = im_surface.entries
         try:
-            # This await is intentional: unlike BM, IM owns the foreground game
-            # decision and its accepted actions are registered in this iteration.
             im_started_at = perf_counter()
             result = await self.im.run(
                 observation.text,
-                guidance,
+                self.tactic,
                 entries,
-                lambda _actions: (True, ""),
+                self._previous_validation_feedback,
                 trace=self.telemetry,
                 iteration=iteration,
             )
-            review = await self._review_im_actions(
+            phase = result.phase or "unassigned"
+            review = self._review_im_actions(
                 bot,
                 result.actions,
                 observation,
-                guidance,
-                entries,
                 im_surface,
-                iteration,
+            )
+            validation_feedback = self._replace_validation_feedback(
+                result.validation_feedback, review.issues
+            )
+            self.telemetry.im_conversation(
+                iteration=iteration,
+                request=result.request,
+                reply=result.reply,
+                previous_validation_feedback=result.previous_validation_feedback,
+                valid=not validation_feedback,
+                phase=phase,
+                actions=result.actions,
+                validation_feedback=validation_feedback,
+                latency_ms=result.latency_ms,
             )
             if review.normalizations:
                 self.telemetry.event(
@@ -233,6 +195,12 @@ class LLMGameController:
                     iteration=iteration,
                     errors=[issue.text() for issue in review.issues],
                     actions=[issue.action for issue in review.issues],
+                )
+            if validation_feedback:
+                self.telemetry.event(
+                    "im_validation_feedback",
+                    iteration=iteration,
+                    feedback=validation_feedback,
                 )
 
             worker_override: dict[str, Any] | None = None
@@ -326,6 +294,7 @@ class LLMGameController:
                 phase=phase,
                 actions=immediate_actions,
                 deferred_actions=queued_actions,
+                validation_feedback=validation_feedback,
                 latency_ms=round((perf_counter() - im_started_at) * 1000),
             )
             readable_actions = immediate_actions + queued_actions
@@ -335,8 +304,7 @@ class LLMGameController:
                 f"t={getattr(bot, 'time_formatted', '00:00')} "
                 f"M={int(bot.minerals)} G={int(bot.vespene)} "
                 f"supply={int(bot.supply_used)}/{int(bot.supply_cap)} "
-                f"phase={phase} im={display_latency:.2f}s "
-                f"guidance={guidance_reference}"
+                f"phase={phase} im={display_latency:.2f}s"
             )
             await self._chat_im_decision(bot, readable_header, readable_actions)
             action_lines = "\n".join(
@@ -366,63 +334,16 @@ class LLMGameController:
 
         self.automation.register_worker_production(bot)
 
-    async def _review_im_actions(
+    def _review_im_actions(
         self,
         bot: Any,
         actions: list[dict[str, Any]],
         observation: Observation,
-        guidance: list[str],
-        entries: list[dict[str, Any]],
         surface: Any,
-        iteration: int,
     ) -> ActionReview:
-        """Keep valid actions and retry only rejected actions up to two times."""
+        """Keep valid actions and report rejected actions for the next turn."""
         initial = self.policy.review(bot, actions, observation.context, surface)
         accepted = list(initial.actions)
-        pending = list(initial.issues)
-        discarded: list[ValidationIssue] = []
-        normalizations = list(initial.normalizations)
-
-        correction_attempts = min(2, max(0, self.llm_config.max_refines))
-        for attempt in range(1, correction_attempts + 1):
-            if not pending:
-                break
-            proposed = [issue.action for issue in pending]
-            try:
-                repaired_actions = await self.corrector.run(
-                    observation.text,
-                    guidance,
-                    entries,
-                    proposed,
-                    [issue.text() for issue in pending],
-                    attempt=attempt,
-                    trace=self.telemetry,
-                    iteration=iteration,
-                )
-            except Exception as correction_error:
-                break
-
-            returned = Counter(
-                self._correction_action_key(action) for action in repaired_actions
-            )
-            for issue in pending:
-                key = self._correction_action_key(issue.action)
-                if returned[key] > 0:
-                    returned[key] -= 1
-                else:
-                    discarded.append(issue)
-
-            repaired_review = self.policy.review(
-                bot,
-                repaired_actions,
-                observation.context,
-                surface,
-            )
-            accepted.extend(repaired_review.actions)
-            normalizations.extend(repaired_review.normalizations)
-            pending = list(repaired_review.issues)
-
-        discarded.extend(pending)
         limit = self.game_config.max_actions_per_decision
         overflow = accepted[limit:]
         overflow_issues = [
@@ -439,146 +360,29 @@ class LLMGameController:
             for index, action in enumerate(overflow)
         ]
 
-        # Re-review the merged list so corrected actions cannot conflict with
-        # valid siblings retained from the original response.
-        final_review = self.policy.review(
-            bot,
-            accepted[:limit],
-            observation.context,
-            surface,
-        )
-        normalizations.extend(final_review.normalizations)
         return ActionReview(
-            final_review.actions,
-            discarded + overflow_issues + final_review.issues,
-            list(dict.fromkeys(normalizations)),
+            accepted[:limit],
+            list(initial.issues) + overflow_issues,
+            initial.normalizations,
         )
 
-    def _correction_action_key(self, action: Any) -> str:
-        action_id = action.get("id") if isinstance(action, dict) else None
-        if not isinstance(action_id, str):
-            return ""
-        try:
-            return self.catalog.get(action_id)["id"]
-        except ValueError:
-            return normalize_catalog_name(action_id)
-
-    async def _await_first_bm(
+    def _replace_validation_feedback(
         self,
-        observation: Observation,
-        iteration: int,
-        action_entries: list[dict[str, Any]],
-    ) -> None:
-        """Keep the first IM decision blocked until BM yields a valid directive."""
-        while self.directive_store.read(iteration) is None:
-            await self._maybe_start_bm(observation, iteration, action_entries)
-            if self.bm_pending is None:
-                return
-            await self._await_pending_bm(iteration)
-            if self.directive_store.read(iteration) is None:
-                await asyncio.sleep(0.5)
-
-    async def _await_pending_bm(self, iteration: int) -> None:
-        pending = self.bm_pending
-        if pending is None:
-            return
-        await asyncio.gather(pending.task, return_exceptions=True)
-        await self._poll_bm(iteration)
-
-    async def _poll_bm(self, iteration: int) -> None:
-        pending = self.bm_pending
-        if pending is None or not pending.task.done():
-            return
-        self.bm_pending = None
-        try:
-            result = pending.task.result()
-            self.directive_store.write(
-                BMDirective(
-                    result.phase,
-                    tuple(result.guidance),
-                    pending.observation.iteration,
-                    pending.observation.iteration
-                    + self.game_config.directive_ttl_iterations,
-                )
-            )
-            self.telemetry.event(
-                "bm_accepted",
-                iteration=iteration,
-                phase=result.phase,
-                trigger_reason=pending.trigger_reason,
-            )
-            logger.info(
-                "[BM iteration={}] phase={} bm={:.2f}s trigger={}\n{}\n",
-                pending.observation.iteration,
-                result.phase,
-                perf_counter() - pending.started_at,
-                pending.trigger_reason,
-                "\n".join(
-                    f"  guidance[{index}]: {item}"
-                    for index, item in enumerate(result.guidance, start=1)
-                ),
-            )
-        except asyncio.CancelledError:
-            self.telemetry.event("bm_cancelled", iteration=iteration)
-            logger.info("[BM iteration={}] cancelled\n", iteration)
-        except Exception as exc:
-            self.telemetry.event("bm_failed", iteration=iteration, error=str(exc))
-            logger.warning("[BM iteration={}] failed: {}\n", iteration, exc)
-
-    async def _maybe_start_bm(
-        self,
-        observation: Observation,
-        iteration: int,
-        action_entries: list[dict[str, Any]],
-        *,
-        trigger_reason: str = "",
-    ) -> None:
-        if not self.enable_bm:
-            return
-        active_directive = self.directive_store.read(iteration)
-        if not trigger_reason:
-            if active_directive is None:
-                trigger_reason = (
-                    "cold_start"
-                    if self._last_bm_started_iteration < 0
-                    else "guidance_expired"
-                )
-            elif (
-                iteration - self._last_bm_started_iteration
-                >= self.game_config.bm_refresh_iterations
-            ):
-                trigger_reason = "periodic_refresh"
-            else:
-                return
-
-        if self.bm_pending is not None and not self.bm_pending.task.done():
-            return
-
-        task = asyncio.create_task(
-            self.bm.run(
-                observation.text,
-                self.tactic,
-                action_entries,
-                trigger_reason,
-                trace=self.telemetry,
-                iteration=observation.iteration,
-            )
+        output_feedback: list[dict[str, Any]],
+        action_issues: list[ValidationIssue],
+    ) -> list[dict[str, Any]]:
+        """Replace the prior turn's feedback with errors from this turn."""
+        feedback = list(output_feedback)
+        feedback.extend(
+            {
+                "kind": "action",
+                "action": issue.action,
+                "error": issue.text(),
+            }
+            for issue in action_issues
         )
-        self.bm_pending = PendingBM(
-            task,
-            observation,
-            trigger_reason,
-            perf_counter(),
-        )
-        self._last_bm_started_iteration = iteration
-        self.telemetry.event(
-            "bm_started", iteration=iteration, trigger_reason=trigger_reason
-        )
-        logger.info(
-            "[BM iteration={}] trigger={} started\n",
-            observation.iteration,
-            trigger_reason,
-        )
+        self._previous_validation_feedback = feedback
+        return feedback
 
     @staticmethod
     async def _chat_im_decision(
@@ -592,7 +396,3 @@ class LLMGameController:
                 await bot.chat_send(chat_line, team_only=True)
         except Exception as exc:
             logger.warning("{} chat output failed: {}\n", header, exc)
-
-    def cancel_background_tasks(self) -> None:
-        if self.bm_pending is not None and not self.bm_pending.task.done():
-            self.bm_pending.task.cancel()

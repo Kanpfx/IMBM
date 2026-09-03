@@ -1,4 +1,4 @@
-"""Ares/python-sc2 state -> one compact, shared IMBM observation."""
+"""Ares/python-sc2 state -> one compact IM observation."""
 
 from __future__ import annotations
 
@@ -49,6 +49,7 @@ IMPORTANT_UNIT_NAMES = {
     "GHOST",
     "SIEGETANK",
 }
+COMPACT_UNIT_NAMES = {"SCV", "MARINE", "MULE"}
 LAST_KNOWN_UNIT_NAMES = IMPORTANT_UNIT_NAMES | {
     "BANSHEE",
     "BROODLORD",
@@ -75,22 +76,22 @@ IMPORTANT_STRUCTURE_NAMES = {
     "FUSIONCORE",
     "STARPORTTECHLAB",
 }
+COMPACT_STRUCTURE_NAMES = {
+    "SUPPLYDEPOT",
+    "SUPPLYDEPOTLOWERED",
+    "REFINERY",
+    "REFINERYRICH",
+    "BUNKER",
+    "MISSILETURRET",
+}
+
+
 @dataclass
 class Observation:
     iteration: int
     counts: dict[str, int]
     text: str
     context: EntityContext
-
-    # Compatibility aliases intentionally return the same source text. BM and
-    # IM must never receive divergent versions of the current game state.
-    @property
-    def strategy_text(self) -> str:
-        return self.text
-
-    @property
-    def action_text(self) -> str:
-        return self.text
 
 
 @dataclass
@@ -208,9 +209,7 @@ class ObservationBuilder:
             and not getattr(unit, "is_memory", False)
         ]
         remembered_enemies = [
-            unit
-            for unit in bot.enemy_units
-            if getattr(unit, "is_memory", False)
+            unit for unit in bot.enemy_units if getattr(unit, "is_memory", False)
         ]
         enemy_structures = [
             unit for unit in bot.enemy_structures if getattr(unit, "is_visible", True)
@@ -236,7 +235,8 @@ class ObservationBuilder:
             bot,
             structures,
             own_units,
-            self._area_label,
+            enemies,
+            enemy_structures,
         )
         data = {
             "overview": overview,
@@ -375,6 +375,24 @@ class ObservationBuilder:
         ]
 
     @staticmethod
+    def _health_list(units: list[Any]) -> str:
+        values: list[str] = []
+        for unit in units:
+            health = getattr(unit, "health", None)
+            health_max = getattr(unit, "health_max", None)
+            if (
+                isinstance(health, (int, float))
+                and isinstance(health_max, (int, float))
+                and health_max > 0
+            ):
+                values.append(f"{int(health)}/{int(health_max)}")
+                continue
+            percentage = getattr(unit, "health_percentage", None)
+            if isinstance(percentage, (int, float)):
+                values.append(f"{int(percentage * 100)}%")
+        return f"Health: [{', '.join(values)}]." if values else ""
+
+    @staticmethod
     def _energy_line(unit: Any) -> str:
         energy = getattr(unit, "energy", 0)
         energy_max = getattr(unit, "energy_max", 0)
@@ -427,16 +445,14 @@ class ObservationBuilder:
         for unit in units:
             name = _type_name(unit)
             state = role_labels.get(unit.tag, self._own_unit_state(unit))
-            if name in IMPORTANT_UNIT_NAMES or (
-                counts[name] <= 2 and name not in {"SCV", "MARINE"}
-            ):
+            if name in COMPACT_UNIT_NAMES:
+                detail = f"Location: {self._area_label(unit, bot)}."
+            elif name in IMPORTANT_UNIT_NAMES or counts[name] <= 2:
                 detail = self._unit_detail(unit, bot)
-            elif name != "SCV":
+            else:
                 # Combat units remain compact, but their group must still have
                 # enough spatial context for an IM to select the right group.
                 detail = f"Location: {self._area_label(unit, bot)}."
-            else:
-                detail = ""
             grouped[(name, state, detail)].append(unit)
         return self._group_blocks(grouped, context.own_entities)
 
@@ -451,7 +467,7 @@ class ObservationBuilder:
             detail = (
                 self._unit_detail(unit, bot)
                 if name in IMPORTANT_UNIT_NAMES
-                or (counts[name] <= 2 and name not in {"SCV", "MARINE"})
+                or (counts[name] <= 2 and name not in COMPACT_UNIT_NAMES)
                 else ""
             )
             grouped[(name, state, detail)].append(unit)
@@ -485,7 +501,9 @@ class ObservationBuilder:
             name = _type_name(structure)
             state = self._structure_state(structure)
             detail = ""
-            if name in IMPORTANT_STRUCTURE_NAMES or counts[name] == 1:
+            if name in COMPACT_STRUCTURE_NAMES:
+                detail = f"Location: {self._area_label(structure, bot)}."
+            elif name in IMPORTANT_STRUCTURE_NAMES or counts[name] == 1:
                 detail = self._structure_detail(structure, bot)
             grouped[(name, state, detail)].append(structure)
         target = context.own_entities if own else context.enemy_entities
@@ -496,7 +514,10 @@ class ObservationBuilder:
         grouped: dict[tuple[str, str, str], list[Any]],
         entity_map: dict[str, Any],
     ) -> list[str]:
-        priority = {"BATTLECRUISER": 0, "MARINE": 1, "SCV": 9}
+        priority = {
+            "BATTLECRUISER": 0,
+            **dict.fromkeys(COMPACT_UNIT_NAMES | COMPACT_STRUCTURE_NAMES, 9),
+        }
         blocks: list[tuple[tuple[int, str, str], str]] = []
         for (name, state, extra), members in grouped.items():
             members.sort(key=lambda unit: getattr(unit, "tag", 0))
@@ -505,9 +526,16 @@ class ObservationBuilder:
                 alias = self.ids.alias(unit.tag)
                 aliases.append(alias)
                 entity_map[alias] = unit
-            label = self._display_name(name, plural=len(members) > 1)
+            is_compact = name in COMPACT_UNIT_NAMES or name in COMPACT_STRUCTURE_NAMES
+            label = self._display_name(
+                name,
+                plural=len(members) > 1 and not is_compact,
+            )
             observation_ids = f"[{','.join(aliases)}]"
             lines = [f"{observation_ids} {label}", f"Status: {state}."]
+            if name in COMPACT_STRUCTURE_NAMES:
+                if health := self._health_list(members):
+                    lines.append(health)
             if extra:
                 lines.extend(extra.splitlines())
             blocks.append(((priority.get(name, 5), name, state), "\n".join(lines)))
@@ -518,6 +546,7 @@ class ObservationBuilder:
     def _display_name(name: str, *, plural: bool = False) -> str:
         names = {
             "SUPPLYDEPOT": "Supply Depot",
+            "SUPPLYDEPOTLOWERED": "Supply Depot",
             "COMMANDCENTER": "Command Center",
             "STARPORTTECHLAB": "Starport Tech Lab",
             "FUSIONCORE": "Fusion Core",
@@ -526,8 +555,12 @@ class ObservationBuilder:
             "BARRACKS": "Barracks",
             "BATTLECRUISER": "Battlecruiser",
             "MARINE": "Marine",
+            "MULE": "MULE",
             "SCV": "SCV",
+            "BUNKER": "Bunker",
+            "MISSILETURRET": "Missile Turret",
             "REFINERY": "Refinery",
+            "REFINERYRICH": "Refinery",
             "FACTORY": "Factory",
             "STARPORT": "Starport",
         }

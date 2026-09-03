@@ -19,7 +19,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, BinaryIO, Iterable
 
-
 # Small, display-only catalog.  Missing entries are still rendered and simply
 # show "unknown" for attributes that are not stored in a normal replay.
 UNIT_META: dict[str, dict[str, Any]] = {
@@ -216,7 +215,7 @@ def _enable_local_replays() -> None:
 
     resources.GAME_SPEED_FACTOR.setdefault("", resources.GAME_SPEED_FACTOR["LotV"])
     original = resources.Replay.load_details
-    if getattr(original, "_imbm_local_patch", False):
+    if getattr(original, "_local_replay_patch", False):
         return
 
     def load_details(replay: Any) -> None:
@@ -227,7 +226,7 @@ def _enable_local_replays() -> None:
             details["cache_handles"] = [SimpleNamespace(server="local", hash="")]
         original(replay)
 
-    load_details._imbm_local_patch = True  # type: ignore[attr-defined]
+    load_details._local_replay_patch = True  # type: ignore[attr-defined]
     resources.Replay.load_details = load_details
 
 

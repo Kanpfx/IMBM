@@ -33,8 +33,6 @@ class Telemetry:
         for filename in (
             "obs.jsonl",
             "im.jsonl",
-            "bm.jsonl",
-            "correction.jsonl",
             "accepted_actions.jsonl",
             "events.jsonl",
         ):
@@ -48,12 +46,6 @@ class Telemetry:
 
     def im_conversation(self, **fields: Any) -> None:
         self._append("im.jsonl", fields)
-
-    def bm_conversation(self, **fields: Any) -> None:
-        self._append("bm.jsonl", fields)
-
-    def correction_conversation(self, **fields: Any) -> None:
-        self._append("correction.jsonl", fields)
 
     def accepted_decision(self, **fields: Any) -> None:
         self._append("accepted_actions.jsonl", fields)

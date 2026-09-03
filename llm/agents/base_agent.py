@@ -1,4 +1,4 @@
-"""IMBM-compatible common agent shape."""
+"""Common agent shape for the LLM-controlled runtime."""
 
 from __future__ import annotations
 

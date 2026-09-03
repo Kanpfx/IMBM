@@ -4,7 +4,7 @@ from __future__ import annotations
 
 
 class TagIdMapper:
-    """IMBM-compatible compact IDs; never reuse one after a unit dies."""
+    """Compact IDs that are never reused after a unit dies."""
 
     def __init__(self) -> None:
         self._tag_to_id: dict[int, int] = {}

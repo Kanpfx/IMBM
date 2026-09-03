@@ -1,4 +1,5 @@
 import json
+import os
 import unittest
 from unittest.mock import patch
 
@@ -7,6 +8,22 @@ from llm.client import LLMClient
 
 
 class LLMClientTests(unittest.TestCase):
+    def test_config_reads_only_single_im_environment_names(self):
+        environment = {
+            "LLM_IM_MODEL": "new-model",
+            "LLM_IM_BASE_URL": "https://example.com/v1/",
+            "LLM_IM_API_KEY": "new-key",
+            "LLM_IMBM_MODEL": "old-model",
+            "LLM_IMBM_BASE_URL": "https://old.example.com/v1",
+            "LLM_IMBM_API_KEY": "old-key",
+        }
+        with patch.dict(os.environ, environment, clear=True):
+            config = LLMConfig.from_env()
+
+        self.assertEqual(config.model, "new-model")
+        self.assertEqual(config.base_url, "https://example.com/v1")
+        self.assertEqual(config.api_key, "new-key")
+
     def test_prepared_messages_do_not_add_another_system_role(self):
         messages = [
             {"role": "system", "content": "Agent role"},

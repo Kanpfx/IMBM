@@ -35,11 +35,11 @@ def parse_json_object(text: str) -> dict[str, Any]:
 
 
 def parse_im_payload(text: str) -> dict[str, Any]:
-    """Extract and validate the exact top-level object required from IM."""
+    """Extract the phase candidate and validate the IM action list."""
     for payload in _json_objects(text):
         if "actions" not in payload:
             continue
         if not isinstance(payload["actions"], list):
             raise OutputFormatError.field_type("actions", "a JSON list")
-        return {"actions": payload["actions"]}
+        return {"phase": payload.get("phase"), "actions": payload["actions"]}
     raise OutputFormatError.standard_json_required()

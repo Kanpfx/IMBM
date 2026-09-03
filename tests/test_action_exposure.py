@@ -4,7 +4,7 @@ from config.game import GameConfig
 from game.actions.exposure import ActionExposure
 from game.actions.policy import PolicyValidator
 from game.actions.resolver import EntityContext
-from knowledge.loader import ActionCatalog
+from knowledge.loader import ActionCatalog, load_tactic
 from llm.agents.prompts import im_messages
 
 
@@ -178,14 +178,16 @@ class ActionExposureTests(unittest.TestCase):
         )
         surface = self.exposure.build(object(), context)
 
-        prompt = im_messages("# Observation", [], surface.entries)[-1]["content"]
+        prompt = im_messages(
+            "# Observation", load_tactic("BattleCruiserRush"), surface.entries
+        )[-1]["content"]
 
         self.assertIn(
             "`BuildStructure(base_location: Point, structure_id: UnitType)`", prompt
         )
         self.assertNotIn("`max_on_route`", prompt)
 
-    def test_prompt_lists_live_candidates_once_in_argument_types(self):
+    def test_prompt_keeps_argument_types_without_listing_allowed_values(self):
         context = EntityContext(
             own_entities={
                 "497": Unit("SCV"),
@@ -199,23 +201,20 @@ class ActionExposureTests(unittest.TestCase):
         )
         surface = self.exposure.build(object(), context)
 
-        prompt = im_messages("# Observation", [], surface.entries)[-1]["content"]
+        prompt = im_messages(
+            "# Observation", load_tactic("BattleCruiserRush"), surface.entries
+        )[-1]["content"]
 
-        self.assertIn(
-            "- `Unit`: One unit or structure ID from the current observation.\n"
-            "  - Allowed values: `MARINE[12]`; `SCV[497,641]`; "
-            "`enemy ZERGLING[99]`.",
-            prompt,
-        )
-        self.assertNotIn("COMMANDCENTER[353]", prompt)
+        self.assertIn("- `Unit`: One unit or structure ID from the current observation.", prompt)
         self.assertIn("- `Grid`:", prompt)
-        self.assertIn("  - Allowed values: `air`, `ground`.", prompt)
-        self.assertEqual(prompt.count("SCV[497,641]"), 1)
+        self.assertNotIn("Allowed values:", prompt)
+        self.assertNotIn("SCV[497,641]", prompt)
         self.assertIn("<argument_types>", prompt)
         self.assertIn("</argument_types>", prompt)
         self.assertIn("<available_actions>", prompt)
         self.assertIn("</available_actions>", prompt)
-        self.assertNotIn("<action_reference>", prompt)
+        self.assertIn("<actions_reference>", prompt)
+        self.assertIn("</actions_reference>", prompt)
         self.assertNotIn("Argument types:", prompt)
         self.assertNotIn("Available actions:", prompt)
         self.assertNotIn("Availability [", prompt)

@@ -22,7 +22,7 @@ from knowledge.loader import ActionCatalog
 
 @dataclass(frozen=True)
 class ValidationIssue:
-    """One action-level problem suitable for a correction-model prompt."""
+    """One action-level problem suitable for next-turn validation feedback."""
 
     index: int
     action: Any
@@ -75,11 +75,11 @@ class PolicyValidator:
         context: EntityContext,
         surface: ActionSurface | None = None,
     ) -> ActionReview:
-        """Keep valid actions and report repairable failures individually.
+        """Keep valid actions and report validation failures individually.
 
         This deliberately does not invent replacement actions. Deterministic
-        repairs are limited to clamping a point that is only slightly outside
-        the playable area; semantic repairs belong to the correction model.
+        normalization is limited to clamping a point that is only slightly
+        outside the playable area; semantic errors go to the next IM turn.
         """
         if not isinstance(actions, list):
             return ActionReview(
@@ -179,7 +179,7 @@ class PolicyValidator:
         bot: Any,
         context: EntityContext,
     ) -> tuple[dict[str, Any], list[str]]:
-        """Apply only lossless, local corrections before validation."""
+        """Apply only lossless, local normalizations before validation."""
         if not isinstance(action.get("args"), dict):
             return action, []
         normalized_args, argument_notes = self._normalize_argument_names(
@@ -504,7 +504,7 @@ class PolicyValidator:
     def _validate_fixed_abilities(
         entry: dict[str, Any], args: dict[str, Any], context: EntityContext
     ) -> None:
-        """Check an IMBM high-level action's hidden, fixed ability."""
+        """Check an IM high-level action's hidden, fixed ability."""
         actor_alias = args.get("unit")
         if not isinstance(actor_alias, str):
             return

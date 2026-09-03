@@ -1,5 +1,5 @@
-import json
 import io
+import json
 import sys
 import tempfile
 import unittest
@@ -27,8 +27,6 @@ class TelemetryTests(unittest.TestCase):
             for filename in (
                 "obs.jsonl",
                 "im.jsonl",
-                "bm.jsonl",
-                "correction.jsonl",
                 "accepted_actions.jsonl",
                 "events.jsonl",
             ):
@@ -37,17 +35,18 @@ class TelemetryTests(unittest.TestCase):
             telemetry.observation(iteration=10, observation="state")
             row = json.loads((telemetry.directory / "obs.jsonl").read_text("utf-8"))
             self.assertEqual(row["iteration"], 10)
-            telemetry.correction_conversation(
+            telemetry.im_conversation(
                 iteration=10,
-                attempt=1,
-                request=[{"role": "user", "content": "repair"}],
-                reply='{"actions":[]}',
+                request=[{"role": "user", "content": "decide"}],
+                reply='{"phase":"opening","actions":[]}',
                 valid=True,
             )
-            correction = json.loads(
-                (telemetry.directory / "correction.jsonl").read_text("utf-8")
+            conversation = json.loads(
+                (telemetry.directory / "im.jsonl").read_text("utf-8")
             )
-            self.assertEqual(correction["attempt"], 1)
+            self.assertEqual(conversation["iteration"], 10)
+            self.assertFalse((telemetry.directory / "bm.jsonl").exists())
+            self.assertFalse((telemetry.directory / "correction.jsonl").exists())
 
     def test_match_result_updates_metadata_without_touching_jsonl(self):
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -22,7 +22,7 @@ class LLMClient:
     async def complete(self, messages: list[dict[str, str]]) -> str:
         if not self.config.configured:
             raise LLMClientError(
-                "LLM_IMBM_MODEL, LLM_IMBM_BASE_URL and LLM_IMBM_API_KEY are required"
+                "LLM_IM_MODEL, LLM_IM_BASE_URL and LLM_IM_API_KEY are required"
             )
         last_error: Exception | None = None
         for attempt in range(self.config.transport_retries + 1):

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-export LLM_IMBM_MODEL="Qwen3-8B"
-export LLM_IMBM_BASE_URL="http://127.0.0.1:12001/v1"
-export LLM_IMBM_API_KEY="local-vllm-imbm"
+export LLM_IM_MODEL="Qwen3-8B"
+export LLM_IM_BASE_URL="http://127.0.0.1:12001/v1"
+export LLM_IM_API_KEY="local-vllm-im"
 
 vllm serve /home/share/models/Qwen3-8B \
   --served-model-name Qwen3-8B \
@@ -40,5 +40,4 @@ python run.py \
   --build_mode RandomBuild \
   --tactic BattleCruiserRush \
   --own_race Terran \
-  --enemy_race Terran \
-  --enable_bm
+  --enemy_race Terran

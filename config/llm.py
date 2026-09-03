@@ -15,14 +15,13 @@ class LLMConfig:
     max_tokens: int = 2048
     timeout_s: float = 20.0
     transport_retries: int = 2
-    max_refines: int = 2
 
     @classmethod
     def from_env(cls) -> "LLMConfig":
         return cls(
-            model=os.getenv("LLM_IMBM_MODEL", ""),
-            base_url=os.getenv("LLM_IMBM_BASE_URL", "").rstrip("/"),
-            api_key=os.getenv("LLM_IMBM_API_KEY", ""),
+            model=os.getenv("LLM_IM_MODEL", ""),
+            base_url=os.getenv("LLM_IM_BASE_URL", "").rstrip("/"),
+            api_key=os.getenv("LLM_IM_API_KEY", ""),
         )
 
     @property

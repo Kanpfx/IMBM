@@ -1,1 +1,1 @@
-"""BM and IM are text/JSON agents with no direct Ares imports."""
+"""The IM is a text/JSON agent with no direct Ares imports."""

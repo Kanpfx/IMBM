@@ -30,7 +30,7 @@ class EntityContext:
         Observations deliberately display compact aliases as ``[851]``. A
         model may faithfully copy that label as ``851``, ``"851"``, or
         ``"[851]"``. All three identify the same current-frame entity; this
-        conversion is deterministic and must not consume a correction turn.
+        conversion is deterministic and must not consume another model turn.
         """
         if isinstance(alias, bool):
             raise ResolveError.format("unit", "an observation unit ID, not a boolean")

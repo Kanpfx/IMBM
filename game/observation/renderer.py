@@ -1,4 +1,4 @@
-"""Canonical shared IMBM observation renderer."""
+"""Canonical IM observation renderer."""
 
 from __future__ import annotations
 
@@ -26,29 +26,25 @@ def _section(name: str, content: str | list[str], *, empty: str = "[None]") -> s
 
 
 def observation_text(data: dict[str, Any]) -> str:
-    """Render the single factual observation read by both BM and IM."""
+    """Render the factual observation read by IM."""
     hint_sections = data["situational_hints"]
+    alert_lines = [
+        f"- {item}"
+        for items in hint_sections.values()
+        for item in items
+    ]
     situation_alerts = (
-        "\n\n".join(
-            _section(
-                {
-                    "Combat": "combat",
-                    "Economy and operations": "economy_and_operations",
-                }[category],
-                "\n".join(f"- {item}" for item in items),
-            )
-            for category, items in hint_sections.items()
-        )
-        if hint_sections
-        else "[None]"
+        "Situation alerts:\n" + "\n".join(alert_lines)
+        if alert_lines
+        else "Situation alerts: [None]"
     )
     overview = "\n\n".join(
         (
-            _section("match", data["overview"]["match"]),
-            _section("resources_and_supply", data["overview"]["resources"]),
-            _section("economy", data["overview"]["economy"]),
-            _section("military_summary", data["overview"]["military"]),
-            _section("situation_alerts", situation_alerts),
+            data["overview"]["match"],
+            data["overview"]["resources"],
+            data["overview"]["economy"],
+            data["overview"]["military"],
+            situation_alerts,
         )
     )
     technology = "\n".join(data["production_and_technology"])

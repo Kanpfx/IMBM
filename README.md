@@ -3,8 +3,7 @@
 一个使用大语言模型控制《星际争霸 II》Terran Bot 的实验项目。
 
 项目基于 [raspersc2/why](https://github.com/raspersc2/why) 改造，使用固定版本的
-[Ares](https://github.com/AresSC2/ares-sc2) 作为底层框架，并参考
-[Kanpfx/IMBM](https://github.com/Kanpfx/IMBM) 的双模型控制思路。
+[Ares](https://github.com/AresSC2/ares-sc2) 作为底层框架。
 
 当前运行时仅使用 LLM 决策，不再执行 why 原有的 Opening 脚本。现阶段主要支持
 BattleCruiserRush，后续目标是扩展到完整动作空间和多战术对战。
@@ -14,28 +13,25 @@ BattleCruiserRush，后续目标是扩展到完整动作空间和多战术对战
 ```text
 SC2/Ares 游戏状态
     → 统一观测
-    → BM 生成短期战略指导
-    → IM 生成具体 JSON 动作
-    → 动作校验与纠错
+    → IM 选择战术阶段并生成具体 JSON 动作
+    → 动作校验
     → 注册为 Ares Behavior
 ```
 
-- **BM**：读取游戏观测、战术卡和当前动作表，输出阶段及短期战略指导。
-- **IM**：读取同一份观测和 BM 指导，输出可执行的 Ares 动作。
+- **IM**：读取游戏观测、完整战术卡和当前动作表，输出阶段及可执行动作。
 - **运行时**：负责动作展示、参数校验、实体解析、资源等待和 Behavior 注册。
 - **自动化**：每帧处理采矿、补给和基础工人生产，不使用 Ares `MacroPlan`；
   IM 可用 `BuildWorkers` 临时覆盖默认的 20 工人目标。
 
 IM 产生的其他宏观动作经过统一校验和资源等待后直接注册。需要连续运行的
-生产、扩张、采气和升级控制器会保持到下一个 IM 决策周期。
-
-BM 为可选模块。启用后，第一次 BM 请求会在 IM 启动前完成，后续指导按固定周期异步刷新。
+生产、扩张、采气和升级控制器会保持到下一个 IM 决策周期。格式、阶段或动作校验错误
+不会触发额外模型调用，而是作为反馈加入下一轮 IM 输入。
 
 ## 项目结构
 
 ```text
 game/           SC2 游戏运行、观测、控制和动作执行
-llm/            BM/IM Agent、Prompt、模型客户端和遥测
+llm/            IM Agent、Prompt、模型客户端和遥测
 config/         环境变量、模型及调度配置
 knowledge/      动作目录、战术卡和原始建造表参考
 scripts/        实验脚本、Ladder 工具和日志查看器
@@ -66,9 +62,9 @@ Copy-Item .env.example .env
 编辑 `.env`：
 
 ```dotenv
-LLM_IMBM_MODEL=模型名称
-LLM_IMBM_BASE_URL=https://example.com/v1
-LLM_IMBM_API_KEY=API密钥
+LLM_IM_MODEL=模型名称
+LLM_IM_BASE_URL=https://example.com/v1
+LLM_IM_API_KEY=API密钥
 ```
 
 `LLM_KNOWLEDGE_ROOT` 为可选配置，仅在动作和战术目录位于项目外部时使用。
@@ -76,7 +72,7 @@ LLM_IMBM_API_KEY=API密钥
 ## 运行游戏
 
 默认示例：在 `PylonAIE_v4` 上对抗 VeryHard Terran AI，并使用
-BattleCruiserRush 战术和 BM。
+BattleCruiserRush 战术。
 
 ```powershell
 python run.py `
@@ -84,14 +80,10 @@ python run.py `
   --difficulty VeryHard `
   --build_mode RandomBuild `
   --enemy_race Terran `
-  --tactic BattleCruiserRush `
-  --enable_bm
+  --tactic BattleCruiserRush
 ```
 
-不传入 `--enable_bm` 时，IM 将在没有 BM 指导的情况下独立运行。
-`--bm` 和 `-bm` 均为 `--enable_bm` 的别名。
-
-`--build_mode` 指定内置 AI 的建造模式；`--tactic` 指定 BM 使用的战术卡，
+`--build_mode` 指定内置 AI 的建造模式；`--tactic` 指定 IM 使用的战术卡，
 名称对应 `knowledge/llm_tactic_catalog/` 中的 JSON 文件名。
 
 查看全部参数：

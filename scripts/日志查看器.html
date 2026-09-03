@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>IMBM 日志查看器</title>
+  <title>单 IM 日志查看器</title>
   <style>
     :root {
       --page:#f4f7fb; --card:rgba(255,255,255,.92); --ink:#172033; --muted:#667085;
@@ -65,15 +65,13 @@
     .card { overflow:hidden; min-width:0; border-radius:14px; }
     .head { display:flex; align-items:center; gap:9px; min-height:46px; padding:11px 14px; border-bottom:1px solid var(--line); background:linear-gradient(180deg,rgba(248,250,252,.85),rgba(255,255,255,.45)); }
     .tag { color:#fff; border-radius:999px; padding:3px 8px; font-size:10px; line-height:1.35; font-weight:800; letter-spacing:.55px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.14); }
-    .im { background:var(--purple); } .bm { background:#0b6e99; } .ok { background:var(--green); } .fix { background:var(--orange); } .event { background:#7a5af8; }
+    .im { background:var(--purple); } .ok { background:var(--green); } .event { background:#7a5af8; }
     .body { padding:14px; }
     .body p { color:#344054; }
     .body strong { color:#1d2939; }
     .body p + p { margin-top:6px; }
     .body p + pre,.body pre + p { margin-top:10px; }
     .muted { color:var(--muted); }
-    .guidance { margin:0; padding-left:20px; }
-    .guidance li + li { margin-top:5px; }
     pre {
       margin:0; overflow:auto; border:1px solid #1e293b; border-radius:9px; padding:12px 13px;
       background:linear-gradient(180deg,#111b30,var(--code)); color:#e6edf7;
@@ -256,8 +254,8 @@
   <main>
     <header class="page-header">
       <div>
-        <div class="eyebrow"><span class="dot"></span>IMBM · LOCAL LOG INSPECTOR</div>
-        <h1>IMBM 日志查看器</h1>
+        <div class="eyebrow"><span class="dot"></span>SINGLE IM · LOCAL LOG INSPECTOR</div>
+        <h1>单 IM 日志查看器</h1>
         <p class="sub">选择一个 <code>logs/时间戳</code> 目录；日志在浏览器读取，Replay 由本机进程在内存中静态解析。</p>
       </div>
       <span class="privacy-badge">本地解析 · 不上传</span>
@@ -339,16 +337,8 @@
         <div class="body" id="im-panel"></div>
       </article>
       <article class="card">
-        <header class="head"><span class="tag bm">BM</span><h2>最近完成的 BM 输出</h2></header>
-        <div class="body" id="bm-panel"></div>
-      </article>
-      <article class="card">
         <header class="head"><span class="tag ok">ACTION</span><h2>最终接受动作</h2></header>
         <div class="body" id="action-panel"></div>
-      </article>
-      <article class="card">
-        <header class="head"><span class="tag fix">FIX</span><h2>动作纠错</h2></header>
-        <div class="body" id="correction-panel"></div>
       </article>
       <article class="card wide">
         <header class="head"><span class="tag event">EVENT</span><h2>本 iteration 事件</h2></header>
@@ -366,14 +356,6 @@
         <summary id="raw-im-summary">原始 IM 输入</summary>
         <div id="raw-im-panel"></div>
       </details>
-      <details>
-        <summary id="raw-bm-summary">原始 BM 输入</summary>
-        <div id="raw-bm-panel"></div>
-      </details>
-      <details>
-        <summary id="raw-correction-summary">原始纠错输入</summary>
-        <div id="raw-correction-panel"></div>
-      </details>
     </section>
 
     <details class="hidden" id="metadata-details">
@@ -389,11 +371,11 @@
 
   <script>
     const wantedFiles = new Set([
-      "metadata.json", "obs.jsonl", "im.jsonl", "bm.jsonl",
-      "correction.jsonl", "accepted_actions.jsonl", "events.jsonl", "console.log",
+      "metadata.json", "obs.jsonl", "im.jsonl",
+      "accepted_actions.jsonl", "events.jsonl", "console.log",
       "replay.SC2Replay", "replay_view.json",
     ]);
-    const state = { metadata: {}, observations: [], im: [], bm: [], corrections: [], decisions: [], events: [], console: "", iterations: [], replay: null };
+    const state = { metadata: {}, observations: [], im: [], decisions: [], events: [], console: "", iterations: [], replay: null };
     const rowIteration = row => Number(row.iteration ?? row.tick ?? row.loop);
     const byIteration = rows => new Map(rows.map(row => [rowIteration(row), row]));
     let indexes = {};
@@ -446,14 +428,12 @@
       }
       if (!selected.has("metadata.json") || !selected.has("im.jsonl")) throw new Error("未找到 metadata.json 或 im.jsonl；请选择一局新格式日志的直接目录。");
       const read = async name => selected.has(name) ? selected.get(name).text() : "";
-      const [metadata, obs, im, bm, corrections, decisions, events, consoleText, replayView] = await Promise.all([
-        read("metadata.json"), read("obs.jsonl"), read("im.jsonl"), read("bm.jsonl"), read("correction.jsonl"), read("accepted_actions.jsonl"), read("events.jsonl"), read("console.log"), read("replay_view.json"),
+      const [metadata, obs, im, decisions, events, consoleText, replayView] = await Promise.all([
+        read("metadata.json"), read("obs.jsonl"), read("im.jsonl"), read("accepted_actions.jsonl"), read("events.jsonl"), read("console.log"), read("replay_view.json"),
       ]);
       state.metadata = metadata ? JSON.parse(metadata) : {};
       state.observations = obs ? parseJsonl(obs, "obs.jsonl") : [];
       state.im = im ? parseJsonl(im, "im.jsonl") : [];
-      state.bm = bm ? parseJsonl(bm, "bm.jsonl") : [];
-      state.corrections = corrections ? parseJsonl(corrections, "correction.jsonl") : [];
       state.decisions = decisions ? parseJsonl(decisions, "accepted_actions.jsonl") : [];
       state.events = events ? parseJsonl(events, "events.jsonl") : [];
       state.console = consoleText;
@@ -463,7 +443,7 @@
           ? prepareReplay(JSON.parse(replayView))
           : null;
       state.iterations = [...new Set([
-        ...state.observations, ...state.im, ...state.bm, ...state.corrections,
+        ...state.observations, ...state.im,
         ...state.decisions, ...state.events,
       ].map(rowIteration).filter(Number.isFinite))].sort((a, b) => a - b);
       if (!state.iterations.length) throw new Error("日志中没有可浏览的 iteration。");
@@ -471,10 +451,8 @@
         observation: byIteration(state.observations),
         decision: byIteration(state.decisions),
         im: groupByIteration(state.im),
-        correction: groupByIteration(state.corrections),
         event: groupByIteration(state.events),
       };
-      state.bm.sort((a, b) => rowIteration(a) - rowIteration(b));
       $("tick-slider").min = "0";
       $("tick-slider").max = String(state.iterations.length - 1);
       $("tick-slider").value = "0";
@@ -538,9 +516,7 @@
       $("previous").disabled = position === 0;
       $("next").disabled = position === state.iterations.length - 1;
       renderIm(iteration);
-      renderBm(iteration);
       renderActions(decision);
-      renderCorrections(iteration);
       renderEvents(iteration);
       renderRawInputs(iteration);
       renderReplay(iteration);
@@ -809,59 +785,32 @@
       if (!rows.length) return replacePanel("im-panel", [noData("该 iteration 没有 IM 对话记录。")] );
       const nodes = [];
       rows.forEach(row => {
-        nodes.push(line("结果", row.valid ? "JSON 格式有效" : `无效：${row.error || "未知原因"}`));
+        nodes.push(line("阶段", String(row.phase || "unassigned")));
+        nodes.push(line("结果", row.valid ? "输出有效" : `存在错误：${row.error || "见验证反馈"}`));
         if (row.latency_ms != null) nodes.push(line("模型耗时", `${row.latency_ms} ms`));
-        nodes.push(pre(row.valid
-          ? formatJson({ actions: row.actions || [] })
-          : row.reply || "[没有模型输出]"));
+        if (row.previous_validation_feedback?.length) {
+          nodes.push(line("上一轮反馈", ""), pre(formatJson(row.previous_validation_feedback)));
+        }
+        if (row.validation_feedback?.length) {
+          nodes.push(line("本轮输出反馈", ""), pre(formatJson(row.validation_feedback)));
+        }
+        nodes.push(pre(formatJson({ phase: row.phase || "unassigned", actions: row.actions || [] })));
       });
       replacePanel("im-panel", nodes);
-    }
-
-    function renderBm(iteration) {
-      const latest = [...state.bm].reverse().find(row => rowIteration(row) <= iteration);
-      if (!latest) return replacePanel("bm-panel", [noData("此时尚无已完成的 BM 输出。")] );
-      const heading = document.createElement("p");
-      const headingText = document.createElement("strong");
-      text(headingText, `BM iteration@${rowIteration(latest)}`);
-      heading.append(headingText);
-      const nodes = [
-        heading,
-        line("触发", String(latest.trigger_reason || "unknown")),
-        line("耗时", latest.latency_ms == null ? "未知" : `${latest.latency_ms} ms`),
-      ];
-      if (latest.valid === false) nodes.push(line("结果", `无效：${latest.validation || "未知原因"}`));
-      nodes.push(pre(latest.valid === false
-        ? latest.reply || "[没有模型输出]"
-        : formatJson({ phase: latest.phase || "unknown", guidance: latest.guidance || [] })));
-      replacePanel("bm-panel", nodes);
     }
 
     function renderActions(decision) {
       if (!decision) return replacePanel("action-panel", [noData("没有最终动作记录。")] );
       const nodes = [
+        line("阶段", String(decision.phase || "unassigned")),
         line("决策耗时", decision.latency_ms == null ? "未知" : `${decision.latency_ms} ms`),
-        pre(formatJson({ actions: decision.actions || [], deferred_actions: decision.deferred_actions || [] })),
+        pre(formatJson({
+          actions: decision.actions || [],
+          deferred_actions: decision.deferred_actions || [],
+          validation_feedback: decision.validation_feedback || [],
+        })),
       ];
       replacePanel("action-panel", nodes);
-    }
-
-    function renderCorrections(iteration) {
-      const rows = indexes.correction.get(iteration) || [];
-      if (!rows.length) return replacePanel("correction-panel", [noData("该 iteration 没有动作纠错调用。")]);
-      const nodes = [];
-      rows.forEach(row => {
-        nodes.push(line("纠错轮次", String(row.attempt)));
-        nodes.push(line("结果", row.valid ? "返回格式有效" : `失败：${row.error || "未知原因"}`));
-        if (row.latency_ms != null) nodes.push(line("模型耗时", `${row.latency_ms} ms`));
-        nodes.push(pre(row.valid
-          ? formatJson({
-              corrected_actions: row.corrected_actions || [],
-              discarded_actions: row.discarded_actions || [],
-            })
-          : row.reply || "[没有模型输出]"));
-      });
-      replacePanel("correction-panel", nodes);
     }
 
     function renderEvents(iteration) {
@@ -902,22 +851,6 @@
         replacePanel("raw-im-panel", nodes);
       }
 
-      const latestBm = [...state.bm].reverse().find(row => rowIteration(row) <= iteration);
-      $("raw-bm-summary").textContent = latestBm
-        ? `原始 BM 输入 · iteration ${rowIteration(latestBm)}`
-        : "原始 BM 输入";
-      if (!latestBm) replacePanel("raw-bm-panel", [noData("此时尚无 BM 输入记录。")]);
-      else if (!latestBm.request) replacePanel("raw-bm-panel", [noData("这条 BM 日志没有保存 request 字段。")]);
-      else replacePanel("raw-bm-panel", [pre(formatRequest(latestBm.request))]);
-
-      const correctionRows = indexes.correction.get(iteration) || [];
-      $("raw-correction-summary").textContent = `原始纠错输入 · iteration ${iteration}`;
-      if (!correctionRows.length) replacePanel("raw-correction-panel", [noData("该 iteration 没有纠错输入记录。")]);
-      else replacePanel("raw-correction-panel", correctionRows.map(row => {
-        const section = document.createElement("div"); section.className = "attempt";
-        section.append(line("纠错轮次", String(row.attempt)), pre(formatRequest(row.request)));
-        return section;
-      }));
     }
 
     $("tick-slider").addEventListener("input", renderCurrent);

@@ -1,4 +1,4 @@
-"""IMBM local-game entry point."""
+"""Single-IM local-game entry point."""
 
 from __future__ import annotations
 
@@ -75,7 +75,7 @@ def configure_console_logging() -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the LLM-controlled IMBM bot.")
+    parser = argparse.ArgumentParser(description="Run the LLM-controlled IM bot.")
     parser.add_argument("--map_name", required=True, help="Installed SC2 map name.")
     parser.add_argument(
         "--difficulty",
@@ -93,20 +93,12 @@ def parse_args() -> argparse.Namespace:
         "--tactic",
         choices=available_tactics(),
         default="BattleCruiserRush",
-        help="Tactic card used by BM.",
+        help="Tactic card used by IM.",
     )
-    parser.add_argument("--player_name", default="im_bm_player")
+    parser.add_argument("--player_name", default="im_player")
     parser.add_argument("--own_race", choices=["Terran"], default="Terran")
     parser.add_argument(
         "--enemy_race", choices=["Terran", "Zerg", "Protoss"], default="Terran"
-    )
-    parser.add_argument(
-        "-bm",
-        "--bm",
-        "--enable_bm",
-        dest="enable_bm",
-        action="store_true",
-        help="Enable BM guidance (blocking first response, then async refreshes).",
     )
     return parser.parse_args()
 
@@ -114,7 +106,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     load_environment()
     args = parse_args()
-    require_environment(["LLM_IMBM_MODEL", "LLM_IMBM_BASE_URL", "LLM_IMBM_API_KEY"])
+    require_environment(["LLM_IM_MODEL", "LLM_IM_BASE_URL", "LLM_IM_API_KEY"])
     own_race = Race[args.own_race]
     enemy_race = Race[args.enemy_race]
     match_log_directory = Path("logs") / datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -126,7 +118,6 @@ def main() -> None:
                 own_race,
                 MyBot(
                     tactic_name=args.tactic,
-                    enable_bm=args.enable_bm,
                     run_metadata={
                         "map_name": args.map_name,
                         "difficulty": args.difficulty,

@@ -8,7 +8,6 @@ from game.actions.formatting import format_action, format_indexed_actions
 from game.actions.persistent import PersistentActionRegistry
 from game.actions.policy import PolicyValidator
 from game.actions.resolver import EntityContext
-from game.control.directive import BMDirective, DirectiveStore
 from knowledge.loader import ActionCatalog
 from llm.json_tools import parse_im_payload, parse_json_object
 
@@ -33,7 +32,6 @@ class ActionRuntimeTests(unittest.TestCase):
 
         self.assertEqual(config.im_interval_iterations, 30)
         self.assertEqual(config.persistent_action_iterations, 30)
-        self.assertEqual(config.bm_refresh_iterations, 240)
 
     def test_adapter_rejects_disabled_catalog_actions(self):
         catalog = ActionCatalog.load()
@@ -171,13 +169,6 @@ class ActionRuntimeTests(unittest.TestCase):
 
         self.assertTrue(accepted, reason)
 
-    def test_directive_store_honors_ttl(self):
-        store = DirectiveStore()
-        directive = BMDirective("opening_tech", ("Build tech.",), 10, 20)
-        store.write(directive)
-        self.assertEqual(store.read(20), directive)
-        self.assertIsNone(store.read(21))
-
     def test_json_parser_accepts_plain_and_fenced_objects(self):
         self.assertEqual(parse_json_object('{"actions":[]}'), {"actions": []})
         self.assertEqual(
@@ -189,7 +180,7 @@ class ActionRuntimeTests(unittest.TestCase):
         )
 
     def test_im_parser_accepts_common_wrappers_and_requires_actions(self):
-        expected = {"actions": []}
+        expected = {"phase": None, "actions": []}
         raw = '{"actions":[]}'
 
         self.assertEqual(parse_im_payload(raw), expected)
@@ -313,7 +304,7 @@ class ActionRuntimeTests(unittest.TestCase):
         self.assertIs(action["unit"], own)
         self.assertIs(action["target"], enemy)
 
-    def test_policy_normalizes_numeric_group_ids_without_correction(self):
+    def test_policy_normalizes_numeric_group_ids_without_another_model_turn(self):
         catalog = ActionCatalog.load()
         validator = PolicyValidator(catalog, GameConfig())
         units = {
@@ -409,7 +400,7 @@ class ActionRuntimeTests(unittest.TestCase):
             },
         )
 
-    def test_policy_drops_zero_weight_units_without_correction(self):
+    def test_policy_drops_zero_weight_units_without_another_model_turn(self):
         catalog = ActionCatalog.load()
         validator = PolicyValidator(catalog, GameConfig())
 

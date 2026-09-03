@@ -3,12 +3,7 @@ import unittest
 from game.observation.builder import ObservationBuilder
 from game.observation.state import TagIdMapper
 from knowledge.loader import ActionCatalog
-from llm.agents.prompts import (
-    bm_messages,
-    correction_messages,
-    im_messages,
-    refine_messages,
-)
+from llm.agents.prompts import IM_ROLE, im_messages
 
 
 class Point:
@@ -51,19 +46,38 @@ class Mediator:
 class Bot:
     def __init__(self):
         self.units = [Unit(497, "SCV"), Unit(641, "SCV"), Unit(217, "MARINE")]
-        self.structures = [Unit(102, "COMMANDCENTER", idle=True)]
+        command_center = Unit(102, "COMMANDCENTER", idle=True)
+        command_center.assigned_harvesters = 2
+        command_center.ideal_harvesters = 16
+        self.structures = [command_center]
         self.enemy_units = [Unit(88, "STALKER")]
         self.enemy_structures = []
         self.workers = self.units[:2]
-        self.townhalls = self.structures
+        self.townhalls = [command_center]
         self.gas_buildings = []
         self.minerals = 50
         self.vespene = 0
         self.supply_used = 12
         self.supply_cap = 15
+        self.supply_workers = 2
+        self.supply_army = 1
         self.time_formatted = "00:00"
         self.enemy_race = type("Race", (), {"name": "Protoss"})()
         self.race = type("Race", (), {"name": "Terran"})()
+        self.game_info = type("GameInfo", (), {"map_size": Point(128, 128)})()
+        score = type(
+            "Score",
+            (),
+            {
+                "collection_rate_minerals": 900,
+                "collection_rate_vespene": 300,
+                "killed_value_units": 0,
+                "killed_value_structures": 0,
+                "lost_minerals_army": 0,
+                "lost_vespene_army": 0,
+            },
+        )()
+        self.state = type("State", (), {"score": score})()
         self.start_location = Point(1, 1)
         self.enemy_start_locations = [Point(100, 100)]
         self.mediator = Mediator()
@@ -74,21 +88,20 @@ class Bot:
 
 
 class ObservationTests(unittest.TestCase):
-    def test_shared_observation_aggregates_workers_and_hides_internal_details(self):
+    def test_observation_aggregates_workers_and_hides_internal_details(self):
         builder = ObservationBuilder(TagIdMapper())
         observation = builder.build(Bot(), iteration=0)
 
-        self.assertEqual(observation.text, observation.strategy_text)
-        self.assertEqual(observation.text, observation.action_text)
         self.assertTrue(observation.text.startswith("<overview>\n"))
         self.assertIn("</overview>", observation.text)
         self.assertIn("<own_state>", observation.text)
         self.assertIn("<enemy_state>", observation.text)
         self.assertIn("<recent_history>", observation.text)
-        self.assertIn("<resources_and_supply>", observation.text)
-        self.assertIn("<economy>", observation.text)
-        self.assertIn("<military_summary>", observation.text)
-        self.assertIn("<situation_alerts>", observation.text)
+        self.assertNotIn("<match>", observation.text)
+        self.assertNotIn("<resources_and_supply>", observation.text)
+        self.assertNotIn("<economy>", observation.text)
+        self.assertNotIn("<military_summary>", observation.text)
+        self.assertNotIn("<situation_alerts>", observation.text)
         self.assertIn("<units>", observation.text)
         self.assertIn("<structures>", observation.text)
         self.assertIn("<production_and_technology>", observation.text)
@@ -102,13 +115,36 @@ class ObservationTests(unittest.TestCase):
         self.assertIn("<action_history>", observation.text)
         self.assertNotIn("<action_feedback>", observation.text)
         self.assertNotIn("## ", observation.text)
-        self.assertIn("  <match>\n    ", observation.text)
-        self.assertIn("    <combat>\n      ", observation.text)
-        self.assertIn("  </match>", observation.text)
-        self.assertIn("Bases: 1 active, 0 building.", observation.text)
-        self.assertIn("Army: 1 supply", observation.text)
+        self.assertIn("Time: 00:00", observation.text)
         self.assertIn(
-            "[497,641] SCV\n    Status: collecting resources automatically.",
+            "Matchup: Terran (you) vs Protoss (enemy)",
+            observation.text,
+        )
+        self.assertIn("Map size: 128*128", observation.text)
+        self.assertIn("Resources: 50 minerals, 0 vespene", observation.text)
+        self.assertIn(
+            "Income: 900 minerals/min, 300 vespene/min",
+            observation.text,
+        )
+        self.assertIn(
+            "Supply: 12/15 (workers 2, army 1, free 3)",
+            observation.text,
+        )
+        self.assertIn("  Situation alerts:", observation.text)
+        self.assertIn(
+            "Economy: bases 1 ready/0 building (workers 2, idle 0)",
+            observation.text,
+        )
+        self.assertIn("Saturation: main 2/16", observation.text)
+        self.assertIn("Army: 1 supply (1 Marine)", observation.text)
+        self.assertIn(
+            "Visible enemy: units 1, structures 0 (1 Stalker)",
+            observation.text,
+        )
+        self.assertIn(
+            "[497,641] SCV\n"
+            "    Status: collecting resources automatically.\n"
+            "    Location: near our main.",
             observation.text,
         )
         self.assertIn("[88] Stalker", observation.text)
@@ -233,18 +269,27 @@ class ObservationTests(unittest.TestCase):
         near_main = Unit(218, "MARINE")
         near_enemy = Unit(361, "MARINE")
         near_enemy.position = Point(90, 90)
-        bot.units.extend([near_main, near_enemy])
+        reaper = Unit(400, "REAPER")
+        mules = [Unit(401, "MULE"), Unit(402, "MULE")]
+        bot.units.extend([near_main, near_enemy, reaper, *mules])
 
         observation = ObservationBuilder(TagIdMapper()).build(bot, iteration=0)
 
         self.assertIn(
-            "[217,218] Marines\n    Status: active.\n    Location: near our main.",
+            "[217,218] Marine\n"
+            "    Status: active.\n"
+            "    Location: near our main.",
             observation.text,
         )
         self.assertIn(
-            "[361] Marine\n    Status: active.\n    Location: near enemy main.",
+            "[361] Marine\n"
+            "    Status: active.\n"
+            "    Location: near enemy main.",
             observation.text,
         )
+        self.assertIn("[401,402] MULE", observation.text)
+        self.assertNotIn("MULEs", observation.text)
+        self.assertLess(observation.text.index("[400] Reaper"), observation.text.index("[217,218] Marine"))
 
     def test_enemy_location_is_based_on_each_enemy_tag(self):
         bot = Bot()
@@ -255,7 +300,9 @@ class ObservationTests(unittest.TestCase):
 
         observation = ObservationBuilder(TagIdMapper()).build(bot, iteration=0)
 
-        self.assertIn("[88] Stalker\n    Status: visible; near our main.", observation.text)
+        self.assertIn(
+            "[88] Stalker\n    Status: visible; near our main.", observation.text
+        )
         self.assertIn(
             "[99] Zealot\n    Status: visible; near enemy main.", observation.text
         )
@@ -307,6 +354,53 @@ class ObservationTests(unittest.TestCase):
         self.assertIn("<last_known_units>\n    [None]", observation.text)
         self.assertNotIn("UNKNOWN", observation.text)
 
+    def test_compact_structures_group_by_status_and_location_with_health_list(self):
+        bot = Bot()
+        near_main = [
+            Unit(700, "SUPPLYDEPOT"),
+            Unit(701, "SUPPLYDEPOT"),
+        ]
+        near_main[0].health = 400
+        near_main[0].health_max = 400
+        near_main[1].health = 250
+        near_main[1].health_max = 400
+        near_enemy = Unit(702, "SUPPLYDEPOT")
+        near_enemy.position = Point(90, 90)
+        near_enemy.health = 400
+        near_enemy.health_max = 400
+        building = Unit(703, "SUPPLYDEPOT", progress=0.5)
+        building.health = 200
+        building.health_max = 400
+        bot.structures.extend([*near_main, near_enemy, building])
+
+        observation = ObservationBuilder(TagIdMapper()).build(bot, iteration=0)
+
+        self.assertIn(
+            "[700,701] Supply Depot\n"
+            "    Status: ready.\n"
+            "    Health: [400/400, 250/400].\n"
+            "    Location: near our main.",
+            observation.text,
+        )
+        self.assertIn(
+            "[702] Supply Depot\n"
+            "    Status: ready.\n"
+            "    Health: [400/400].\n"
+            "    Location: near enemy main.",
+            observation.text,
+        )
+        self.assertIn(
+            "[703] Supply Depot\n"
+            "    Status: building (50%).\n"
+            "    Health: [200/400].\n"
+            "    Location: near our main.",
+            observation.text,
+        )
+        self.assertNotIn("Supply Depots", observation.text)
+        self.assertLess(
+            observation.text.index("[102] Command Center"),
+            observation.text.index("[700,701] Supply Depot"),
+        )
     def test_structure_changes_distinguish_building_from_ready(self):
         bot = Bot()
         builder = ObservationBuilder(TagIdMapper())
@@ -389,11 +483,11 @@ class ObservationTests(unittest.TestCase):
             "Available technology steps: Factory, Ghost Academy, Sensor Tower.",
             observation.text,
         )
-        self.assertNotIn("Construction: Factory", observation.text)
+        self.assertIn("Construction: Factory (64%)", observation.text)
         self.assertNotIn("Production unlocked:", observation.text)
         self.assertNotIn("Idle production:", observation.text)
 
-    def test_prompts_use_named_sections_and_give_bm_the_complete_tactic(self):
+    def test_prompt_combines_observation_tactic_actions_and_output_contract(self):
         tactic = {
             "id": "BattleCruiserRush",
             "concept": "Build Battlecruisers.",
@@ -415,52 +509,37 @@ class ObservationTests(unittest.TestCase):
         }
         catalog = ActionCatalog.load()
         entries = catalog.prompt_entries({"macro.build_structure"})
-        bm = bm_messages("# Round state\n[None]", tactic, entries, "cold start")
-        im = im_messages("# Round state\n[None]", ["Build a Depot."], [])
+        im = im_messages("# Round state\n[None]", tactic, entries)
+        prompt = im[-1]["content"]
 
-        self.assertNotIn("<task>", bm[-1]["content"])
-        self.assertNotIn("Review the current observation", bm[-1]["content"])
-        self.assertIn("<observation>", bm[-1]["content"])
-        self.assertIn("<tactical_reference>", bm[-1]["content"])
-        self.assertIn("**Tactic ID:** `BattleCruiserRush`", bm[-1]["content"])
-        self.assertIn("**Tactic concept:** Build Battlecruisers.", bm[-1]["content"])
-        self.assertIn("**Global tactic rules:**", bm[-1]["content"])
-        self.assertIn('<phase_reference index="1">', bm[-1]["content"])
-        self.assertIn("**Phase ID:** `opening_tech`", bm[-1]["content"])
-        self.assertIn("</phase_reference>", bm[-1]["content"])
-        self.assertIn('<phase_reference index="2">', bm[-1]["content"])
-        self.assertIn("**Phase ID:** `first_bc_preparation`", bm[-1]["content"])
-        self.assertIn("**Phase selection criteria:**", bm[-1]["content"])
-        self.assertIn("**Phase objective:** Start production.", bm[-1]["content"])
-        self.assertIn("**Phase guidance:**", bm[-1]["content"])
-        self.assertIn("</tactical_reference>", bm[-1]["content"])
-        self.assertIn("<argument_types>", bm[-1]["content"])
-        self.assertIn("<available_actions>", bm[-1]["content"])
-        self.assertIn("- `BuildStructure(", bm[-1]["content"])
-        self.assertIn("<output_contract>", bm[-1]["content"])
-        self.assertIn("**Required JSON template:**", bm[-1]["content"])
-        self.assertIn('  "phase": "<phase ID>"', bm[-1]["content"])
-        self.assertIn('    "<strategic priority 1>"', bm[-1]["content"])
-        self.assertNotIn("Valid example:", bm[-1]["content"])
-        self.assertIn("<observation>", im[-1]["content"])
-        self.assertIn("<decision_context>", im[-1]["content"])
-        self.assertIn("**Strategic guidance:**", im[-1]["content"])
-        self.assertIn("**Decision rules:**", im[-1]["content"])
-        self.assertIn("<argument_types>", im[-1]["content"])
-        self.assertIn("<available_actions>", im[-1]["content"])
-        self.assertIn("<output_contract>", im[-1]["content"])
-        self.assertIn("**Required JSON template:**", im[-1]["content"])
-        self.assertIn('      "id": "<action name>"', im[-1]["content"])
+        self.assertEqual(im[0]["content"], IM_ROLE)
+        self.assertNotIn("<task>", prompt)
+        self.assertIn("<observation>\n  # Round state", prompt)
+        self.assertIn("<tactical_reference>", prompt)
+        self.assertIn("**Tactic ID:** `BattleCruiserRush`", prompt)
+        self.assertIn("Tactic concept: Build Battlecruisers.", prompt)
+        self.assertIn("Global tactic rules:", prompt)
         self.assertIn(
-            '        "<argument name>": "<argument value>"', im[-1]["content"]
+            '<phase_reference index="1">\n    **Phase ID:** `opening_tech`', prompt
         )
-        self.assertNotIn("Valid example:", im[-1]["content"])
-        self.assertNotIn("<priority>", im[-1]["content"])
-        self.assertNotIn("<rule>", im[-1]["content"])
-        self.assertNotRegex(
-            "\n".join(message["content"] for message in [*bm, *im]),
-            r"\b(?:BM|IM|IMBM)\b",
-        )
+        self.assertIn("**Phase ID:** `opening_tech`", prompt)
+        self.assertIn('<phase_reference index="2">', prompt)
+        self.assertIn("**Phase ID:** `first_bc_preparation`", prompt)
+        self.assertIn("Phase selection criteria:", prompt)
+        self.assertIn("**Phase objective:** Start production.", prompt)
+        self.assertIn("Phase guidance:", prompt)
+        self.assertIn("</tactical_reference>", prompt)
+        self.assertNotIn("<decision_context>", prompt)
+        self.assertIn("<actions_reference>", prompt)
+        self.assertIn("<argument_types>", prompt)
+        self.assertIn("<available_actions>", prompt)
+        self.assertIn("- `BuildStructure(", prompt)
+        self.assertIn("<output_contract>", prompt)
+        self.assertIn('  "phase": "<phase ID>"', prompt)
+        self.assertIn('      "id": "<action name>"', prompt)
+        self.assertIn('        "<argument name>": "<argument value>"', prompt)
+        self.assertNotIn("<previous_validation_feedback>", prompt)
+        self.assertNotIn("Valid example:", prompt)
 
     def test_action_cards_use_short_names_and_required_params_only(self):
         catalog = ActionCatalog.load()
@@ -473,7 +552,23 @@ class ObservationTests(unittest.TestCase):
                 "macro.production_controller",
             }
         )
-        prompt = im_messages("# Round state\n[None]", [], entries)[-1]["content"]
+        prompt = im_messages(
+            "# Round state\n[None]",
+            {
+                "id": "Test",
+                "concept": "Test.",
+                "rules": [],
+                "phases": [
+                    {
+                        "id": "phase",
+                        "enter_when": ["Always."],
+                        "goal": "Test.",
+                        "guidance": ["Act."],
+                    }
+                ],
+            },
+            entries,
+        )[-1]["content"]
 
         self.assertIn("- `AMove(unit: Unit, target: Point | Unit)`", prompt)
         self.assertIn(
@@ -481,108 +576,66 @@ class ObservationTests(unittest.TestCase):
             prompt,
         )
         self.assertIn("<argument_types>", prompt)
-        self.assertIn("Argument types, value formats, and current constraints", prompt)
+        self.assertIn("Argument types and value formats", prompt)
         self.assertIn("All `proportion` values must sum to `1.0`.", prompt)
         self.assertIn(
             "- `Unit`: One unit or structure ID from the current observation.",
             prompt,
         )
         self.assertIn(
-            "  - `unit` (Unit):",
-            prompt,
-        )
-        self.assertIn(
-            "  - `target` (Point | Unit):",
-            prompt,
-        )
-        self.assertIn(
             "- `BuildStructure(base_location: Point, structure_id: UnitType)`",
             prompt,
         )
+        self.assertNotIn("  - `unit` (Unit):", prompt)
+        self.assertNotIn("  - `target` (Point | Unit):", prompt)
         self.assertIn("- `TacticalJump(", prompt)
         self.assertIn("- `MoveSafely(", prompt)
         self.assertNotIn("- `UseAbility(", prompt)
         self.assertNotIn("<action name=", prompt)
         self.assertNotIn("<parameter name=", prompt)
+        
         self.assertNotIn("combat.individual.a_move", prompt)
         self.assertNotIn("success_at_distance", prompt)
         self.assertNotIn("group_tags", prompt)
         self.assertNotIn("Union[Point2, Unit]", prompt)
 
-    def test_correction_and_refine_prompts_keep_only_section_tags(self):
-        catalog = ActionCatalog.load()
-        entries = catalog.prompt_entries({"macro.build_structure"})
-        correction_prompt = correction_messages(
-            "<state_summary>\nstate\n</state_summary>",
-            ["Build the Factory."],
-            entries,
-            [{"id": "BuildStructure", "args": {}}],
-            ["Action 1: missing required argument"],
-        )
-        correction = correction_prompt[-1]["content"]
-
-        self.assertEqual(
-            correction_prompt[0]["content"],
-            "You are responsible for repairing rejected executable actions for a "
-            "StarCraft II bot.\n\n"
-            "Use the current observation, strategic guidance, validation errors, "
-            "and available action set to correct rejected actions.\n\n"
-            "Output only one valid JSON object containing the corrected `actions` "
-            "list. Do not output natural-language explanations, code, extra text, "
-            "chain-of-thought, `<thinking>` content, or other reasoning traces.",
-        )
-        self.assertIn("<strategic_guidance>", correction)
-        self.assertIn("- Build the Factory.", correction)
-        self.assertIn("<rejected_actions>", correction)
-        self.assertIn("**Action:**", correction)
-        self.assertIn("**Validation error:**", correction)
-        self.assertIn("missing required argument", correction)
-        self.assertNotIn("Action 1: missing required argument", correction)
-        self.assertNotIn('<rejected_action index="', correction)
-        self.assertNotIn("</rejected_action>", correction)
-        self.assertIn("</rejected_actions>", correction)
-        self.assertIn("<repair_rules>", correction)
-        self.assertIn("Repair only the rejected actions", correction)
-        self.assertIn("</repair_rules>", correction)
-        self.assertNotIn("<correction_context>", correction)
-        self.assertNotIn("**Validation errors:**", correction)
-        self.assertIn("<argument_types>", correction)
-        self.assertIn("<available_actions>", correction)
-        self.assertIn("<output_contract>", correction)
-        self.assertNotIn("<error>", correction)
-        self.assertNotIn("<rule>", correction)
-        self.assertNotRegex(
-            "\n".join(message["content"] for message in correction_prompt),
-            r"\b(?:BM|IM|IMBM)\b",
-        )
-
-        paired = correction_messages(
-            "state",
-            [],
-            entries,
-            [
-                {"id": "BuildStructure", "args": {}},
-                {"id": "BuildStructure", "args": {"structure_id": "REFINERY"}},
+    def test_previous_validation_feedback_follows_action_history(self):
+        tactic = {
+            "id": "Test",
+            "concept": "Test.",
+            "rules": [],
+            "phases": [
+                {
+                    "id": "phase",
+                    "enter_when": ["Always."],
+                    "goal": "Test.",
+                    "guidance": ["Act."],
+                }
             ],
-            ["missing structure_id", "REFINERY is unsupported"],
-        )[-1]["content"]
-        first = paired.index("**Action 1:**")
-        second = paired.index("**Action 2:**")
-        self.assertIn("**Validation error 1:**", paired[first:second])
-        self.assertIn("**Validation error 2:**", paired[second:])
-        self.assertLess(first, paired.index("missing structure_id", first, second))
-        self.assertLess(second, paired.index("REFINERY is unsupported", second))
+        }
+        feedback = [
+            {
+                "kind": "action",
+                "action": {"id": "BuildStructure", "args": {}},
+                "error": "missing structure_id",
+            }
+        ]
 
-        refined = refine_messages([], "actions must be a list", '{"actions":[]}')
-        self.assertEqual(refined[0]["content"], "Previous output was rejected.")
-        self.assertIn("<correction_request>", refined[1]["content"])
-        self.assertIn(
-            "**Validation error:** actions must be a list", refined[1]["content"]
+        observation = "<recent_history>\n<action_history>\n[None]\n</action_history>\n</recent_history>"
+        prompt = im_messages(observation, tactic, [], feedback)[-1]["content"]
+
+        self.assertEqual(prompt.count("<previous_validation_feedback>"), 1)
+        self.assertEqual(prompt.count("</previous_validation_feedback>"), 1)
+        self.assertIn('"kind": "action"', prompt)
+        self.assertIn("missing structure_id", prompt)
+        self.assertLess(
+            prompt.index("</action_history>"),
+            prompt.index("<previous_validation_feedback>"),
         )
-        self.assertIn(
-            '**Required JSON template:** {"actions":[]}', refined[1]["content"]
+        self.assertLess(
+            prompt.index("</previous_validation_feedback>"),
+            prompt.index("</recent_history>"),
         )
-        self.assertNotIn("### Validation Error", refined[1]["content"])
 
     def test_catalog_corrects_verified_ares_documentation_errors(self):
         catalog = ActionCatalog.load()
