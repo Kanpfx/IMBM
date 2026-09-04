@@ -37,7 +37,7 @@ class AutomationControllerTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(bot.registered[-1].to_count, 20)
 
-    async def test_im_worker_target_overrides_only_the_current_cycle(self):
+    async def test_model_worker_target_overrides_only_the_current_cycle(self):
         controller = AutomationController(default_worker_target=20)
         action = {"id": "BuildWorkers", "args": {"to_count": 35}}
 

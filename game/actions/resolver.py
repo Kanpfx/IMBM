@@ -25,7 +25,7 @@ class EntityContext:
 
     @staticmethod
     def canonical_entity_alias(alias: Any) -> str:
-        """Accept the common JSON representations of an observation ``[id]``.
+        """Accept common scalar representations of an observation ``[id]``.
 
         Observations deliberately display compact aliases as ``[851]``. A
         model may faithfully copy that label as ``851``, ``"851"``, or

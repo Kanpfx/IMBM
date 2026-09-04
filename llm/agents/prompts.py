@@ -1,4 +1,4 @@
-"""Prompt builder for the single-IM observation contract."""
+"""Prompt builder for the single-model observation contract."""
 
 from __future__ import annotations
 
@@ -6,9 +6,9 @@ import json
 from html import escape
 from typing import Any
 
-IM_ROLE = """Choose the tactical phase that best matches the current StarCraft II observation, then issue concrete actions for that phase.
+MODEL_ROLE = """Choose the tactical phase that best matches the current StarCraft II observation, then issue concrete actions for that phase.
 
-Use only phase IDs, actions, arguments, and values documented in the current message. Return only one JSON object with `phase` and `actions`; do not include explanations or reasoning."""
+Use only phase IDs, actions, arguments, and values documented in the current message. Return only the tagged Function DSL described in the output contract, with one action call per line; do not include explanations or reasoning."""
 
 
 TYPE_LEGEND = {
@@ -27,11 +27,11 @@ TYPE_LEGEND = {
     "number": ("Number", "Integer or decimal number."),
     "point_or_unit_ref": (
         "Point | Unit",
-        'Current unit or structure ID, documented landmark, or `{"x": number, "y": number}`.',
+        "Current unit or structure ID, documented landmark, or `{x:number,y:number}`.",
     ),
     "point_ref": (
         "Point",
-        'Landmark (`main`, `natural`, `enemy_main`) or `{"x": number, "y": number}`.',
+        "Landmark (`main`, `natural`, `enemy_main`) or `{x:number,y:number}`.",
     ),
     "unit_ref": ("Unit", "One unit or structure ID from the current observation."),
     "unit_refs": ("Units", "Non-empty list of `Unit` values defined above."),
@@ -75,7 +75,6 @@ ACTION_DESCRIPTION_OVERRIDES = {
 }
 
 
-
 SIMPLE_PARAMETER_NAMES = {
     "ability",
     "ability_id",
@@ -96,6 +95,7 @@ ACTION_PARAMETER_NOTES = {
     ("PickUpAndDropCargo", "cargo_switch_to_role"): "Select cargo by unit role.",
     ("PlacePredictiveAoE", "path"): "Path must end at the predicted target position.",
 }
+
 
 def _indent(content: str) -> str:
     return "\n".join(f"  {line}" if line else "" for line in content.splitlines())
@@ -176,6 +176,7 @@ def _parameter_note(param: dict[str, Any], action_name: str) -> str:
     label = TYPE_LEGEND.get(param["type"], (param["type"], ""))[0]
     return f'  - `{param["name"]}` ({label}): {description}'
 
+
 def _type_legend(entries: list[dict[str, Any]]) -> str:
     used_types = {
         param["type"]
@@ -237,39 +238,43 @@ def _observation_with_feedback(
     return f"{observation.rstrip()}\n\n{feedback}"
 
 
-def im_messages(
+def model_messages(
     observation: str,
     tactic: dict[str, Any],
     action_entries: list[dict[str, Any]],
     previous_validation_feedback: list[dict[str, Any]] | None = None,
+    *,
+    max_actions_per_decision: int = 6,
 ) -> list[dict[str, str]]:
-    output_contract = "\n".join(
-        (
-            json.dumps(
-                {
-                    "phase": "<phase ID>",
-                    "actions": [
-                        {
-                            "id": "<action name>",
-                            "args": {"<argument name>": "<argument value>"},
-                        }
-                    ],
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-            "Use one exact phase ID and return 0-6 currently available actions. "
-            "Use exact action and argument names, current unit IDs, and documented values.",
-        )
+    output_contract = """<phase>
+PHASE_ID
+</phase>
+<actions>
+ActionName(argument=value,...)
+</actions>
+
+Use one documented phase ID and return 0-{max_actions} currently available actions, one per line.
+Use exact action and argument names. Use bare names for enums and landmarks, `true`/`false` for booleans, `[...]` for lists, and `{key:value}` for objects."""
+    output_contract = output_contract.replace(
+        "{max_actions}", str(max_actions_per_decision)
+    )
+    final_instruction = (
+        "Select the best-matching phase from the tactical reference, then compose "
+        "and return suitable actions using only the available actions and their "
+        "documented parameters."
     )
     sections = [
+        _tactic_card(tactic),
+        _section("output_contract", output_contract),
+        _actions_reference(action_entries),
         _section(
             "observation",
             _observation_with_feedback(observation, previous_validation_feedback),
         ),
-        _tactic_card(tactic),
-        _actions_reference(action_entries),
-        _section("output_contract", output_contract),
+        final_instruction,
     ]
     user = "\n\n".join(sections)
-    return [{"role": "system", "content": IM_ROLE}, {"role": "user", "content": user}]
+    return [
+        {"role": "system", "content": MODEL_ROLE},
+        {"role": "user", "content": user},
+    ]

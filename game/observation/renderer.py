@@ -1,4 +1,4 @@
-"""Canonical IM observation renderer."""
+"""Canonical model observation renderer."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def _section(name: str, content: str | list[str], *, empty: str = "[None]") -> s
 
 
 def observation_text(data: dict[str, Any]) -> str:
-    """Render the factual observation read by IM."""
+    """Render the factual observation read by model."""
     hint_sections = data["situational_hints"]
     alert_lines = [
         f"- {item}"

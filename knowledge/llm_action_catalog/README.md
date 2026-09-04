@@ -14,7 +14,7 @@
 - `Behaviors/Individual Combat Behaviors.json`：单单位战斗 Behavior。
 - `Behaviors/Group Combat Behaviors.json`：编组战斗 Behavior。
 - `Behaviors/Macro Behaviors.json`：宏观 Behavior。
-- `Manager Mediator.json`：`ManagerMediator` 的查询与命令接口；主要供能力审计和观测设计使用，不直接作为 IM 动作。v3.9.6 中大量方法的 Python 签名是 `**kwargs`，表内已根据该版本 API docstring 展开实际关键字参数，并以 `via_kwargs: true` 标识。
+- `Manager Mediator.json`：`ManagerMediator` 的查询与命令接口；主要供能力审计和观测设计使用，不直接作为 模型 动作。v3.9.6 中大量方法的 Python 签名是 `**kwargs`，表内已根据该版本 API docstring 展开实际关键字参数，并以 `via_kwargs: true` 标识。
 - `shared_types.json`：目录参数使用的 JSON 类型约定。
 
 运行时的 `ActionCatalog` 只加载三个 Behavior 文件。`llm_exposure: "eligible"` 的动作才可进入模型动作空间；阶段白名单和当前游戏状态还会进一步限制实际展示和执行的动作。

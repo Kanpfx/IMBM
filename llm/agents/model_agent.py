@@ -6,14 +6,15 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Any
 
-from llm.agents.base_agent import BaseAgent
-from llm.agents.prompts import im_messages
-from llm.json_tools import parse_im_payload
+from config.llm import LLMConfig
+from llm.agents.prompts import model_messages
+from llm.client import LLMClient
+from llm.model_output import parse_model_payload
 from llm.telemetry import Telemetry
 
 
 @dataclass(frozen=True)
-class IMResult:
+class ModelResult:
     phase: str | None
     actions: list[dict[str, Any]]
     validation_feedback: list[dict[str, Any]]
@@ -23,7 +24,19 @@ class IMResult:
     latency_ms: int
 
 
-class IMAgent(BaseAgent):
+def _symbol_key(value: Any) -> str:
+    if not isinstance(value, str):
+        return ""
+    return "".join(
+        character for character in value.strip().casefold() if character.isalnum()
+    )
+
+
+class ModelAgent:
+    def __init__(self, config: LLMConfig, llm_client: LLMClient):
+        self.config = config
+        self.llm_client = llm_client
+
     async def run(
         self,
         observation: str,
@@ -32,12 +45,14 @@ class IMAgent(BaseAgent):
         previous_validation_feedback: list[dict[str, Any]] | None = None,
         trace: Telemetry | None = None,
         iteration: int | None = None,
-    ) -> IMResult:
-        messages = im_messages(
+        max_actions_per_decision: int = 6,
+    ) -> ModelResult:
+        messages = model_messages(
             observation,
             tactic,
             action_entries,
             previous_validation_feedback or [],
+            max_actions_per_decision=max_actions_per_decision,
         )
         request_messages = self._request_messages(messages)
         started_at = perf_counter()
@@ -47,7 +62,7 @@ class IMAgent(BaseAgent):
         except Exception as exc:
             latency_ms = round((perf_counter() - started_at) * 1000)
             if trace is not None:
-                trace.im_conversation(
+                trace.model_conversation(
                     iteration=iteration,
                     request=request_messages,
                     reply=response,
@@ -60,7 +75,7 @@ class IMAgent(BaseAgent):
 
         feedback: list[dict[str, Any]] = []
         try:
-            payload = parse_im_payload(response)
+            payload = parse_model_payload(response)
         except Exception as exc:
             feedback.append(
                 {
@@ -69,7 +84,7 @@ class IMAgent(BaseAgent):
                     "error": str(exc),
                 }
             )
-            return IMResult(
+            return ModelResult(
                 None,
                 [],
                 feedback,
@@ -79,24 +94,34 @@ class IMAgent(BaseAgent):
                 round((perf_counter() - started_at) * 1000),
             )
 
+        feedback.extend(
+            {
+                "kind": "action_format",
+                "action_index": error["index"] + 1,
+                "submitted_action": error["submitted_action"],
+                "error": error["error"],
+            }
+            for error in payload["errors"]
+        )
+
         submitted_phase = payload.get("phase")
         phase_ids = {
-            phase.get("id")
-            for phase in tactic.get("phases", [])
-            if isinstance(phase, dict)
+            _symbol_key(item.get("id")): item.get("id")
+            for item in tactic.get("phases", [])
+            if isinstance(item, dict) and isinstance(item.get("id"), str)
         }
-        phase = submitted_phase if submitted_phase in phase_ids else None
+        phase = phase_ids.get(_symbol_key(submitted_phase))
         if phase is None:
             feedback.append(
                 {
                     "kind": "phase",
                     "submitted_phase": submitted_phase,
-                    "error": "phase must be an exact phase ID from the tactical reference",
+                    "error": "phase must identify a phase ID from the tactical reference",
                 }
             )
 
         actions = payload["actions"]
-        return IMResult(
+        return ModelResult(
             phase,
             actions,
             feedback,

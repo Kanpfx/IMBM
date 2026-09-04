@@ -3,7 +3,7 @@ import unittest
 from game.observation.builder import ObservationBuilder
 from game.observation.state import TagIdMapper
 from knowledge.loader import ActionCatalog
-from llm.agents.prompts import IM_ROLE, im_messages
+from llm.agents.prompts import MODEL_ROLE, model_messages
 
 
 class Point:
@@ -88,6 +88,13 @@ class Bot:
 
 
 class ObservationTests(unittest.TestCase):
+    def test_observation_ids_remain_stable_beyond_one_thousand_entities(self):
+        mapper = TagIdMapper()
+        aliases = [mapper.alias(tag) for tag in range(1100)]
+
+        self.assertEqual(len(set(aliases)), 1100)
+        self.assertEqual(mapper.alias(42), aliases[42])
+
     def test_observation_aggregates_workers_and_hides_internal_details(self):
         builder = ObservationBuilder(TagIdMapper())
         observation = builder.build(Bot(), iteration=0)
@@ -142,12 +149,12 @@ class ObservationTests(unittest.TestCase):
             observation.text,
         )
         self.assertIn(
-            "[497,641] SCV\n"
+            "[0,1] SCV\n"
             "    Status: collecting resources automatically.\n"
             "    Location: near our main.",
             observation.text,
         )
-        self.assertIn("[88] Stalker", observation.text)
+        self.assertIn("[4] Stalker", observation.text)
         self.assertNotIn("Phase:", observation.text)
         self.assertNotIn("landmark", observation.text.lower())
         self.assertNotIn("SCV at", observation.text)
@@ -171,13 +178,13 @@ class ObservationTests(unittest.TestCase):
         bot.structures.append(starport)
         observation = ObservationBuilder(TagIdMapper()).build(bot, iteration=0)
 
-        self.assertIn("[333] Battlecruiser", observation.text)
+        self.assertIn("[3] Battlecruiser", observation.text)
         self.assertIn("Health: 440/550 (80%).", observation.text)
         self.assertIn("Position: (10, 10), near our main.", observation.text)
         self.assertIn("Energy: 125/200.", observation.text)
         self.assertIn("Tactical Jump: ready.", observation.text)
         self.assertIn("Yamato Cannon: ready.", observation.text)
-        self.assertIn("[444] Starport", observation.text)
+        self.assertIn("[5] Starport", observation.text)
 
     def test_history_is_included_on_the_next_observation(self):
         builder = ObservationBuilder(TagIdMapper())
@@ -276,20 +283,19 @@ class ObservationTests(unittest.TestCase):
         observation = ObservationBuilder(TagIdMapper()).build(bot, iteration=0)
 
         self.assertIn(
-            "[217,218] Marine\n"
-            "    Status: active.\n"
-            "    Location: near our main.",
+            "[2,3] Marine\n" "    Status: active.\n" "    Location: near our main.",
             observation.text,
         )
         self.assertIn(
-            "[361] Marine\n"
-            "    Status: active.\n"
-            "    Location: near enemy main.",
+            "[4] Marine\n" "    Status: active.\n" "    Location: near enemy main.",
             observation.text,
         )
-        self.assertIn("[401,402] MULE", observation.text)
+        self.assertIn("[6,7] MULE", observation.text)
         self.assertNotIn("MULEs", observation.text)
-        self.assertLess(observation.text.index("[400] Reaper"), observation.text.index("[217,218] Marine"))
+        self.assertLess(
+            observation.text.index("[5] Reaper"),
+            observation.text.index("[2,3] Marine"),
+        )
 
     def test_enemy_location_is_based_on_each_enemy_tag(self):
         bot = Bot()
@@ -301,10 +307,10 @@ class ObservationTests(unittest.TestCase):
         observation = ObservationBuilder(TagIdMapper()).build(bot, iteration=0)
 
         self.assertIn(
-            "[88] Stalker\n    Status: visible; near our main.", observation.text
+            "[4] Stalker\n    Status: visible; near our main.", observation.text
         )
         self.assertIn(
-            "[99] Zealot\n    Status: visible; near enemy main.", observation.text
+            "[5] Zealot\n    Status: visible; near enemy main.", observation.text
         )
         self.assertIn("Enemy ground units are close to our main.", observation.text)
 
@@ -376,21 +382,21 @@ class ObservationTests(unittest.TestCase):
         observation = ObservationBuilder(TagIdMapper()).build(bot, iteration=0)
 
         self.assertIn(
-            "[700,701] Supply Depot\n"
+            "[4,5] Supply Depot\n"
             "    Status: ready.\n"
             "    Health: [400/400, 250/400].\n"
             "    Location: near our main.",
             observation.text,
         )
         self.assertIn(
-            "[702] Supply Depot\n"
+            "[6] Supply Depot\n"
             "    Status: ready.\n"
             "    Health: [400/400].\n"
             "    Location: near enemy main.",
             observation.text,
         )
         self.assertIn(
-            "[703] Supply Depot\n"
+            "[7] Supply Depot\n"
             "    Status: building (50%).\n"
             "    Health: [200/400].\n"
             "    Location: near our main.",
@@ -398,9 +404,10 @@ class ObservationTests(unittest.TestCase):
         )
         self.assertNotIn("Supply Depots", observation.text)
         self.assertLess(
-            observation.text.index("[102] Command Center"),
-            observation.text.index("[700,701] Supply Depot"),
+            observation.text.index("[3] Command Center"),
+            observation.text.index("[4,5] Supply Depot"),
         )
+
     def test_structure_changes_distinguish_building_from_ready(self):
         bot = Bot()
         builder = ObservationBuilder(TagIdMapper())
@@ -509,10 +516,15 @@ class ObservationTests(unittest.TestCase):
         }
         catalog = ActionCatalog.load()
         entries = catalog.prompt_entries({"macro.build_structure"})
-        im = im_messages("# Round state\n[None]", tactic, entries)
-        prompt = im[-1]["content"]
+        messages = model_messages(
+            "# Round state\n[None]",
+            tactic,
+            entries,
+            max_actions_per_decision=4,
+        )
+        prompt = messages[-1]["content"]
 
-        self.assertEqual(im[0]["content"], IM_ROLE)
+        self.assertEqual(messages[0]["content"], MODEL_ROLE)
         self.assertNotIn("<task>", prompt)
         self.assertIn("<observation>\n  # Round state", prompt)
         self.assertIn("<tactical_reference>", prompt)
@@ -535,9 +547,35 @@ class ObservationTests(unittest.TestCase):
         self.assertIn("<available_actions>", prompt)
         self.assertIn("- `BuildStructure(", prompt)
         self.assertIn("<output_contract>", prompt)
-        self.assertIn('  "phase": "<phase ID>"', prompt)
-        self.assertIn('      "id": "<action name>"', prompt)
-        self.assertIn('        "<argument name>": "<argument value>"', prompt)
+        self.assertIn(
+            "<output_contract>\n  <phase>\n  PHASE_ID\n  </phase>\n  <actions>",
+            prompt,
+        )
+        self.assertIn("  ActionName(argument=value,...)", prompt)
+        self.assertIn("  </actions>\n", prompt)
+        self.assertIn("Use bare names for enums and landmarks", prompt)
+        self.assertIn("return 0-4 currently available actions", prompt)
+        self.assertNotIn("return 0-6 currently available actions", prompt)
+        self.assertLess(
+            prompt.index("<tactical_reference>"),
+            prompt.index("<output_contract>"),
+        )
+        self.assertLess(
+            prompt.index("<output_contract>"),
+            prompt.index("<actions_reference>"),
+        )
+        self.assertLess(
+            prompt.index("<actions_reference>"),
+            prompt.index("<observation>"),
+        )
+        self.assertTrue(
+            prompt.endswith(
+                "Select the best-matching phase from the tactical reference, "
+                "then compose and return suitable actions using only the available "
+                "actions and their documented parameters."
+            )
+        )
+        self.assertNotIn('"actions": [', prompt)
         self.assertNotIn("<previous_validation_feedback>", prompt)
         self.assertNotIn("Valid example:", prompt)
 
@@ -552,7 +590,7 @@ class ObservationTests(unittest.TestCase):
                 "macro.production_controller",
             }
         )
-        prompt = im_messages(
+        prompt = model_messages(
             "# Round state\n[None]",
             {
                 "id": "Test",
@@ -593,7 +631,7 @@ class ObservationTests(unittest.TestCase):
         self.assertNotIn("- `UseAbility(", prompt)
         self.assertNotIn("<action name=", prompt)
         self.assertNotIn("<parameter name=", prompt)
-        
+
         self.assertNotIn("combat.individual.a_move", prompt)
         self.assertNotIn("success_at_distance", prompt)
         self.assertNotIn("group_tags", prompt)
@@ -622,7 +660,7 @@ class ObservationTests(unittest.TestCase):
         ]
 
         observation = "<recent_history>\n<action_history>\n[None]\n</action_history>\n</recent_history>"
-        prompt = im_messages(observation, tactic, [], feedback)[-1]["content"]
+        prompt = model_messages(observation, tactic, [], feedback)[-1]["content"]
 
         self.assertEqual(prompt.count("<previous_validation_feedback>"), 1)
         self.assertEqual(prompt.count("</previous_validation_feedback>"), 1)

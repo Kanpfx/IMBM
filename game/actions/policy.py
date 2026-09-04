@@ -1,4 +1,4 @@
-"""Recoverable IM action review before Ares behavior construction."""
+"""Recoverable model action review before Ares behavior construction."""
 
 from __future__ import annotations
 
@@ -57,17 +57,6 @@ class PolicyValidator:
         self.adapter = AresActionAdapter(catalog)
         self.game_config = game_config
 
-    def verify(
-        self,
-        bot: Any,
-        actions: list[dict[str, Any]],
-        context: EntityContext,
-        surface: ActionSurface | None = None,
-    ) -> tuple[bool, str]:
-        """Compatibility wrapper for callers that need all-or-nothing status."""
-        review = self.review(bot, actions, context, surface)
-        return review.accepted, review.message
-
     def review(
         self,
         bot: Any,
@@ -79,7 +68,7 @@ class PolicyValidator:
 
         This deliberately does not invent replacement actions. Deterministic
         normalization is limited to clamping a point that is only slightly
-        outside the playable area; semantic errors go to the next IM turn.
+        outside the playable area; semantic errors go to the next model turn.
         """
         if not isinstance(actions, list):
             return ActionReview(
@@ -504,7 +493,7 @@ class PolicyValidator:
     def _validate_fixed_abilities(
         entry: dict[str, Any], args: dict[str, Any], context: EntityContext
     ) -> None:
-        """Check an IM high-level action's hidden, fixed ability."""
+        """Check a model-facing high-level action's hidden, fixed ability."""
         actor_alias = args.get("unit")
         if not isinstance(actor_alias, str):
             return

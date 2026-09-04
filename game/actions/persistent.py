@@ -44,7 +44,7 @@ class PersistentAction:
 
 
 class PersistentActionRegistry:
-    """Repeat selected accepted actions until the next IM decision window."""
+    """Repeat selected accepted actions until the next model decision window."""
 
     def __init__(self, catalog: ActionCatalog, duration_iterations: int = 10):
         self.catalog = catalog

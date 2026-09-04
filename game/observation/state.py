@@ -8,13 +8,10 @@ class TagIdMapper:
 
     def __init__(self) -> None:
         self._tag_to_id: dict[int, int] = {}
-        self._id_to_tag: dict[int, int] = {}
+        self._next_id = 0
 
     def alias(self, tag: int) -> str:
         if tag not in self._tag_to_id:
-            candidate = tag % 1000
-            while candidate in self._id_to_tag:
-                candidate = (candidate + 1) % 1000
-            self._tag_to_id[tag] = candidate
-            self._id_to_tag[candidate] = tag
+            self._tag_to_id[tag] = self._next_id
+            self._next_id += 1
         return str(self._tag_to_id[tag])

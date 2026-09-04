@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH -J im_qwen3
+#SBATCH -J model_qwen3
 #SBATCH -o logs/%x-%j.out
 #SBATCH -e logs/%x-%j.err
 #SBATCH -p compute

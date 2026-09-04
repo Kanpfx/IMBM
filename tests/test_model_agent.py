@@ -1,11 +1,11 @@
 import unittest
 
 from config.llm import LLMConfig
-from llm.agents.im_agent import IMAgent
+from llm.agents.model_agent import ModelAgent
 
 TACTIC = {
     "id": "TestTactic",
-    "concept": "Test the single IM.",
+    "concept": "Test the single model.",
     "rules": [],
     "phases": [
         {
@@ -19,7 +19,10 @@ TACTIC = {
 
 
 class FakeLLMClient:
-    def __init__(self, reply='{"phase":"opening","actions":[]}'):
+    def __init__(
+        self,
+        reply="<phase>opening</phase>\n<actions>\n</actions>",
+    ):
         self.reply = reply
         self.calls = []
 
@@ -28,16 +31,17 @@ class FakeLLMClient:
         return self.reply
 
 
-class IMAgentTests(unittest.IsolatedAsyncioTestCase):
+class ModelAgentTests(unittest.IsolatedAsyncioTestCase):
     def test_shared_defaults_keep_transport_retries(self):
         self.assertEqual(LLMConfig().temperature, 0.1)
         self.assertEqual(LLMConfig().transport_retries, 2)
 
-    async def test_im_returns_phase_and_actions_in_one_call(self):
+    async def test_model_returns_phase_and_actions_in_one_call(self):
         client = FakeLLMClient(
-            '{"phase":"opening","actions":[{"id":"BuildWorkers","args":{"to_count":20}}]}'
+            "<phase>opening</phase>\n"
+            "<actions>\nBuildWorkers(to_count=20)\n</actions>"
         )
-        agent = IMAgent(LLMConfig(), client)
+        agent = ModelAgent(LLMConfig(), client)
 
         result = await agent.run("# Game state\n[None]", TACTIC, [])
 
@@ -46,9 +50,9 @@ class IMAgentTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result.validation_feedback)
         self.assertEqual(len(client.calls), 1)
 
-    async def test_invalid_json_is_feedback_without_an_im_retry(self):
-        client = FakeLLMClient('{"phase":"opening","actions": [')
-        agent = IMAgent(LLMConfig(), client)
+    async def test_invalid_dsl_is_feedback_without_a_model_retry(self):
+        client = FakeLLMClient("<phase>opening</phase>\n<actions>")
+        agent = ModelAgent(LLMConfig(), client)
 
         result = await agent.run("# Observation", TACTIC, [])
 
@@ -60,9 +64,10 @@ class IMAgentTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_invalid_phase_preserves_actions_and_records_feedback(self):
         client = FakeLLMClient(
-            '{"phase":"invented","actions":[{"id":"BuildWorkers","args":{"to_count":20}}]}'
+            "<phase>invented</phase>\n"
+            "<actions>\nBuildWorkers(to_count=20)\n</actions>"
         )
-        agent = IMAgent(LLMConfig(), client)
+        agent = ModelAgent(LLMConfig(), client)
 
         result = await agent.run("# Observation", TACTIC, [])
 
@@ -70,9 +75,36 @@ class IMAgentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.actions[0]["id"], "BuildWorkers")
         self.assertEqual(result.validation_feedback[0]["kind"], "phase")
 
+    async def test_phase_and_tags_are_case_insensitive(self):
+        client = FakeLLMClient(
+            "<PHASE>OPEN_ING</PHASE>\n"
+            "<ACTIONS>\nbuild_workers(ToCount=20)\n</ACTIONS>"
+        )
+        agent = ModelAgent(LLMConfig(), client)
+
+        result = await agent.run("# Observation", TACTIC, [])
+
+        self.assertEqual(result.phase, "opening")
+        self.assertEqual(result.actions[0]["id"], "build_workers")
+        self.assertFalse(result.validation_feedback)
+
+    async def test_bad_action_preserves_valid_siblings_and_records_feedback(self):
+        client = FakeLLMClient(
+            "<phase>opening</phase>\n"
+            "<actions>\nBuildWorkers(to_count=20)\n"
+            "Unsafe(unit=lookup(1))\n</actions>"
+        )
+        agent = ModelAgent(LLMConfig(), client)
+
+        result = await agent.run("# Observation", TACTIC, [])
+
+        self.assertEqual([action["id"] for action in result.actions], ["BuildWorkers"])
+        self.assertEqual(result.validation_feedback[0]["kind"], "action_format")
+        self.assertEqual(result.validation_feedback[0]["action_index"], 2)
+
     async def test_previous_feedback_is_part_of_the_next_user_message_only(self):
         client = FakeLLMClient()
-        agent = IMAgent(LLMConfig(), client)
+        agent = ModelAgent(LLMConfig(), client)
         feedback = [
             {
                 "kind": "action",

@@ -5,7 +5,7 @@ from game.actions.exposure import ActionExposure
 from game.actions.policy import PolicyValidator
 from game.actions.resolver import EntityContext
 from knowledge.loader import ActionCatalog, load_tactic
-from llm.agents.prompts import im_messages
+from llm.agents.prompts import model_messages
 
 
 class Unit:
@@ -178,7 +178,7 @@ class ActionExposureTests(unittest.TestCase):
         )
         surface = self.exposure.build(object(), context)
 
-        prompt = im_messages(
+        prompt = model_messages(
             "# Observation", load_tactic("BattleCruiserRush"), surface.entries
         )[-1]["content"]
 
@@ -201,7 +201,7 @@ class ActionExposureTests(unittest.TestCase):
         )
         surface = self.exposure.build(object(), context)
 
-        prompt = im_messages(
+        prompt = model_messages(
             "# Observation", load_tactic("BattleCruiserRush"), surface.entries
         )[-1]["content"]
 

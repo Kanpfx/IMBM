@@ -32,7 +32,7 @@ class Telemetry:
         self._write_json("metadata.json", self._metadata)
         for filename in (
             "obs.jsonl",
-            "im.jsonl",
+            "model.jsonl",
             "accepted_actions.jsonl",
             "events.jsonl",
         ):
@@ -44,8 +44,8 @@ class Telemetry:
     def observation(self, **fields: Any) -> None:
         self._append("obs.jsonl", fields)
 
-    def im_conversation(self, **fields: Any) -> None:
-        self._append("im.jsonl", fields)
+    def model_conversation(self, **fields: Any) -> None:
+        self._append("model.jsonl", fields)
 
     def accepted_decision(self, **fields: Any) -> None:
         self._append("accepted_actions.jsonl", fields)

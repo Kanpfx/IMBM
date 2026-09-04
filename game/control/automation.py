@@ -1,4 +1,4 @@
-"""Reliable, low-latency rules that run independently of IM decisions."""
+"""Reliable, low-latency rules that run independently of model decisions."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ class AutomationController:
         self._worker_override: dict[str, Any] | None = None
 
     async def run(self, bot: Any, iteration: int) -> None:
-        """Register automatic behaviors that should run before IM spending."""
+        """Register automatic behaviors that should run before model spending."""
         workers_per_gas = 3 if bot.supply_workers >= 13 else 0
         bot.register_behavior(Mining(workers_per_gas=workers_per_gas))
         bot.register_behavior(AutoSupply(base_location=bot.start_location))
@@ -36,7 +36,7 @@ class AutomationController:
     def replace_worker_override(
         self, action: dict[str, Any] | None
     ) -> tuple[dict[str, Any] | None, bool]:
-        """Replace the IM worker target for the next decision cycle.
+        """Replace the model worker target for the next decision cycle.
 
         Returns the previous override and whether the effective override changed,
         allowing the observation history to close an old active intent cleanly.
@@ -52,5 +52,5 @@ class AutomationController:
         return previous, changed
 
     def register_worker_production(self, bot: Any) -> None:
-        """Register worker production after foreground IM spending behaviors."""
+        """Register worker production after foreground model spending behaviors."""
         bot.register_behavior(BuildWorkers(to_count=self.worker_target))

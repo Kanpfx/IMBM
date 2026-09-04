@@ -26,7 +26,7 @@ def observation(iteration=30):
 
 
 class ControllerTests(unittest.IsolatedAsyncioTestCase):
-    async def test_im_chat_prints_a_header_and_one_message_per_action(self):
+    async def test_model_chat_prints_a_header_and_one_message_per_action(self):
         class Bot:
             def __init__(self):
                 self.messages = []
@@ -40,11 +40,11 @@ class ControllerTests(unittest.IsolatedAsyncioTestCase):
             "args": {"base_location": "main", "structure_id": "BARRACKS"},
         }
         header = (
-            "[IM iteration=30] t=00:12 M=150 G=0 supply=14/23 "
-            "phase=opening_tech im=4.29s"
+            "[model iteration=30] t=00:12 M=150 G=0 supply=14/23 "
+            "phase=opening_tech model=4.29s"
         )
 
-        await LLMGameController._chat_im_decision(bot, header, [action])
+        await LLMGameController._chat_model_decision(bot, header, [action])
 
         self.assertEqual(
             bot.messages,
@@ -63,7 +63,7 @@ class ControllerTests(unittest.IsolatedAsyncioTestCase):
         controller.policy = SelectivePolicy()
         controller.game_config = GameConfig()
 
-        review = controller._review_im_actions(
+        review = controller._review_model_actions(
             None,
             [
                 {"id": "Good", "args": {}},
@@ -99,18 +99,88 @@ class ControllerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cleared, [])
         self.assertEqual(controller._previous_validation_feedback, [])
 
-    def test_action_limit_errors_are_returned_as_feedback_candidates(self):
-        class AcceptAllPolicy:
-            def review(self, _bot, actions, _context, _surface):
-                return ActionReview(list(actions), [], [])
+    async def test_failed_model_decision_restores_default_worker_target(self):
+        previous_override = {
+            "id": "BuildWorkers",
+            "args": {"to_count": 80},
+        }
+
+        class Automation:
+            def __init__(self):
+                self.worker_target = 80
+                self.override = previous_override
+                self.registered = False
+
+            async def run(self, _bot, _iteration):
+                return None
+
+            def replace_worker_override(self, action):
+                previous = self.override
+                changed = previous != action
+                self.override = action
+                self.worker_target = (
+                    action["args"]["to_count"] if action is not None else 20
+                )
+                return previous, changed
+
+            def register_worker_production(self, _bot):
+                self.registered = True
+
+        class ObservationBuilder:
+            def __init__(self):
+                self.completed = []
+
+            def collect_frame(self, _bot):
+                return None
+
+            def build(self, _bot, iteration):
+                return observation(iteration)
+
+            def record_completed_actions(self, actions, game_time):
+                self.completed.append((actions, game_time))
+
+        class ModelAgent:
+            async def run(self, *_args, **_kwargs):
+                raise RuntimeError("request failed")
+
+        class Telemetry:
+            def observation(self, **_fields):
+                return None
+
+            def event(self, *_args, **_fields):
+                return None
 
         controller = object.__new__(LLMGameController)
-        controller.policy = AcceptAllPolicy()
-        controller.game_config = GameConfig(max_actions_per_decision=2)
-        actions = [{"id": "Good", "args": {"index": i}} for i in range(3)]
+        controller.automation = Automation()
+        controller.observation_builder = ObservationBuilder()
+        controller.llm_config = type("Config", (), {"configured": True})()
+        controller.game_config = GameConfig()
+        controller.action_exposure = type(
+            "Exposure",
+            (),
+            {
+                "build": lambda _self, _bot, _context: type(
+                    "Surface", (), {"entries": []}
+                )()
+            },
+        )()
+        controller.deferred_actions = type(
+            "DeferredActions",
+            (),
+            {"pop_ready": lambda _self, _bot, _iteration: ([], [])},
+        )()
+        controller.model_agent = ModelAgent()
+        controller.telemetry = Telemetry()
+        controller.tactic = {}
+        controller._previous_validation_feedback = []
+        controller._run_persistent_actions = lambda _bot, _iteration: None
+        bot = type("Bot", (), {"time_formatted": "00:12"})()
 
-        review = controller._review_im_actions(None, actions, observation(), None)
+        await controller.run_iteration(bot, 30)
 
-        self.assertEqual(review.actions, actions[:2])
-        self.assertEqual(review.issues[0].action, actions[2])
-        self.assertIn("action limit exceeded", review.issues[0].text())
+        self.assertEqual(controller.automation.worker_target, 20)
+        self.assertTrue(controller.automation.registered)
+        self.assertEqual(
+            controller.observation_builder.completed,
+            [([previous_override], "00:12")],
+        )

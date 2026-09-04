@@ -98,7 +98,7 @@ class ActionCatalog:
 
     @staticmethod
     def required_model_params(entry: dict[str, Any]) -> dict[str, dict[str, Any]]:
-        """Return the deliberately small argument surface exposed to IM."""
+        """Return the deliberately small argument surface exposed to model."""
         return {
             param["name"]: param
             for param in entry["params"]

@@ -1,4 +1,4 @@
-"""Structured, model-facing errors for IM action parsing and validation."""
+"""Structured errors for model action parsing and validation."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ class ErrorDetails:
 
 
 class ActionError(ValueError):
-    """Base exception whose string form is safe to send to the corrector."""
+    """Base exception safe to include in next-turn model feedback."""
 
     category = "Action error"
 
@@ -50,10 +50,23 @@ class OutputFormatError(ActionError):
     category = "Output format error"
 
     @classmethod
-    def standard_json_required(cls) -> "OutputFormatError":
+    def dsl_section(cls, name: str, count: int) -> "OutputFormatError":
         return cls(
-            "invalid JSON output",
-            "a standard JSON object containing an actions list is required",
+            "invalid DSL output",
+            f"exactly one <{name}>...</{name}> section is required; found {count}",
+            parameter=name,
+            expected="one tagged section",
+            actual=count,
+        )
+
+    @classmethod
+    def dsl_action(cls, source: str, detail: str) -> "OutputFormatError":
+        return cls(
+            "invalid action expression",
+            f"{detail}: {source!r}",
+            parameter="actions",
+            expected="ActionName(argument=value, ...)",
+            actual=source,
         )
 
     @classmethod

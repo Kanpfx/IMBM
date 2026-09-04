@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-import time
 from typing import Any
-from urllib import error, request
+from urllib import request
 
 from config.llm import LLMConfig
 
@@ -21,26 +20,14 @@ class LLMClient:
 
     async def complete(self, messages: list[dict[str, str]]) -> str:
         if not self.config.configured:
-            raise LLMClientError(
-                "LLM_IM_MODEL, LLM_IM_BASE_URL and LLM_IM_API_KEY are required"
-            )
+            raise LLMClientError("LLM_MODEL, LLM_BASE_URL and LLM_API_KEY are required")
         last_error: Exception | None = None
         for attempt in range(self.config.transport_retries + 1):
             try:
-                return await asyncio.wait_for(
-                    asyncio.to_thread(
-                        self._complete_sync, self.prepare_messages(messages)
-                    ),
-                    timeout=self.config.timeout_s,
+                return await asyncio.to_thread(
+                    self._complete_sync, self.prepare_messages(messages)
                 )
-            except (
-                OSError,
-                error.URLError,
-                error.HTTPError,
-                TimeoutError,
-                asyncio.TimeoutError,
-                ValueError,
-            ) as exc:
+            except (OSError, TimeoutError, ValueError) as exc:
                 last_error = exc
                 if attempt < self.config.transport_retries:
                     await asyncio.sleep(0.5 * (attempt + 1))

@@ -1,4 +1,4 @@
-"""Ares/python-sc2 state -> one compact IM observation."""
+"""Ares/python-sc2 state -> one compact model observation."""
 
 from __future__ import annotations
 
@@ -335,7 +335,7 @@ class ObservationBuilder:
 
     @staticmethod
     def _battlecruiser_ability_lines(unit: Any) -> list[str]:
-        """Expose only the two BC decisions that IM can act on directly."""
+        """Expose only the two BC decisions that model can act on directly."""
         abilities = getattr(unit, "abilities", None)
         if abilities is None:
             return [
@@ -451,7 +451,7 @@ class ObservationBuilder:
                 detail = self._unit_detail(unit, bot)
             else:
                 # Combat units remain compact, but their group must still have
-                # enough spatial context for an IM to select the right group.
+                # enough spatial context for the model to select the right group.
                 detail = f"Location: {self._area_label(unit, bot)}."
             grouped[(name, state, detail)].append(unit)
         return self._group_blocks(grouped, context.own_entities)

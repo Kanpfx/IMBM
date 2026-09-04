@@ -9,7 +9,7 @@ from game.actions.persistent import PersistentActionRegistry
 from game.actions.policy import PolicyValidator
 from game.actions.resolver import EntityContext
 from knowledge.loader import ActionCatalog
-from llm.json_tools import parse_im_payload, parse_json_object
+from llm.model_output import parse_model_payload
 
 
 class ActionRuntimeTests(unittest.TestCase):
@@ -27,10 +27,10 @@ class ActionRuntimeTests(unittest.TestCase):
         )
         self.assertEqual(format_indexed_actions([]), ["actions=[]"])
 
-    def test_decision_intervals_keep_im_actions_for_the_full_cycle(self):
+    def test_decision_intervals_keep_model_actions_for_the_full_cycle(self):
         config = GameConfig()
 
-        self.assertEqual(config.im_interval_iterations, 30)
+        self.assertEqual(config.model_interval_iterations, 30)
         self.assertEqual(config.persistent_action_iterations, 30)
 
     def test_adapter_rejects_disabled_catalog_actions(self):
@@ -161,35 +161,97 @@ class ActionRuntimeTests(unittest.TestCase):
         catalog = ActionCatalog.load()
         validator = PolicyValidator(catalog, GameConfig())
 
-        accepted, reason = validator.verify(
+        review = validator.review(
             bot=None,
             actions=[{"id": "GasBuildingController", "args": {"to_count": 1}}],
             context=EntityContext(),
         )
 
-        self.assertTrue(accepted, reason)
+        self.assertTrue(review.accepted, review.message)
 
-    def test_json_parser_accepts_plain_and_fenced_objects(self):
-        self.assertEqual(parse_json_object('{"actions":[]}'), {"actions": []})
-        self.assertEqual(
-            parse_json_object('```json\n{"actions":[]}\n```'), {"actions": []}
-        )
-        self.assertEqual(
-            parse_json_object('Here is the result: {"actions":[]}'),
-            {"actions": []},
+    def test_policy_enforces_action_limit(self):
+        catalog = ActionCatalog.load()
+        validator = PolicyValidator(
+            catalog,
+            GameConfig(max_actions_per_decision=1),
         )
 
-    def test_im_parser_accepts_common_wrappers_and_requires_actions(self):
-        expected = {"phase": None, "actions": []}
-        raw = '{"actions":[]}'
+        review = validator.review(
+            bot=None,
+            actions=[
+                {"id": "GasBuildingController", "args": {"to_count": 1}},
+                {"id": "BuildWorkers", "args": {"to_count": 20}},
+            ],
+            context=EntityContext(),
+        )
 
-        self.assertEqual(parse_im_payload(raw), expected)
-        self.assertEqual(parse_im_payload(f"```json\n{raw}\n```"), expected)
-        self.assertEqual(parse_im_payload(f"Result:\n{raw}\nDone."), expected)
-        with self.assertRaisesRegex(OutputFormatError, "standard JSON object"):
-            parse_im_payload('{"actions":[]')
-        with self.assertRaisesRegex(OutputFormatError, "actions"):
-            parse_im_payload('{"actions":"none"}')
+        self.assertEqual(
+            review.actions,
+            [{"id": "GasBuildingController", "args": {"to_count": 1}}],
+        )
+        self.assertIn("action limit exceeded", review.message)
+
+    def test_model_parser_accepts_tagged_dsl_and_complex_values(self):
+        payload = parse_model_payload(
+            """```text
+<PHASE>
+'OPENING_TECH'
+</PHASE>
+<ACTIONS>
+- AMoveGroup(Group=[101,u2],Target={x:1.5,y:-2});
+SpawnController(army_composition_dict={BATTLECRUISER:{proportion:1.0,priority:0}})
+SetSomething(enabled=TRUE,value=null)
+</ACTIONS>
+```"""
+        )
+
+        self.assertEqual(payload["phase"], "OPENING_TECH")
+        self.assertEqual(
+            payload["actions"][0],
+            {
+                "id": "AMoveGroup",
+                "args": {"Group": [101, "u2"], "Target": {"x": 1.5, "y": -2}},
+            },
+        )
+        self.assertEqual(
+            payload["actions"][1]["args"]["army_composition_dict"],
+            {"BATTLECRUISER": {"proportion": 1.0, "priority": 0}},
+        )
+        self.assertEqual(
+            payload["actions"][2]["args"], {"enabled": True, "value": None}
+        )
+        self.assertEqual(payload["errors"], [])
+
+    def test_model_parser_accepts_empty_actions(self):
+        self.assertEqual(
+            parse_model_payload("<phase>opening</phase>\n<actions>\n</actions>"),
+            {"phase": "opening", "actions": [], "errors": []},
+        )
+
+    def test_model_parser_keeps_valid_siblings_and_reports_bad_lines(self):
+        payload = parse_model_payload(
+            """<phase>opening</phase>
+<actions>
+BuildWorkers(to_count=20)
+Unsafe(unit=lookup(101))
+AttackTarget(unit=101,target=203)
+</actions>"""
+        )
+
+        self.assertEqual(
+            [action["id"] for action in payload["actions"]],
+            ["BuildWorkers", "AttackTarget"],
+        )
+        self.assertEqual(payload["errors"][0]["index"], 1)
+        self.assertIn("unsupported value expression", payload["errors"][0]["error"])
+
+    def test_model_parser_requires_unique_tagged_sections(self):
+        with self.assertRaisesRegex(OutputFormatError, "<phase>"):
+            parse_model_payload("<actions></actions>")
+        with self.assertRaisesRegex(OutputFormatError, "<actions>"):
+            parse_model_payload("<phase>opening</phase>")
+        with self.assertRaisesRegex(OutputFormatError, "found 2"):
+            parse_model_payload("<phase>a</phase><phase>b</phase><actions></actions>")
 
     def test_catalog_and_policy_apply_basic_case_and_separator_tolerance(self):
         catalog = ActionCatalog.load()
@@ -426,7 +488,7 @@ class ActionRuntimeTests(unittest.TestCase):
             {"BATTLECRUISER": {"proportion": 1.0, "priority": 0}},
         )
 
-    def test_adapter_fills_bc_runtime_details_without_exposing_them_to_im(self):
+    def test_adapter_fills_bc_runtime_details_without_exposing_them_to_model(self):
         catalog = ActionCatalog.load()
         adapter = AresActionAdapter(catalog)
         battlecruiser = type(
@@ -526,7 +588,7 @@ class ActionRuntimeTests(unittest.TestCase):
         catalog = ActionCatalog.load()
         validator = PolicyValidator(catalog, GameConfig())
         point = type("Point", (), {"x": 1, "y": 1})()
-        accepted, reason = validator.verify(
+        review = validator.review(
             bot=None,
             actions=[
                 {
@@ -537,8 +599,8 @@ class ActionRuntimeTests(unittest.TestCase):
             context=EntityContext(positions={"main": point}),
         )
 
-        self.assertFalse(accepted)
-        self.assertIn("GasBuildingController", reason)
+        self.assertFalse(review.accepted)
+        self.assertIn("GasBuildingController", review.message)
 
     def test_policy_review_keeps_valid_actions_when_a_sibling_is_invalid(self):
         catalog = ActionCatalog.load()

@@ -2,7 +2,7 @@
 # Use this to override those values
 # Can add own unique config options here if desired
 #
-# The LLM IM controller is configured through environment variables,
+# The LLM model controller is configured through environment variables,
 # not this Ares YAML. See .env.example and README.md.
 
 # Set custom values here for your bot

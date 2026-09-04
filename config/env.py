@@ -1,4 +1,4 @@
-"""Project-local environment loading for the IM entry point."""
+"""Project-local environment loading for the model entry point."""
 
 from __future__ import annotations
 

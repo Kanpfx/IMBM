@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from sc2.data import Result
 
-from game.bot.main import MyBot
+from game.bot.main import WhyBot
 from llm.telemetry import Telemetry
 from run import mirror_console
 
@@ -26,7 +26,7 @@ class TelemetryTests(unittest.TestCase):
             )
             for filename in (
                 "obs.jsonl",
-                "im.jsonl",
+                "model.jsonl",
                 "accepted_actions.jsonl",
                 "events.jsonl",
             ):
@@ -35,14 +35,14 @@ class TelemetryTests(unittest.TestCase):
             telemetry.observation(iteration=10, observation="state")
             row = json.loads((telemetry.directory / "obs.jsonl").read_text("utf-8"))
             self.assertEqual(row["iteration"], 10)
-            telemetry.im_conversation(
+            telemetry.model_conversation(
                 iteration=10,
                 request=[{"role": "user", "content": "decide"}],
-                reply='{"phase":"opening","actions":[]}',
+                reply="<phase>opening</phase>\n<actions>\n</actions>",
                 valid=True,
             )
             conversation = json.loads(
-                (telemetry.directory / "im.jsonl").read_text("utf-8")
+                (telemetry.directory / "model.jsonl").read_text("utf-8")
             )
             self.assertEqual(conversation["iteration"], 10)
             self.assertFalse((telemetry.directory / "bm.jsonl").exists())
@@ -115,7 +115,7 @@ class TelemetryTests(unittest.TestCase):
             },
         )()
 
-        metadata = MyBot._result_metadata(bot, Result.Victory)
+        metadata = WhyBot._result_metadata(bot, Result.Victory)
 
         self.assertEqual(metadata["result"], "Victory")
         self.assertEqual(metadata["final_iteration"], 900)

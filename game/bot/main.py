@@ -23,7 +23,7 @@ from game.bot.consts import UNIT_TYPE_TO_NUM_REPAIRERS
 from game.control.controller import LLMGameController
 
 
-class MyBot(AresBot):
+class WhyBot(AresBot):
     def __init__(
         self,
         game_step_override: int | None = None,
@@ -50,14 +50,12 @@ class MyBot(AresBot):
             log_directory=self.log_directory,
         )
         if not self.llm_controller.active:
-            raise RuntimeError(
-                "LLM_IM_MODEL, LLM_IM_BASE_URL and LLM_IM_API_KEY are required"
-            )
+            raise RuntimeError("LLM_MODEL, LLM_BASE_URL and LLM_API_KEY are required")
         # Preserve Ares manager updates while permanently disabling its YAML
-        # BuildOrderRunner. IM is now the only non-automatic decision source.
+        # BuildOrderRunner. The model is now the only non-automatic decision source.
         self.build_order_runner.set_build_completed()
         logger.info(
-            "Single-IM mode started (tactic: {}, logs: {})",
+            "Single-model mode started (tactic: {}, logs: {})",
             self.tactic_name,
             self.llm_controller.telemetry.directory,
         )
@@ -69,10 +67,10 @@ class MyBot(AresBot):
             await self.client.leave()
 
         if self.llm_controller is None:
-            raise RuntimeError("IM controller was not initialized")
+            raise RuntimeError("model controller was not initialized")
         await self.llm_controller.run_iteration(self, iteration)
         if not self.opening_chat_tag and self.time > 5.0:
-            await self.chat_send("Tag: LLM-IM", team_only=True)
+            await self.chat_send("Tag: LLM", team_only=True)
             await self.chat_send(f"Tag: {self.race.name}", team_only=True)
             self.opening_chat_tag = True
 

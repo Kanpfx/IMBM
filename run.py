@@ -1,4 +1,4 @@
-"""Single-IM local-game entry point."""
+"""Single-model local-game entry point."""
 
 from __future__ import annotations
 
@@ -16,10 +16,12 @@ from sc2.data import AIBuild, Difficulty, Race
 from sc2.main import run_game
 from sc2.player import Bot, Computer
 
-sys.path.extend(["ares-sc2/src/ares", "ares-sc2/src", "ares-sc2"])
+PROJECT_ROOT = Path(__file__).resolve().parent
+ARES_ROOT = PROJECT_ROOT / "ares-sc2"
+sys.path.extend([str(ARES_ROOT / "src"), str(ARES_ROOT)])
 
 from config.env import load_environment, require_environment
-from game.bot.main import MyBot
+from game.bot.main import WhyBot
 from knowledge.loader import available_tactics
 
 
@@ -75,7 +77,7 @@ def configure_console_logging() -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the LLM-controlled IM bot.")
+    parser = argparse.ArgumentParser(description="Run the LLM-controlled bot.")
     parser.add_argument("--map_name", required=True, help="Installed SC2 map name.")
     parser.add_argument(
         "--difficulty",
@@ -93,9 +95,9 @@ def parse_args() -> argparse.Namespace:
         "--tactic",
         choices=available_tactics(),
         default="BattleCruiserRush",
-        help="Tactic card used by IM.",
+        help="Tactic card used by model.",
     )
-    parser.add_argument("--player_name", default="im_player")
+    parser.add_argument("--player_name", default="model_player")
     parser.add_argument("--own_race", choices=["Terran"], default="Terran")
     parser.add_argument(
         "--enemy_race", choices=["Terran", "Zerg", "Protoss"], default="Terran"
@@ -106,7 +108,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     load_environment()
     args = parse_args()
-    require_environment(["LLM_IM_MODEL", "LLM_IM_BASE_URL", "LLM_IM_API_KEY"])
+    require_environment(["LLM_MODEL", "LLM_BASE_URL", "LLM_API_KEY"])
     own_race = Race[args.own_race]
     enemy_race = Race[args.enemy_race]
     match_log_directory = Path("logs") / datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -116,7 +118,7 @@ def main() -> None:
         try:
             bot = Bot(
                 own_race,
-                MyBot(
+                WhyBot(
                     tactic_name=args.tactic,
                     run_metadata={
                         "map_name": args.map_name,
