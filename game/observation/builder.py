@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 
-from game.actions.formatting import format_action
+from game.observation.action_history import ActionHistory
 from game.actions.resolver import EntityContext
 from game.observation.hints import SituationHintBuilder
 from game.observation.overview import OverviewBuilder
@@ -77,14 +76,6 @@ class Observation:
     context: EntityContext
 
 
-@dataclass
-class ActionHistoryEntry:
-    time: str
-    key: str
-    description: str
-    status: str
-
-
 def _type_name(unit: Any) -> str:
     type_name = getattr(getattr(unit, "type_id", None), "name", None)
     if type_name:
@@ -111,69 +102,25 @@ class ObservationBuilder:
         self.overview_builder = OverviewBuilder()
         self.hint_builder = SituationHintBuilder()
         self.technology_builder = ProductionTechnologyBuilder()
-        self._action_history: list[ActionHistoryEntry] = []
+        self.action_history = ActionHistory()
         self._previous_facts: dict[str, int | str] | None = None
 
     def record_registered_actions(
         self, actions: list[dict[str, Any]], time: str = "--:--"
     ) -> None:
-        self._record_actions(actions, time, "complete", replace_statuses={"queued"})
+        for action in actions:
+            self.action_history.record(action, time, "accepted")
 
-    def record_deferred_actions(
+    def sync_active_actions(
         self, actions: list[dict[str, Any]], time: str = "--:--"
     ) -> None:
-        self._record_actions(actions, time, "queued")
-
-    def record_active_actions(
-        self, actions: list[dict[str, Any]], time: str = "--:--"
-    ) -> None:
-        self._record_actions(actions, time, "active")
+        self.action_history.sync_active(actions, time)
 
     def record_failed_actions(
-        self, actions: list[dict[str, Any]], time: str = "--:--"
-    ) -> None:
-        self._record_actions(
-            actions, time, "failed", replace_statuses={"active", "queued"}
-        )
-
-    def record_expired_actions(
-        self, actions: list[dict[str, Any]], time: str = "--:--"
-    ) -> None:
-        self._record_actions(
-            actions, time, "expired", replace_statuses={"active", "queued"}
-        )
-
-    def _record_actions(
-        self,
-        actions: list[dict[str, Any]],
-        time: str,
-        status: str,
-        *,
-        replace_statuses: set[str] | None = None,
+        self, actions: list[Any], time: str = "--:--", reason: str = ""
     ) -> None:
         for action in actions:
-            key = json.dumps(action, sort_keys=True, separators=(",", ":"))
-            if replace_statuses:
-                waiting = next(
-                    (
-                        item
-                        for item in reversed(self._action_history)
-                        if item.key == key and item.status in replace_statuses
-                    ),
-                    None,
-                )
-                if waiting is not None:
-                    waiting.status = status
-                    continue
-            self._action_history.append(
-                ActionHistoryEntry(
-                    time,
-                    key,
-                    format_action(action),
-                    status,
-                )
-            )
-        self._action_history = self._action_history[-10:]
+            self.action_history.record(action, time, "failed", reason)
 
     def collect_frame(self, bot: Any) -> None:
         """Collect short-lived facts even when no model observation is due."""
@@ -761,24 +708,7 @@ class ObservationBuilder:
         return changes
 
     def _action_history_text(self) -> str:
-        guide = (
-            "Status guide:\n"
-            "- `active`: Ongoing control currently in effect.\n"
-            "- `complete`: Accepted one-time action submitted.\n"
-            "- `queued`: Waiting for resources.\n"
-            "- `failed`: Not accepted or not executed.\n"
-            "- `expired`: Queued or ongoing control no longer in effect."
-        )
-        if not self._action_history:
-            return f"{guide}\n\n[None]"
-        rows = [
-            "| Time | Action | Status |",
-            "| --- | --- | --- |",
-        ]
-        for item in self._action_history:
-            action = item.description.replace("|", "&#124;")
-            rows.append(f"| {item.time} | `{action}` | `{item.status}` |")
-        return f"{guide}\n\n" + "\n".join(rows)
+        return self.action_history.render()
 
     @staticmethod
     def _safe_mediator(bot: Any, attribute: str) -> Any:

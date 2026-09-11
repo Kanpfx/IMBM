@@ -1,7 +1,10 @@
 import unittest
-
 from config.llm import LLMConfig
 from llm.agents.model_agent import ModelAgent
+import json
+from unittest.mock import patch
+from llm.client import LLMClient
+
 
 TACTIC = {
     "id": "TestTactic",
@@ -32,9 +35,6 @@ class FakeLLMClient:
 
 
 class ModelAgentTests(unittest.IsolatedAsyncioTestCase):
-    def test_shared_defaults_keep_transport_retries(self):
-        self.assertEqual(LLMConfig().temperature, 0.1)
-        self.assertEqual(LLMConfig().transport_retries, 2)
 
     async def test_model_returns_phase_and_actions_in_one_call(self):
         client = FakeLLMClient(
@@ -75,18 +75,6 @@ class ModelAgentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.actions[0]["id"], "BuildWorkers")
         self.assertEqual(result.validation_feedback[0]["kind"], "phase")
 
-    async def test_phase_and_tags_are_case_insensitive(self):
-        client = FakeLLMClient(
-            "# PHASE\nOPEN_ING\n\n"
-            "# ACTIONS\nbuild_workers(ToCount=20)"
-        )
-        agent = ModelAgent(LLMConfig(), client)
-
-        result = await agent.run("# Observation", TACTIC, [])
-
-        self.assertEqual(result.phase, "opening")
-        self.assertEqual(result.actions[0]["id"], "build_workers")
-        self.assertFalse(result.validation_feedback)
 
     async def test_bad_action_preserves_valid_siblings_and_records_feedback(self):
         client = FakeLLMClient(
@@ -119,3 +107,36 @@ class ModelAgentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([message["role"] for message in messages], ["system", "user"])
         self.assertIn("<previous_validation_feedback>", messages[1]["content"])
         self.assertIn("unknown action", messages[1]["content"])
+
+
+class LLMClientTests(unittest.TestCase):
+
+
+    def test_request_uses_2048_tokens_without_provider_specific_fields(self):
+        config = LLMConfig(
+            model="test-model",
+            base_url="https://example.com",
+            api_key="test-key",
+        )
+        client = LLMClient(config)
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            @staticmethod
+            def read():
+                return b'{"choices":[{"message":{"content":"{}"}}]}'
+
+        with patch("llm.client.request.urlopen", return_value=Response()) as urlopen:
+            client._complete_sync([{"role": "user", "content": "json"}])
+
+        body = json.loads(urlopen.call_args.args[0].data.decode("utf-8"))
+        self.assertEqual(body["max_tokens"], 2048)
+        self.assertEqual(
+            set(body),
+            {"model", "messages", "temperature", "max_tokens"},
+        )

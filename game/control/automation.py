@@ -36,12 +36,10 @@ class AutomationController:
     def replace_worker_override(
         self, action: dict[str, Any] | None
     ) -> tuple[dict[str, Any] | None, bool]:
-        """Replace the model worker target for the next decision cycle.
-
-        Returns the previous override and whether the effective override changed,
-        allowing the observation history to close an old active intent cleanly.
-        """
+        """Update the worker target; omission keeps the last accepted target."""
         previous = self._worker_override
+        if action is None:
+            return previous, False
         changed = previous != action
         self._worker_override = action
         self.worker_target = (
@@ -50,6 +48,10 @@ class AutomationController:
             else self.default_worker_target
         )
         return previous, changed
+
+    @property
+    def worker_action(self) -> dict[str, Any] | None:
+        return self._worker_override
 
     def register_worker_production(self, bot: Any) -> None:
         """Register worker production after foreground model spending behaviors."""

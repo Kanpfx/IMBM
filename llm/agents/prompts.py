@@ -6,6 +6,7 @@ from html import escape
 from typing import Any
 
 from game.actions.formatting import format_feedback
+from game.actions.persistent import PERSISTENT_ACTION_IDS
 
 MODEL_ROLE = """You are a StarCraft II control model responsible for making tactical decisions and issuing executable actions.
 Your task is to identify the tactical phase that best matches the current game observation, then issue concrete actions appropriate for that phase.
@@ -13,8 +14,22 @@ Use only phase IDs, actions, arguments, and values explicitly documented in the 
 Return only the tagged Function DSL defined in the output contract, with one action call per line. Do not include explanations, reasoning, chain-of-thought, or any additional text."""
 
 
+GLOBAL_RULES = """Apply these rules in order:
+1. Automation continuously maintains mineral and vespene gas harvesting, SCV assignment (three SCVs per Refinery once the SCV count reaches 13), supply provision, MULE call-downs, SCV repairs, lowering Supply Depots, and scouting for proxy Bunkers. Leave routine Supply Depot construction to automation; request one manually only for a specific placement need.
+2. SCV production defaults to a target of 20 SCVs until you set BuildWorkers(to_count=...). An accepted SCV count target remains active until you change it.
+3. You control the target SCV count, army composition, production capacity, tech progression, expansion bases, and army objectives. Automation executes those choices and never chooses a new tactic.
+4. Each macro controller type has one current target. New parameters replace its previous target, including placement preferences.
+5. Continuous macro controllers and combat behaviors remain active until a new instruction replaces the same control matter or their referenced entities become invalid. Omitting an active instruction keeps it active.
+6. A new task for a unit replaces its previous task. When a new task targets part of a group, unaffected group members keep their existing task.
+7. Prefer one group action when multiple units share the same intent. Use individual actions only for unit-specific control.
+8. Avoid repeating an active instruction with exactly the same arguments. Submit a replacement only when its intent or parameters change. Do not repeat a one-time construction request while matching construction is pending. After it finishes, request another only when an additional structure is needed.
+9. Action statuses are accepted, active, queued, and failed. Accepted means a one-time action was submitted, not completed; active means ongoing control; queued means waiting for resources and automatically retried, so do not repeat it; failed means invalid instructions or execution errors. Ares starting no new work is not itself failure; inspect the observation and execution feedback before retrying.
+10. Temporary resource shortages do not stop an active production controller. One-time construction actions may queue when short by at most 120 minerals and 60 vespene gas. Resource waits are bounded; an ended wait is returned for reconsideration, not reported as an execution failure. Larger shortages are returned without submission. TechUp delegates the next prerequisite step to Ares and does not require the final unit cost upfront.
+11. The game continues while you decide. Each reply is checked against the latest state before application, and a failed request does not clear existing controls.
+"""
+
 TYPE_LEGEND = {
-    "ability_id": ("Ability", "Exact SC2 ability identifier."),
+    "ability_id": ("Ability", "SC2 AbilityId identifier, not the in-game display name."),
     "army_composition": (
         "Composition",
         "Army composition object keyed by unit type.",
@@ -39,16 +54,16 @@ TYPE_LEGEND = {
     "unit_refs": ("Units", "Non-empty list of `Unit` values defined above."),
     "unit_or_upgrade_id": (
         "Tech",
-        "Exact SC2 unit, structure, add-on, or upgrade name.",
+        "SC2 UnitTypeId or UpgradeId identifier for a unit, structure, add-on, or upgrade.",
     ),
     "unit_or_unit_type_id": (
         "Unit | UnitType",
-        "One current unit or structure ID, or an exact SC2 unit or structure type name.",
+        "One current unit or structure ID, or an SC2 UnitTypeId identifier.",
     ),
-    "unit_type_id": ("UnitType", "Exact SC2 unit or structure type name."),
+    "unit_type_id": ("UnitType", "SC2 UnitTypeId identifier, such as SUPPLYDEPOT for Supply Depot or BATTLECRUISER for Battlecruiser."),
     "upgrade_ids": (
         "Upgrades",
-        "Non-empty list of exact SC2 upgrade names.",
+        "Non-empty list of SC2 UpgradeId identifiers, not in-game display names.",
     ),
 }
 
@@ -56,23 +71,23 @@ ACTION_DESCRIPTION_OVERRIDES = {
     "AMoveGroup": "Attack-move a group toward a target.",
     "AttackTarget": "Attack a specified enemy unit or structure.",
     "DropCargo": "Unload cargo from a transport.",
-    "GhostSnipe": "Use a Ghost to snipe a nearby valid enemy target.",
-    "MedivacHeal": "Heal nearby allied biological units with a Medivac.",
+    "GhostSnipe": "Use a Ghost to cast Snipe (EFFECT_GHOSTSNIPE) on a nearby valid enemy target.",
+    "MedivacHeal": "Use a Medivac to cast Heal on nearby allied biological units.",
     "KeepUnitSafe": "Move a unit away from danger using an influence grid.",
-    "RavenAutoTurret": "Deploy a Raven Auto-Turret near visible enemies.",
-    "ReaperGrenade": "Use a Reaper grenade against visible enemies.",
+    "RavenAutoTurret": "Use a Raven to deploy an Auto-Turret near visible enemies.",
+    "ReaperGrenade": "Use a Reaper to throw a KD8 Charge at visible enemies.",
     "ShootAndMoveToTarget": "Move toward a destination while attacking enemies in range.",
     "ShootTargetInRange": "Attack a suitable target in range.",
     "UseAOEAbility": "Use an area-of-effect ability against suitable targets.",
-    "UseTransfuse": "Use a Queen to transfuse an allied unit.",
+    "UseTransfuse": "Use a Queen to cast Transfusion on a valid allied biological target.",
     "AddonSwap": "Swap two Terran production structures to exchange add-ons.",
-    "BuildStructure": "Construct a structure near a controlled base using an available worker and placement.",
-    "BuildWorkers": "Produce workers until the requested total is reached.",
+    "BuildStructure": "Construct a regular Terran structure near a controlled base. Use GasBuildingController for Refineries and TechUp for add-ons; do not pass REFINERY or TECHLAB here. Routine Supply Depots are automated.",
+    "BuildWorkers": "Train SCVs until the requested total SCV count is reached.",
     "ExpansionController": "Expand until the requested total base count is reached.",
-    "GasBuildingController": "Maintain the requested number of gas buildings.",
-    "ProductionController": "Maintain production capacity for the requested army composition.",
-    "SpawnController": "Produce units toward the requested army composition.",
-    "TechUp": "Construct the technology required for a requested unit or upgrade.",
+    "GasBuildingController": "Maintain the requested number of Refineries.",
+    "ProductionController": "Build production structures and prerequisites for the requested army composition. This does not train the army; use SpawnController to train units.",
+    "SpawnController": "Train army units toward the requested composition; pair with ProductionController when production capacity is needed.",
+    "TechUp": "Advance one prerequisite construction step toward a requested unit or upgrade, including add-ons. For Battlecruiser tech use desired_tech=BATTLECRUISER. Reissue when further prerequisite steps are needed.",
     "UpgradeController": "Research requested upgrades and construct their prerequisites when needed.",
 }
 
@@ -162,7 +177,9 @@ def _action_card(entry: dict[str, Any]) -> str:
     description = ACTION_DESCRIPTION_OVERRIDES.get(
         entry["name"], str(entry["description"]).strip()
     )
-    lines = [f'- `{entry["name"]}({arguments})`: {description}']
+    ongoing = entry["id"] in PERSISTENT_ACTION_IDS or entry["id"] == "macro.build_workers"
+    lifetime = "Ongoing control." if ongoing else "One-time action."
+    lines = [f'- `{entry["name"]}({arguments})`: {description} {lifetime}']
     lines.extend(
         _parameter_note(param, entry["name"])
         for param in params
@@ -271,9 +288,7 @@ def model_messages(
 1. Use one documented phase ID and return 0-{max_actions} currently available actions, one per line.
 2. Use only documented actions, arguments, and values, with exact action and argument names.
 3. Use bare names for enums and landmarks, `true`/`false` for booleans, `[...]` for lists, and `{key:value}` for objects.
-4. Strongly prefer group actions when controlling multiple units with the same intent. Use one group action instead of repeated single-unit actions whenever possible; reserve individual actions for unit-specific micro.
-5. Before issuing ongoing control, check the action history. Avoid repeating an action that is already active with the same intent and arguments; issue it again when its arguments need to change.
-6. Return only the Function DSL shown below, without explanations or additional text. Use actual line breaks, not escaped newline sequences.
+4. Return only the Function DSL shown below, without explanations or additional text. Use actual line breaks, not escaped newline sequences.
 
 ```text
 # phase
@@ -289,6 +304,7 @@ ActionName(argument=value,...)
         "Return your decision for the current observation."
     )
     sections = [
+        _section("global_rules", GLOBAL_RULES),
         _tactic_card(tactic),
         _actions_reference(action_entries),
         _observation_with_feedback(observation, previous_validation_feedback),

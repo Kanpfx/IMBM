@@ -460,6 +460,10 @@ class PolicyValidator:
                     )
                 for alias in value:
                     context.resolve_entity(alias, own_only=name == "group")
+                    if name == "group":
+                        if alias in seen_own:
+                            raise ConflictError.unit_reused(alias)
+                        seen_own.add(alias)
             elif type_name == "point_ref":
                 point = context.resolve_point(value)
                 if point.x < 0 or point.y < 0:

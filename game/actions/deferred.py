@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
@@ -25,7 +26,6 @@ class DeferredActionQueue:
 
     _COSTED_ACTIONS = {
         "macro.build_structure": "structure_id",
-        "macro.tech_up": "desired_tech",
         "macro.upgrade_c_cs": "to",
     }
 
@@ -83,7 +83,7 @@ class DeferredActionQueue:
             return False
         self._items.append(
             DeferredAction(
-                action,
+                deepcopy(action),
                 iteration,
                 iteration + self.ttl_iterations,
             )
@@ -97,7 +97,9 @@ class DeferredActionQueue:
         expired: list[dict[str, Any]] = []
         remaining: list[DeferredAction] = []
         for item in self._items:
-            if iteration > item.expires_iteration:
+            if self.construction_pending(bot, item.action):
+                ready.append(item.action)
+            elif iteration > item.expires_iteration:
                 expired.append(item.action)
             elif self.should_defer(bot, item.action):
                 remaining.append(item)
@@ -105,6 +107,20 @@ class DeferredActionQueue:
                 ready.append(item.action)
         self._items = remaining
         return ready, expired
+
+    @property
+    def actions(self) -> list[dict[str, Any]]:
+        return [item.action for item in self._items]
+
+    def discard(self, action: dict[str, Any]) -> None:
+        key = self._key(action)
+        self._items = [item for item in self._items if self._key(item.action) != key]
+
+    def construction_pending(self, bot: Any, action: dict[str, Any]) -> bool:
+        if self.catalog.get(action["id"])["id"] != "macro.build_structure":
+            return False
+        pending = getattr(bot, "structure_pending", None)
+        return callable(pending) and pending(self._cost_target(action)) > 0
 
     def _cost_target(self, action: dict[str, Any]) -> Any | None:
         try:

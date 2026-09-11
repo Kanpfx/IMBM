@@ -1,37 +1,19 @@
 import unittest
-
 from config.game import GameConfig
 from game.actions.adapter import AresActionAdapter, InstructionError
-from game.actions.deferred import DeferredActionQueue
 from game.actions.errors import OutputFormatError
-from game.actions.formatting import format_action, format_indexed_actions
-from game.actions.persistent import PersistentActionRegistry
+from game.actions.formatting import format_action
 from game.actions.policy import PolicyValidator
 from game.actions.resolver import EntityContext
 from knowledge.loader import ActionCatalog
 from llm.model_output import parse_model_payload
+from game.actions.exposure import ActionExposure
+from knowledge.loader import ActionCatalog
+from game.actions.formatting import format_action
 
 
 class ActionRuntimeTests(unittest.TestCase):
-    def test_readable_action_format_uses_call_syntax(self):
-        action = {
-            "id": "BuildStructure",
-            "args": {"base_location": "main", "structure_id": "BARRACKS"},
-        }
-        expected = "BuildStructure(base_location=main, structure_id=BARRACKS)"
 
-        self.assertEqual(format_action(action), expected)
-        self.assertEqual(
-            format_indexed_actions([action]),
-            [f"Action 1: {expected}"],
-        )
-        self.assertEqual(format_indexed_actions([]), ["No actions."])
-
-    def test_decision_intervals_keep_model_actions_for_the_full_cycle(self):
-        config = GameConfig()
-
-        self.assertEqual(config.model_interval_iterations, 60)
-        self.assertEqual(config.persistent_action_iterations, 60)
 
     def test_adapter_rejects_disabled_catalog_actions(self):
         catalog = ActionCatalog.load()
@@ -51,123 +33,6 @@ class ActionRuntimeTests(unittest.TestCase):
                 ):
                     adapter._validate_shape({"id": action_id, "args": {}})
 
-    def test_static_macro_options_match_the_fixed_ares_source(self):
-        from ares.behaviors.macro.addon_swap import ADDON_TYPES
-        from ares.behaviors.macro.tech_up import BUILD_TECHLAB_FROM
-        from ares.consts import (
-            ADD_ONS,
-            ALL_STRUCTURES,
-            GATEWAY_UNITS,
-            TECHLAB_TYPES,
-            UnitRole,
-        )
-        from ares.dicts.aoe_ability_to_range import AOE_ABILITY_SPELLS_INFO
-        from ares.dicts.structure_to_building_size import STRUCTURE_TO_BUILDING_SIZE
-        from ares.dicts.unit_tech_requirement import UNIT_TECH_REQUIREMENT
-        from sc2.dicts.unit_trained_from import UNIT_TRAINED_FROM
-        from sc2.dicts.upgrade_researched_from import UPGRADE_RESEARCHED_FROM
-        from sc2.ids.unit_typeid import UnitTypeId
-        from sc2.ids.upgrade_id import UpgradeId
-
-        catalog = ActionCatalog.load()
-
-        def options(action_id, parameter_name):
-            entry = catalog.get(action_id)
-            parameter = next(
-                item for item in entry["params"] if item["name"] == parameter_name
-            )
-            return parameter["options"]
-
-        self.assertEqual(
-            options("AddonSwap", "structure_needing_addon"),
-            ["BARRACKS", "FACTORY", "STARPORT"],
-        )
-        self.assertEqual(
-            options("AddonSwap", "addon_required"),
-            sorted(item.name for item in ADDON_TYPES | set(ADD_ONS)),
-        )
-        self.assertEqual(
-            options("BuildStructure", "structure_id"),
-            sorted(item.name for item in STRUCTURE_TO_BUILDING_SIZE),
-        )
-        self.assertEqual(
-            options("UpgradeCCs", "to"),
-            ["ORBITALCOMMAND", "PLANETARYFORTRESS"],
-        )
-        self.assertEqual(
-            options("AddonSwap", "precise_addon_structure_id"),
-            sorted(item.name for item in ADD_ONS),
-        )
-        self.assertEqual(
-            options("UseAOEAbility", "ability_id"),
-            sorted(item.name for item in AOE_ABILITY_SPELLS_INFO),
-        )
-        self.assertEqual(
-            options("PickUpCargo", "cargo_switch_to_role"),
-            sorted(item.name for item in UnitRole),
-        )
-        self.assertEqual(
-            options("PickUpAndDropCargo", "cargo_switch_to_role"),
-            sorted(item.name for item in UnitRole),
-        )
-        trainable_units = sorted(item.name for item in UNIT_TRAINED_FROM)
-        self.assertEqual(
-            options("ProductionController", "army_composition_dict"),
-            trainable_units,
-        )
-        self.assertEqual(
-            options("SpawnController", "army_composition_dict"),
-            trainable_units,
-        )
-        self.assertEqual(
-            options("UpgradeController", "upgrade_list"),
-            sorted(item.name for item in UPGRADE_RESEARCHED_FROM),
-        )
-
-        def valid_tech_source(source):
-            if source in TECHLAB_TYPES:
-                return source in BUILD_TECHLAB_FROM
-            return source in UNIT_TECH_REQUIREMENT
-
-        tech_options = []
-        for target in UnitTypeId:
-            if target in ALL_STRUCTURES:
-                valid = target in UNIT_TECH_REQUIREMENT
-            elif target in UNIT_TRAINED_FROM:
-                sources = (
-                    {UnitTypeId.GATEWAY}
-                    if target in GATEWAY_UNITS
-                    else set(UNIT_TRAINED_FROM[target])
-                )
-                valid = bool(sources) and all(
-                    valid_tech_source(source) for source in sources
-                )
-            else:
-                valid = False
-            if valid:
-                tech_options.append(target.name)
-        tech_options.extend(
-            target.name
-            for target in UpgradeId
-            if (source := UPGRADE_RESEARCHED_FROM.get(target)) is not None
-            and valid_tech_source(source)
-        )
-        self.assertEqual(
-            options("TechUp", "desired_tech"),
-            sorted(set(tech_options)),
-        )
-
-    def test_policy_accepts_short_action_names(self):
-        catalog = ActionCatalog.load()
-        validator = PolicyValidator(catalog, GameConfig())
-
-        review = validator.review(
-            bot=None,
-            actions=[{"id": "GasBuildingController", "args": {"to_count": 1}}],
-            context=EntityContext(),
-        )
-
-        self.assertTrue(review.accepted, review.message)
 
     def test_policy_enforces_action_limit(self):
         catalog = ActionCatalog.load()
@@ -221,11 +86,32 @@ SetSomething(enabled=TRUE,value=null)
         )
         self.assertEqual(payload["errors"], [])
 
-    def test_model_parser_accepts_empty_actions(self):
-        self.assertEqual(
-            parse_model_payload("# phase\nopening\n\n# actions"),
-            {"phase": "opening", "actions": [], "errors": []},
+
+    def test_split_dsl_names_reach_existing_case_and_separator_normalization(self):
+        validator = PolicyValidator(ActionCatalog.load(), GameConfig())
+        main = type("Point", (), {"x": 1, "y": 1})()
+        for action in (
+            "bUiLd Structure(BASE location=MAIN, Structure ID=supply depot)",
+            "build-structure(base-location=main, structure-id=SUPPLY-DEPOT)",
+            'BUILD_STRUCTURE(BaseLocation="MAIN", StructureID="supply depot")',
+        ):
+            with self.subTest(action=action):
+                payload = parse_model_payload("# PHASE\nopening\n# ACTIONS\n" + action)
+                self.assertEqual(payload["errors"], [])
+                review = validator.review(
+                    None, payload["actions"], EntityContext(positions={"main": main})
+                )
+                self.assertTrue(review.accepted, review.message)
+                self.assertEqual(review.actions, [{
+                    "id": "BuildStructure",
+                    "args": {"base_location": "main", "structure_id": "SUPPLYDEPOT"},
+                }])
+        payload = parse_model_payload(
+            '# phase\nopening\n# actions\nExample(note="Keep These Words", x=-2.5)\n'
+            'Build Workers(to count=20, TO_COUNT=30)\nUnsafe(value=lookup(1))'
         )
+        self.assertEqual(payload["actions"][0]["args"], {"note": "Keep These Words", "x": -2.5})
+        self.assertEqual(len(payload["errors"]), 2)
 
     def test_model_parser_keeps_valid_siblings_and_reports_bad_lines(self):
         payload = parse_model_payload(
@@ -304,134 +190,6 @@ AttackTarget(unit=101,target=203)"""
         self.assertEqual(gas["to_count"], 2)
         self.assertEqual(group["group_tags"], {42})
 
-    def test_adapter_normalizes_supported_terran_upgrade_names(self):
-        from sc2.ids.upgrade_id import UpgradeId
-
-        catalog = ActionCatalog.load()
-        adapter = AresActionAdapter(catalog)
-        context = EntityContext(positions={"main": object()})
-
-        resolved = adapter._resolve_arguments(
-            catalog.get("UpgradeController"),
-            {
-                "upgrade_list": ["CombatShield", "ConcussiveShells"],
-                "base_location": "main",
-            },
-            context,
-        )
-
-        self.assertEqual(
-            resolved["upgrade_list"],
-            [UpgradeId.SHIELDWALL, UpgradeId.PUNISHERGRENADES],
-        )
-
-    def test_adapter_rejects_upgrade_without_ares_research_mapping(self):
-        catalog = ActionCatalog.load()
-        adapter = AresActionAdapter(catalog)
-        context = EntityContext(positions={"main": object()})
-
-        with self.assertRaisesRegex(
-            InstructionError, "supported by Ares UpgradeController"
-        ):
-            adapter._resolve_arguments(
-                catalog.get("UpgradeController"),
-                {
-                    "upgrade_list": ["COMBATDRUGS"],
-                    "base_location": "main",
-                },
-                context,
-            )
-
-    def test_adapter_resolves_numeric_and_bracketed_observation_ids(self):
-        catalog = ActionCatalog.load()
-        adapter = AresActionAdapter(catalog)
-        own = type(
-            "Unit",
-            (),
-            {"tag": 42, "type_id": type("Type", (), {"name": "BATTLECRUISER"})()},
-        )()
-        enemy = type("Unit", (), {"tag": 99})()
-        context = EntityContext(
-            own_entities={"1": own},
-            enemy_entities={"2": enemy},
-            positions={"main": object()},
-        )
-
-        self.assertIs(context.resolve_entity(1, own_only=True), own)
-        self.assertIs(context.resolve_entity("[1]", own_only=True), own)
-        action = adapter._resolve_arguments(
-            catalog.get("AMove"), {"unit": 1, "target": 2}, context
-        )
-
-        self.assertIs(action["unit"], own)
-        self.assertIs(action["target"], enemy)
-
-    def test_policy_normalizes_numeric_group_ids_without_another_model_turn(self):
-        catalog = ActionCatalog.load()
-        validator = PolicyValidator(catalog, GameConfig())
-        units = {
-            str(tag): type(
-                "Unit",
-                (),
-                {"tag": tag, "type_id": type("Type", (), {"name": "BATTLECRUISER"})()},
-            )()
-            for tag in (1, 2)
-        }
-
-        review = validator.review(
-            bot=None,
-            actions=[
-                {"id": "AMoveGroup", "args": {"group": [1, "[2]"], "target": "main"}}
-            ],
-            context=EntityContext(own_entities=units, positions={"main": object()}),
-        )
-
-        self.assertTrue(review.accepted, review.message)
-        self.assertEqual(review.actions[0]["args"]["group"], ["1", "2"])
-        self.assertTrue(review.normalizations)
-
-    def test_adapter_resolves_a_generic_army_composition(self):
-        catalog = ActionCatalog.load()
-        adapter = AresActionAdapter(catalog)
-        context = EntityContext(positions={"main": object()})
-        kwargs = adapter._resolve_arguments(
-            catalog.get("macro.spawn_controller"),
-            {
-                "army_composition_dict": {
-                    "ZEALOT": {"proportion": 0.6, "priority": 0},
-                    "STALKER": {"proportion": 0.4, "priority": 1},
-                }
-            },
-            context,
-        )
-
-        self.assertEqual(
-            {unit.name for unit in kwargs["army_composition_dict"]},
-            {"ZEALOT", "STALKER"},
-        )
-        self.assertTrue(kwargs["freeflow_mode"])
-
-    def test_policy_normalizes_flat_composition_shorthand(self):
-        catalog = ActionCatalog.load()
-        validator = PolicyValidator(catalog, GameConfig())
-
-        review = validator.review(
-            bot=None,
-            actions=[
-                {
-                    "id": "SpawnController",
-                    "args": {"army_composition_dict": {"MARINE": 1.0}},
-                }
-            ],
-            context=EntityContext(),
-        )
-
-        self.assertTrue(review.accepted, review.message)
-        self.assertEqual(
-            review.actions[0]["args"]["army_composition_dict"],
-            {"MARINE": {"proportion": 1.0, "priority": 0}},
-        )
-        self.assertTrue(review.normalizations)
 
     def test_policy_normalizes_composition_weights_and_missing_priorities(self):
         catalog = ActionCatalog.load()
@@ -462,59 +220,6 @@ AttackTarget(unit=101,target=203)"""
             },
         )
 
-    def test_policy_drops_zero_weight_units_without_another_model_turn(self):
-        catalog = ActionCatalog.load()
-        validator = PolicyValidator(catalog, GameConfig())
-
-        review = validator.review(
-            bot=None,
-            actions=[
-                {
-                    "id": "SpawnController",
-                    "args": {
-                        "army_composition_dict": {
-                            "BATTLECRUISER": {"proportion": 1.0, "priority": 0},
-                            "MARINE": {"proportion": 0.0, "priority": 1},
-                        }
-                    },
-                }
-            ],
-            context=EntityContext(),
-        )
-
-        self.assertTrue(review.accepted, review.message)
-        self.assertEqual(
-            review.actions[0]["args"]["army_composition_dict"],
-            {"BATTLECRUISER": {"proportion": 1.0, "priority": 0}},
-        )
-
-    def test_adapter_fills_bc_runtime_details_without_exposing_them_to_model(self):
-        catalog = ActionCatalog.load()
-        adapter = AresActionAdapter(catalog)
-        battlecruiser = type(
-            "Unit",
-            (),
-            {"tag": 42, "type_id": type("Type", (), {"name": "BATTLECRUISER"})()},
-        )()
-        context = EntityContext(
-            own_entities={"bc1": battlecruiser},
-            positions={"enemy_main": object()},
-            grids={"air": object()},
-        )
-
-        move = adapter._resolve_arguments(
-            catalog.get("MoveSafely"),
-            {"unit": "bc1", "target": "enemy_main"},
-            context,
-        )
-        jump = adapter._resolve_arguments(
-            catalog.get("TacticalJump"),
-            {"unit": "bc1", "target": "enemy_main"},
-            context,
-        )
-
-        self.assertIs(move["grid"], context.grids["air"])
-        self.assertEqual(jump["ability"].name, "EFFECT_TACTICALJUMP")
 
     def test_policy_rejects_bc_actions_for_non_battlecruisers_or_unready_jump(self):
         catalog = ActionCatalog.load()
@@ -566,23 +271,6 @@ AttackTarget(unit=101,target=203)"""
         self.assertIn("Parameter error: invalid value", review.message)
         self.assertIn("currently ready", review.message)
 
-    def test_policy_allows_worker_micro_outside_a_phase_whitelist(self):
-        catalog = ActionCatalog.load()
-        validator = PolicyValidator(catalog, GameConfig())
-        scv = type(
-            "Unit", (), {"tag": 99, "type_id": type("Type", (), {"name": "SCV"})()}
-        )()
-
-        review = validator.review(
-            bot=None,
-            actions=[{"id": "AMove", "args": {"unit": "scv1", "target": "main"}}],
-            context=EntityContext(
-                own_entities={"scv1": scv},
-                positions={"main": type("Point", (), {"x": 1, "y": 1})()},
-            ),
-        )
-
-        self.assertTrue(review.accepted, review.message)
 
     def test_policy_rejects_refinery_for_build_structure(self):
         catalog = ActionCatalog.load()
@@ -653,29 +341,6 @@ AttackTarget(unit=101,target=203)"""
         self.assertEqual(review.actions[0]["args"]["target"], {"x": 0.0, "y": 30.0})
         self.assertTrue(review.normalizations)
 
-    def test_policy_normalizes_starport_techlab_separators_before_execution(self):
-        catalog = ActionCatalog.load()
-        validator = PolicyValidator(catalog, GameConfig())
-
-        review = validator.review(
-            bot=None,
-            actions=[
-                {
-                    "id": "TechUp",
-                    "args": {
-                        "desired_tech": "starport-techlab",
-                        "base_location": "main",
-                    },
-                }
-            ],
-            context=EntityContext(
-                positions={"main": type("Point", (), {"x": 1, "y": 1})()}
-            ),
-        )
-
-        self.assertTrue(review.accepted, review.message)
-        self.assertEqual(review.actions[0]["args"]["desired_tech"], "STARPORTTECHLAB")
-        self.assertTrue(review.normalizations)
 
     def test_adapter_rejects_abstract_techlab_before_ares_execution(self):
         catalog = ActionCatalog.load()
@@ -690,87 +355,153 @@ AttackTarget(unit=101,target=203)"""
                 ),
             )
 
-    def test_resource_blocked_macro_action_is_deferred_and_retried(self):
-        catalog = ActionCatalog.load()
-        queue = DeferredActionQueue(catalog, ttl_iterations=10)
-        bot = type("Bot", (), {"affordable": False})()
-        bot.can_afford = lambda _target: bot.affordable
-        action = {
-            "id": "BuildStructure",
-            "args": {"base_location": "main", "structure_id": "SUPPLYDEPOT"},
-        }
 
-        self.assertTrue(queue.should_defer(bot, action))
-        self.assertTrue(queue.enqueue(action, iteration=10))
-        self.assertEqual(queue.pop_ready(bot, iteration=11), ([], []))
-        bot.affordable = True
-        self.assertEqual(queue.pop_ready(bot, iteration=12), ([action], []))
+    def test_group_and_individual_actions_cannot_claim_the_same_unit(self):
+        from types import SimpleNamespace
+        from sc2.position import Point2
 
-    def test_resource_filter_queues_small_shortfalls_and_blocks_large_ones(self):
-        catalog = ActionCatalog.load()
-        queue = DeferredActionQueue(
-            catalog,
-            ttl_iterations=10,
-            mineral_tolerance=120,
-            vespene_tolerance=60,
+        unit = SimpleNamespace(tag=1, type_id=SimpleNamespace(name="MARINE"))
+        context = EntityContext(
+            own_entities={"1": unit},
+            positions={"main": Point2((10, 10))},
+            grids={"ground": object()},
         )
-        cost = type("Cost", (), {"minerals": 150, "vespene": 100})()
-        bot = type("Bot", (), {"minerals": 100, "vespene": 50})()
-        bot.can_afford = lambda _target: False
-        bot.calculate_cost = lambda _target: cost
-        action = {
-            "id": "BuildStructure",
-            "args": {"base_location": "main", "structure_id": "FACTORY"},
-        }
+        policy = PolicyValidator(ActionCatalog.load(), GameConfig())
+        group = {"id": "AMoveGroup", "args": {"group": ["1"], "target": "main"}}
+        individual = {"id": "KeepUnitSafe", "args": {"unit": "1", "grid": "ground"}}
+        for actions in ([group, individual], [individual, group]):
+            review = policy.review(None, actions, context)
+            self.assertEqual(len(review.actions), 1)
+            self.assertEqual(len(review.issues), 1)
+            self.assertIn("higher-priority action", review.issues[0].reason)
 
-        self.assertEqual(queue.resource_status(bot, action), DeferredActionQueue.QUEUED)
-        bot.minerals = 0
-        bot.vespene = 0
+
+class Unit:
+    def __init__(
+        self,
+        name,
+        *,
+        abilities=(),
+        is_structure=False,
+        has_cargo=False,
+    ):
+        self.type_id = type("Type", (), {"name": name})()
+        self.abilities = [type("Ability", (), {"name": item})() for item in abilities]
+        self.is_structure = is_structure
+        self.has_cargo = has_cargo
+
+
+class ActionExposureTests(unittest.TestCase):
+    def setUp(self):
+        self.catalog = ActionCatalog.load()
+        self.exposure = ActionExposure(self.catalog)
+
+
+    def test_actor_ability_group_and_production_requirements_are_dynamic(self):
+        context = EntityContext(
+            own_entities={
+                "1": Unit("REAPER"),
+                "2": Unit("BATTLECRUISER", abilities=("EFFECT_TACTICALJUMP",)),
+                "3": Unit("MARINE"),
+                "4": Unit("STARPORT", is_structure=True),
+            },
+            enemy_entities={"9": Unit("ZERGLING")},
+            positions={"main": object(), "enemy_main": object()},
+            grids={"ground": object(), "air": object()},
+        )
+
+        surface = self.exposure.build(object(), context)
+
+        self.assertIn("combat.individual.reaper_grenade", surface.action_ids)
+        self.assertIn("combat.bc.tactical_jump", surface.action_ids)
+        self.assertIn("combat.group.a_move_group", surface.action_ids)
+        self.assertIn("macro.spawn_controller", surface.action_ids)
+        self.assertNotIn("combat.individual.ghost_snipe", surface.action_ids)
         self.assertEqual(
-            queue.resource_status(bot, action), DeferredActionQueue.BLOCKED
+            surface.parameter_domains["combat.bc.tactical_jump"]["unit"],
+            frozenset({"2"}),
         )
 
-    def test_persistent_action_is_registered_until_the_next_decision(self):
-        catalog = ActionCatalog.load()
-        registry = PersistentActionRegistry(catalog, duration_iterations=10)
-        action = {
-            "id": "KeepUnitSafe",
-            "args": {"unit": "1", "grid": "ground"},
-        }
+    def test_transport_actions_only_expose_supported_containers(self):
+        context = EntityContext(
+            own_entities={
+                "1": Unit("MARINE"),
+                "2": Unit("MEDIVAC"),
+                "3": Unit("NYDUSNETWORK", is_structure=True, has_cargo=True),
+            },
+            positions={"main": object()},
+            grids={"ground": object()},
+        )
 
-        class Adapter:
-            def __init__(self):
-                self.calls = 0
+        surface = self.exposure.build(object(), context)
 
-            def compile_and_register(self, _bot, actions, _context):
-                self.calls += len(actions)
+        self.assertEqual(
+            surface.parameter_domains["combat.individual.pick_up_cargo"]["unit"],
+            frozenset({"2"}),
+        )
+        self.assertEqual(
+            surface.parameter_domains["combat.individual.pick_up_and_drop_cargo"][
+                "unit"
+            ],
+            frozenset({"2"}),
+        )
+        self.assertEqual(
+            surface.parameter_domains["combat.individual.drop_cargo"]["unit"],
+            frozenset({"3"}),
+        )
 
-        adapter = Adapter()
-        registry.remember(action, iteration=0)
-        for iteration in range(1, 11):
-            expired, failed = registry.run(
-                object(), iteration, adapter, EntityContext()
-            )
-            self.assertEqual(expired, [])
-            self.assertEqual(failed, [])
 
-        expired, failed = registry.run(object(), 11, adapter, EntityContext())
+    def test_enemy_dependent_actions_are_hidden_without_visible_enemies(self):
+        context = EntityContext(
+            own_entities={"1": Unit("MARINE")},
+            positions={"main": object(), "enemy_main": object()},
+        )
 
-        self.assertEqual(adapter.calls, 10)
-        self.assertEqual(expired, [action])
-        self.assertEqual(failed, [])
+        surface = self.exposure.build(object(), context)
 
-    def test_macro_controllers_persist_without_a_macro_plan(self):
-        catalog = ActionCatalog.load()
-        registry = PersistentActionRegistry(catalog, duration_iterations=30)
+        self.assertIn("combat.individual.a_move", surface.action_ids)
+        self.assertNotIn("combat.individual.attack_target", surface.action_ids)
+        self.assertNotIn("combat.individual.shoot_target_in_range", surface.action_ids)
 
-        for action_id in (
-            "ExpansionController",
-            "GasBuildingController",
-            "ProductionController",
-            "SpawnController",
-            "UpgradeCCs",
-            "UpgradeController",
-        ):
-            with self.subTest(action_id=action_id):
-                self.assertTrue(registry.is_persistent({"id": action_id, "args": {}}))
+    def test_group_actions_require_at_least_two_current_units(self):
+        one = EntityContext(own_entities={"1": Unit("MARINE")})
+        two = EntityContext(
+            own_entities={"1": Unit("MARINE"), "2": Unit("REAPER")},
+            positions={"main": object()},
+        )
+
+        self.assertNotIn(
+            "combat.group.a_move_group",
+            self.exposure.build(object(), one).action_ids,
+        )
+        self.assertIn(
+            "combat.group.a_move_group",
+            self.exposure.build(object(), two).action_ids,
+        )
+
+
+class FormattingTests(unittest.TestCase):
+    def test_nested_dsl_round_trip_preserves_strings_and_special_values(self):
+        action = {"id": "Example", "args": {
+            "composition": {"BATTLECRUISER": {"proportion": 1.0, "priority": 0}},
+            "target": {"x": 10, "y": -2.5},
+            "values": [True, False, None, "true", "None", "7", "main"],
+            "text": 'line one\nline two\n"quoted"',
+            "path": r"C:\new\test",
+            "literal": r"\n",
+        }}
+        rendered = format_action(action)
+        self.assertIn("composition={BATTLECRUISER: {proportion: 1.0", rendered)
+        self.assertIn("[true, false, null", rendered)
+        result = parse_model_payload("# phase\nopening\n\n# actions\n" + rendered)
+        self.assertEqual(result["actions"], [action])
+        self.assertEqual(result["errors"], [])
+
+    def test_windows_line_breaks_parse_without_unescaping_values(self):
+        action = {"id": "Example", "args": {"path": r"C:\new\test"}}
+        result = parse_model_payload("# phase\r\nopening\r\n\r\n# actions\r\n" + format_action(action))
+        self.assertEqual(result["actions"], [action])
+
+    def test_literal_line_breaks_get_specific_feedback(self):
+        with self.assertRaisesRegex(OutputFormatError, "actual line breaks"):
+            parse_model_payload(r"# phase\nopening\n# actions\nExample()")

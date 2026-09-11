@@ -1,4 +1,4 @@
-"""Async OpenAI-compatible client; blocking HTTP always runs off the game loop."""
+"""OpenAI-compatible HTTP client using a worker thread while callers await results."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ class LLMClientError(RuntimeError):
 
 
 def _is_official_deepseek_api(base_url: str) -> bool:
-    return urlparse(base_url).hostname == 'api.deepseek.com'
+    return urlparse(base_url).hostname == "api.deepseek.com"
 
 
 class LLMClient:
@@ -54,7 +54,7 @@ class LLMClient:
             "max_tokens": self.config.max_tokens,
         }
         if _is_official_deepseek_api(self.config.base_url):
-            body['thinking'] = {'type': 'disabled'}
+            body["thinking"] = {"type": "disabled"}
         payload = json.dumps(body).encode("utf-8")
         req = request.Request(
             url,

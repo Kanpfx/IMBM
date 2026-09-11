@@ -1,13 +1,11 @@
-"""Short-lived re-registration for Ares behaviors that expect per-step use."""
+"""Keep accepted control intents until replaced or invalidated."""
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from copy import deepcopy
 from typing import Any
 
-from game.actions.adapter import AresActionAdapter
-from game.actions.resolver import EntityContext
 from knowledge.loader import ActionCatalog
 
 PERSISTENT_ACTION_IDS = {
@@ -37,53 +35,78 @@ PERSISTENT_ACTION_IDS = {
 }
 
 
-@dataclass(frozen=True)
-class PersistentAction:
-    action: dict[str, Any]
-    expires_iteration: int
-
-
 class PersistentActionRegistry:
-    """Repeat selected accepted actions until the next model decision window."""
+    """Store global macro targets and per-unit tasks without a renewal deadline."""
 
-    def __init__(self, catalog: ActionCatalog, duration_iterations: int = 10):
+    def __init__(self, catalog: ActionCatalog):
         self.catalog = catalog
-        self.duration_iterations = duration_iterations
-        self._items: dict[str, PersistentAction] = {}
+        self._items: dict[str, dict[str, Any]] = {}
+
+    @staticmethod
+    def _key(action: dict[str, Any]) -> str:
+        return json.dumps(action, sort_keys=True, separators=(",", ":"))
+
+    def _canonical(self, action: dict[str, Any]) -> dict[str, Any]:
+        action = deepcopy(action)
+        action["id"] = self.catalog.get(action["id"])["name"]
+        args = action["args"]
+        if "group" in args:
+            args["group"] = sorted(set(args["group"]))
+        return action
+
+    @staticmethod
+    def actors(action: dict[str, Any]) -> set[str]:
+        args = action["args"]
+        if "unit" in args:
+            return {str(args["unit"])}
+        return set(args.get("group", []))
 
     def is_persistent(self, action: dict[str, Any]) -> bool:
-        try:
-            return self.catalog.get(action.get("id"))["id"] in PERSISTENT_ACTION_IDS
-        except (TypeError, ValueError):
+        return self.catalog.get(action["id"])["id"] in PERSISTENT_ACTION_IDS
+
+    @property
+    def actions(self) -> list[dict[str, Any]]:
+        return list(self._items.values())
+
+    def replace(self, action: dict[str, Any]) -> bool:
+        """Replace overlapping tasks, preserving unaffected members of a group."""
+        action = self._canonical(action)
+        key = self._key(action)
+        persistent = self.is_persistent(action)
+        if persistent and key in self._items:
             return False
-
-    def remember(self, action: dict[str, Any], iteration: int) -> None:
-        if not self.is_persistent(action):
-            return
-        key = json.dumps(action, sort_keys=True, separators=(",", ":"))
-        self._items[key] = PersistentAction(
-            action,
-            iteration + self.duration_iterations,
-        )
-
-    def run(
-        self,
-        bot: Any,
-        iteration: int,
-        adapter: AresActionAdapter,
-        context: EntityContext,
-    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        """Re-register live actions and return (expired, failed) actions."""
-        expired: list[dict[str, Any]] = []
-        failed: list[dict[str, Any]] = []
-        for key, item in list(self._items.items()):
-            if iteration > item.expires_iteration:
-                expired.append(item.action)
-                self._items.pop(key)
+        actors = self.actors(action)
+        for old_key, old in list(self._items.items()):
+            overlap = actors & self.actors(old)
+            same_macro = not actors and old["id"] == action["id"]
+            if not overlap and not same_macro:
                 continue
-            try:
-                adapter.compile_and_register(bot, [item.action], context)
-            except (TypeError, ValueError):
-                failed.append(item.action)
-                self._items.pop(key)
-        return expired, failed
+            self._items.pop(old_key)
+            remaining = self.actors(old) - actors
+            if overlap and remaining and "group" in old["args"]:
+                retained = deepcopy(old)
+                retained["args"]["group"] = sorted(remaining)
+                self._items[self._key(retained)] = retained
+        if persistent:
+            self._items[key] = action
+        return True
+
+    def discard(self, action: dict[str, Any]) -> None:
+        self._items.pop(self._key(self._canonical(action)), None)
+
+    def prune_missing_actors(self, own_entities: dict[str, Any]) -> list[dict[str, Any]]:
+        """Drop missing units while retaining live members of group controls."""
+        failed = []
+        for key, action in list(self._items.items()):
+            actors = self.actors(action)
+            missing = actors - own_entities.keys()
+            if not missing:
+                continue
+            self._items.pop(key)
+            remaining = actors - missing
+            if remaining and "group" in action["args"]:
+                retained = deepcopy(action)
+                retained["args"]["group"] = sorted(remaining)
+                self._items[self._key(retained)] = retained
+            failed.append(action)
+        return failed

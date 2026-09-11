@@ -10,7 +10,7 @@ from typing import Any
 import numpy as np
 from ares import AresBot
 from ares.behaviors.combat.individual import KeepUnitSafe
-from ares.consts import ALL_STRUCTURES, TOWNHALL_TYPES, UnitRole
+from ares.consts import ALL_STRUCTURES, UnitRole
 from cython_extensions import cy_closest_to, cy_distance_to_squared, cy_towards
 from loguru import logger
 from sc2.data import Race, Result, Status
@@ -52,8 +52,7 @@ class WhyBot(AresBot):
         )
         if not self.llm_controller.active:
             raise RuntimeError("LLM_MODEL, LLM_BASE_URL and LLM_API_KEY are required")
-        # Preserve Ares manager updates while permanently disabling its YAML
-        # BuildOrderRunner. The model is now the only non-automatic decision source.
+        # Disable scripted openings while retaining Ares manager updates.
         self.build_order_runner.set_build_completed()
         logger.info(
             "Single-model mode started (tactic: {}, logs: {})",
@@ -99,6 +98,7 @@ class WhyBot(AresBot):
 
     async def on_end(self, game_result: Result) -> None:
         if self.llm_controller is not None:
+            await self.llm_controller.close()
             try:
                 self.llm_controller.telemetry.update_metadata(
                     **self._result_metadata(game_result),
@@ -137,11 +137,15 @@ class WhyBot(AresBot):
     async def on_unit_took_damage(self, unit: Unit, amount_damage_taken: float) -> None:
         await super().on_unit_took_damage(unit, amount_damage_taken)
 
-        compare_health: float = max(50.0, unit.health_max * 0.09)
-        if unit.health < compare_health:
+        if (
+            unit.is_structure
+            and not unit.is_ready
+            and unit.health < max(50.0, unit.health_max * 0.09)
+        ):
             self.mediator.cancel_structure(structure=unit)
 
     def _general_repair(self) -> None:
+        """Maintain repairs and assign nearby workers to eligible damaged units."""
         self._execute_scv_to_general_repair()
 
         for unit in self.all_own_units:
@@ -159,78 +163,51 @@ class WhyBot(AresBot):
             if type_id == UnitTypeId.BUNKER and not unit.has_cargo:
                 continue
 
-            if type_id in UNIT_TYPE_TO_NUM_REPAIRERS:
-                if (
-                    unit.is_structure
-                    and type_id not in TOWNHALL_TYPES
-                    and cy_distance_to_squared(unit.position, self.start_location)
-                    > 6500
+            if type_id == UnitTypeId.HELLION and self.enemy_race == Race.Terran:
+                continue
+            assigned = self.injured_general_unit_to_repairing_scvs.get(unit.tag, set())
+            num_scvs_required = UNIT_TYPE_TO_NUM_REPAIRERS[type_id] - len(assigned)
+            for _ in range(num_scvs_required):
+                if worker := self.mediator.select_worker(
+                    target_position=unit.position,
+                    force_close=True,
+                    min_health_perc=0.45,
                 ):
-                    continue
-                if type_id == UnitTypeId.HELLION and self.enemy_race == Race.Terran:
-                    continue
-                num_scvs_required: int = UNIT_TYPE_TO_NUM_REPAIRERS[unit.type_id]
-                if unit.tag in self.injured_general_unit_to_repairing_scvs:
-                    num_scvs_required -= len(
-                        self.injured_general_unit_to_repairing_scvs[unit.tag]
-                    )
-                for _ in range(num_scvs_required):
-                    if worker := self.mediator.select_worker(
-                        target_position=unit.position,
-                        force_close=True,
-                        min_health_perc=0.45,
-                    ):
-                        if unit.tag in self.injured_general_unit_to_repairing_scvs:
-                            self.injured_general_unit_to_repairing_scvs[unit.tag].add(
-                                worker.tag
-                            )
-                        else:
-                            self.injured_general_unit_to_repairing_scvs[unit.tag] = {
-                                worker.tag
-                            }
-                        self.mediator.assign_role(
-                            tag=worker.tag, role=UnitRole.REPAIRING
-                        )
+                    self.injured_general_unit_to_repairing_scvs.setdefault(
+                        unit.tag, set()
+                    ).add(worker.tag)
+                    self.mediator.assign_role(tag=worker.tag, role=UnitRole.REPAIRING)
 
     def _execute_scv_to_general_repair(self) -> None:
-        """Maintain SCV repair assignments and release completed workers."""
-        remove_tags: list[int] = []
-        remove_medics: dict[int, int] = {}
-        for (
-            injured_tag,
-            medic_tags,
-        ) in self.injured_general_unit_to_repairing_scvs.items():
+        """Release invalid assignments and maintain repairs with healthy workers."""
+        for injured_tag, medic_tags in list(
+            self.injured_general_unit_to_repairing_scvs.items()
+        ):
             injured: Unit | None = self.unit_tag_dict.get(injured_tag)
-            if not injured or injured.health_percentage >= 1.0:
-                remove_tags.append(injured_tag)
+            if injured is None or injured.health_percentage >= 1.0:
+                self.mediator.batch_assign_role(tags=medic_tags, role=UnitRole.GATHERING)
+                if injured is not None:
+                    self.mediator.assign_role(tag=injured_tag, role=UnitRole.ATTACKING)
+                self.injured_general_unit_to_repairing_scvs.pop(injured_tag)
                 continue
 
             medics: list[Unit] = []
-            for tag in medic_tags:
+            for tag in list(medic_tags):
                 medic: Unit | None = self.unit_tag_dict.get(tag)
-                if not medic or (
-                    medic.health_percentage < 0.4 and injured_tag not in remove_tags
-                ):
-                    remove_medics[injured_tag] = tag
+                if medic is None or medic.health_percentage < 0.4:
+                    medic_tags.remove(tag)
+                    if medic is not None:
+                        self.mediator.assign_role(tag=tag, role=UnitRole.GATHERING)
                 else:
                     medics.append(medic)
 
             self._scvs_to_general_repair_logic(injured, medics)
 
-        for tag in remove_tags:
-            medic_tags: set[int] = self.injured_general_unit_to_repairing_scvs[tag]
-            self.mediator.batch_assign_role(tags=medic_tags, role=UnitRole.GATHERING)
-            self.mediator.assign_role(tag=tag, role=UnitRole.ATTACKING)
-            self.injured_general_unit_to_repairing_scvs.pop(tag)
-
-        for tag, remove_tag in remove_medics.items():
-            self.injured_general_unit_to_repairing_scvs[tag].remove(remove_tag)
-
     def _scvs_to_general_repair_logic(self, injured: Unit, medics: list[Unit]) -> None:
         grid: np.ndarray = self.mediator.get_ground_avoidance_grid
 
         for medic in medics:
-            # avoid biles etc
+            # Avoid hazards before issuing repair commands.
             if not self.mediator.is_position_safe(grid=grid, position=medic.position):
                 self.register_behavior(KeepUnitSafe(medic, grid))
                 continue

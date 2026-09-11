@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import ast
+import io
 import math
 import re
+import tokenize
 from typing import Any
 
 from game.actions.errors import OutputFormatError
@@ -60,10 +62,38 @@ def _dsl_value(node: ast.AST) -> Any:
     raise ValueError("unsupported value expression")
 
 
+def _normalize_dsl_symbols(source: str) -> str:
+    """Join split bare names without touching quoted strings or numeric signs."""
+    tokens = list(tokenize.generate_tokens(io.StringIO(source).readline))
+    normalized: list[tuple[int, str]] = []
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        value = token.string
+        if token.type == tokenize.NAME:
+            while index + 1 < len(tokens):
+                following = tokens[index + 1]
+                if following.type == tokenize.NAME:
+                    value += "_" + following.string
+                    index += 1
+                elif (
+                    following.string == "-"
+                    and index + 2 < len(tokens)
+                    and tokens[index + 2].type == tokenize.NAME
+                ):
+                    value += "_" + tokens[index + 2].string
+                    index += 2
+                else:
+                    break
+        normalized.append((token.type, value))
+        index += 1
+    return tokenize.untokenize(normalized)
+
+
 def _parse_dsl_action(source: str) -> dict[str, Any]:
     try:
-        expression = ast.parse(source, mode="eval").body
-    except SyntaxError as exc:
+        expression = ast.parse(_normalize_dsl_symbols(source), mode="eval").body
+    except (SyntaxError, tokenize.TokenError, IndentationError) as exc:
         raise OutputFormatError.dsl_action(source, "invalid function syntax") from exc
 
     if not isinstance(expression, ast.Call) or not isinstance(

@@ -200,7 +200,7 @@
       "accepted_actions.jsonl", "events.jsonl", "console.log",
     ]);
     const state = { metadata: {}, observations: [], model: [], decisions: [], events: [], console: "", iterations: [] };
-    const rowIteration = row => Number(row.iteration ?? row.tick ?? row.loop);
+    const rowIteration = row => Number(Number.isFinite(row.request_iteration) && row.request_iteration >= 0 ? row.request_iteration : (row.iteration ?? row.tick ?? row.loop));
     const byIteration = rows => new Map(rows.map(row => [rowIteration(row), row]));
     let indexes = {};
 
@@ -249,7 +249,9 @@
       if ("id" in value && "args" in value) return formatAction(value);
       return Object.entries(value).map(([key, item]) => {
         const label = key.replace(/_/g, " ");
-        const rendered = formatFields(item);
+        const rendered = key === "status"
+          ? ({ queued: "等待资源", accepted: "已接受", active: "生效中", failed: "失败" }[item] || formatFields(item))
+          : formatFields(item);
         return rendered.includes("\n") || (item && typeof item === "object")
           ? `${label}:\n${rendered.split("\n").map(line => `  ${line}`).join("\n")}`
           : `${label}: ${rendered}`;
@@ -379,6 +381,8 @@
         nodes.push(line("阶段", String(row.phase || "unassigned")));
         nodes.push(line("结果", row.valid ? "输出有效" : `存在Error: ${row.error || "见验证反馈"}`));
         if (row.latency_ms != null) nodes.push(line("模型耗时", `${row.latency_ms} ms`));
+        if (row.applied_iteration != null) nodes.push(line("应用帧", String(row.applied_iteration)));
+        if (row.observation_age_seconds != null) nodes.push(line("观测距应用", `${row.observation_age_seconds} s`));
         if (row.previous_validation_feedback?.length) {
           nodes.push(line("上一轮反馈", ""), pre(formatFields(row.previous_validation_feedback)));
         }
@@ -398,9 +402,10 @@
       const nodes = [
         line("阶段", String(decision.phase || "unassigned")),
         line("决策耗时", decision.latency_ms == null ? "未知" : `${decision.latency_ms} ms`),
+        ...(decision.applied_iteration == null ? [] : [line("应用帧", String(decision.applied_iteration))]),
         pre(formatFields({
           actions: decision.actions || [],
-          deferred_actions: decision.deferred_actions || [],
+          action_states: decision.action_states || [],
           validation_feedback: decision.validation_feedback || [],
         })),
       ];
