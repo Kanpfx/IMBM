@@ -207,10 +207,11 @@ class ActionExposureTests(unittest.TestCase):
 
         self.assertIn("- `Unit`: One unit or structure ID from the current observation.", prompt)
         self.assertIn("- `Grid`:", prompt)
+        self.assertNotIn("  - `grid` (Grid):", prompt)
         self.assertNotIn("Allowed values:", prompt)
         self.assertNotIn("SCV[497,641]", prompt)
-        self.assertIn("<argument_types>", prompt)
-        self.assertIn("</argument_types>", prompt)
+        self.assertIn("<argument_definitions>", prompt)
+        self.assertIn("</argument_definitions>", prompt)
         self.assertIn("<available_actions>", prompt)
         self.assertIn("</available_actions>", prompt)
         self.assertIn("<actions_reference>", prompt)

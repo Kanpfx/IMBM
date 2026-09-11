@@ -23,15 +23,15 @@ class ActionRuntimeTests(unittest.TestCase):
         self.assertEqual(format_action(action), expected)
         self.assertEqual(
             format_indexed_actions([action]),
-            [f"actions[0]={expected}"],
+            [f"Action 1: {expected}"],
         )
-        self.assertEqual(format_indexed_actions([]), ["actions=[]"])
+        self.assertEqual(format_indexed_actions([]), ["No actions."])
 
     def test_decision_intervals_keep_model_actions_for_the_full_cycle(self):
         config = GameConfig()
 
-        self.assertEqual(config.model_interval_iterations, 30)
-        self.assertEqual(config.persistent_action_iterations, 30)
+        self.assertEqual(config.model_interval_iterations, 60)
+        self.assertEqual(config.persistent_action_iterations, 60)
 
     def test_adapter_rejects_disabled_catalog_actions(self):
         catalog = ActionCatalog.load()
@@ -191,17 +191,16 @@ class ActionRuntimeTests(unittest.TestCase):
         )
         self.assertIn("action limit exceeded", review.message)
 
-    def test_model_parser_accepts_tagged_dsl_and_complex_values(self):
+    def test_model_parser_accepts_headed_dsl_and_complex_values(self):
         payload = parse_model_payload(
             """```text
-<PHASE>
+# PHASE
 'OPENING_TECH'
-</PHASE>
-<ACTIONS>
+
+# ACTIONS
 - AMoveGroup(Group=[101,u2],Target={x:1.5,y:-2});
 SpawnController(army_composition_dict={BATTLECRUISER:{proportion:1.0,priority:0}})
 SetSomething(enabled=TRUE,value=null)
-</ACTIONS>
 ```"""
         )
 
@@ -224,18 +223,19 @@ SetSomething(enabled=TRUE,value=null)
 
     def test_model_parser_accepts_empty_actions(self):
         self.assertEqual(
-            parse_model_payload("<phase>opening</phase>\n<actions>\n</actions>"),
+            parse_model_payload("# phase\nopening\n\n# actions"),
             {"phase": "opening", "actions": [], "errors": []},
         )
 
     def test_model_parser_keeps_valid_siblings_and_reports_bad_lines(self):
         payload = parse_model_payload(
-            """<phase>opening</phase>
-<actions>
+            """# phase
+opening
+
+# actions
 BuildWorkers(to_count=20)
 Unsafe(unit=lookup(101))
-AttackTarget(unit=101,target=203)
-</actions>"""
+AttackTarget(unit=101,target=203)"""
         )
 
         self.assertEqual(
@@ -245,13 +245,13 @@ AttackTarget(unit=101,target=203)
         self.assertEqual(payload["errors"][0]["index"], 1)
         self.assertIn("unsupported value expression", payload["errors"][0]["error"])
 
-    def test_model_parser_requires_unique_tagged_sections(self):
-        with self.assertRaisesRegex(OutputFormatError, "<phase>"):
-            parse_model_payload("<actions></actions>")
-        with self.assertRaisesRegex(OutputFormatError, "<actions>"):
-            parse_model_payload("<phase>opening</phase>")
+    def test_model_parser_requires_unique_headed_sections(self):
+        with self.assertRaisesRegex(OutputFormatError, "# phase"):
+            parse_model_payload("# actions")
+        with self.assertRaisesRegex(OutputFormatError, "# actions"):
+            parse_model_payload("# phase\nopening")
         with self.assertRaisesRegex(OutputFormatError, "found 2"):
-            parse_model_payload("<phase>a</phase><phase>b</phase><actions></actions>")
+            parse_model_payload("# phase\na\n# phase\nb\n# actions")
 
     def test_catalog_and_policy_apply_basic_case_and_separator_tolerance(self):
         catalog = ActionCatalog.load()
@@ -747,17 +747,17 @@ AttackTarget(unit=101,target=203)
 
         adapter = Adapter()
         registry.remember(action, iteration=0)
-        for iteration in range(1, 10):
-            completed, failed = registry.run(
+        for iteration in range(1, 11):
+            expired, failed = registry.run(
                 object(), iteration, adapter, EntityContext()
             )
-            self.assertEqual(completed, [])
+            self.assertEqual(expired, [])
             self.assertEqual(failed, [])
 
-        completed, failed = registry.run(object(), 10, adapter, EntityContext())
+        expired, failed = registry.run(object(), 11, adapter, EntityContext())
 
-        self.assertEqual(adapter.calls, 9)
-        self.assertEqual(completed, [action])
+        self.assertEqual(adapter.calls, 10)
+        self.assertEqual(expired, [action])
         self.assertEqual(failed, [])
 
     def test_macro_controllers_persist_without_a_macro_plan(self):

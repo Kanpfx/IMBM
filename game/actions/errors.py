@@ -18,7 +18,7 @@ class ErrorDetails:
     actual: Any = None
 
     def render(self) -> str:
-        return f"{self.category}: {self.kind}, {self.detail}"
+        return f"{self.category}: {self.kind}; {self.detail}"
 
 
 class ActionError(ValueError):
@@ -53,9 +53,9 @@ class OutputFormatError(ActionError):
     def dsl_section(cls, name: str, count: int) -> "OutputFormatError":
         return cls(
             "invalid DSL output",
-            f"exactly one <{name}>...</{name}> section is required; found {count}",
+            f"exactly one '# {name}' section is required; found {count}",
             parameter=name,
-            expected="one tagged section",
+            expected="one heading section",
             actual=count,
         )
 
@@ -63,7 +63,7 @@ class OutputFormatError(ActionError):
     def dsl_action(cls, source: str, detail: str) -> "OutputFormatError":
         return cls(
             "invalid action expression",
-            f"{detail}: {source!r}",
+            detail,
             parameter="actions",
             expected="ActionName(argument=value, ...)",
             actual=source,
@@ -108,7 +108,7 @@ class ParameterError(InstructionError):
     def missing(cls, name: str) -> "ParameterError":
         return cls(
             "missing parameter",
-            f"required parameter '{name}' was not provided",
+            f"'{name}' is required",
             parameter=name,
         )
 
@@ -117,7 +117,7 @@ class ParameterError(InstructionError):
         rendered = ", ".join(f"'{name}'" for name in names)
         return cls(
             "unexpected parameter",
-            f"the following parameters are not defined for this action: {rendered}",
+            f"not defined for this action: {rendered}",
             actual=names,
         )
 
@@ -125,7 +125,7 @@ class ParameterError(InstructionError):
     def duplicate(cls, name: str) -> "ParameterError":
         return cls(
             "duplicate parameter",
-            f"parameter '{name}' was provided more than once",
+            f"'{name}' was provided more than once",
             parameter=name,
         )
 
@@ -133,7 +133,7 @@ class ParameterError(InstructionError):
     def format(cls, name: str, expected: str) -> "ParameterError":
         return cls(
             "format error",
-            f"parameter '{name}' must be {expected}",
+            f"'{name}' must be {expected}",
             parameter=name,
             expected=expected,
         )
@@ -142,7 +142,7 @@ class ParameterError(InstructionError):
     def invalid_value(cls, name: str, value: Any, expected: str) -> "ParameterError":
         return cls(
             "invalid value",
-            f"parameter '{name}' has value {value!r}; expected {expected}",
+            f"'{name}' = {value!r}; expected {expected}",
             parameter=name,
             expected=expected,
             actual=value,
@@ -156,7 +156,7 @@ class AvailabilityError(InstructionError):
     def unavailable(cls, action: Any, reason: str) -> "AvailabilityError":
         return cls(
             "action unavailable",
-            f"action '{action}' cannot be used now: {reason}",
+            f"'{action}': {reason}",
             actual=action,
         )
 

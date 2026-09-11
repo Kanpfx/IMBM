@@ -34,9 +34,9 @@ def observation_text(data: dict[str, Any]) -> str:
         for item in items
     ]
     situation_alerts = (
-        "Situation alerts:\n" + "\n".join(alert_lines)
+        "Situational hints:\n" + "\n".join(alert_lines)
         if alert_lines
-        else "Situation alerts: [None]"
+        else "Situational hints: [None]"
     )
     overview = "\n\n".join(
         (
@@ -63,17 +63,32 @@ def observation_text(data: dict[str, Any]) -> str:
                 empty="[None visible]",
             ),
             _section(
-                "known_structures",
+                "visible_structures",
                 data["enemy_structure_blocks"],
-                empty="[None known]",
+                empty="[None visible]",
             ),
-            _section("last_known_units", data["last_known_enemy_blocks"]),
+            _tag(
+                "enemy_memory",
+                "Previously seen enemy units and structures, with last-seen times and states. IDs are omitted because they cannot be selected. Current states are unknown. Last known building coordinates can be used as point targets; buildings may have moved or been destroyed.\n\n"
+                + "\n\n".join(
+                    (
+                        _section(
+                            "recently_seen_units",
+                            data["remembered_enemy_unit_blocks"],
+                        ),
+                        _section(
+                            "known_structures",
+                            data["remembered_enemy_structure_blocks"],
+                        ),
+                    )
+                ),
+            ),
         )
     )
     recent_history = "\n\n".join(
         (
             _section("state_changes", data["recent_changes"]),
-            _section("action_history", "\n".join(data["action_history"])),
+            _section("action_history", data["action_history"]),
         )
     )
     return "\n\n".join(

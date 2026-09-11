@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-import json
 from html import escape
 from typing import Any
 
-MODEL_ROLE = """Choose the tactical phase that best matches the current StarCraft II observation, then issue concrete actions for that phase.
+from game.actions.formatting import format_feedback
 
-Use only phase IDs, actions, arguments, and values documented in the current message. Return only the tagged Function DSL described in the output contract, with one action call per line; do not include explanations or reasoning."""
+MODEL_ROLE = """You are a StarCraft II control model responsible for making tactical decisions and issuing executable actions.
+Your task is to identify the tactical phase that best matches the current game observation, then issue concrete actions appropriate for that phase.
+Use only phase IDs, actions, arguments, and values explicitly documented in the current message. Follow the specified action format exactly.
+Return only the tagged Function DSL defined in the output contract, with one action call per line. Do not include explanations, reasoning, chain-of-thought, or any additional text."""
 
 
 TYPE_LEGEND = {
@@ -84,6 +86,7 @@ SIMPLE_PARAMETER_NAMES = {
     "enemies",
     "enemy_units",
     "group",
+    "grid",
     "pickup_targets",
     "target",
     "targets",
@@ -113,7 +116,7 @@ def _section(tag: str, content: str, **attributes: str) -> str:
 
 def _list(label: str, items: list[str], *, empty: str = "[None]") -> str:
     body = "\n".join(f"- {item}" for item in items) or empty
-    return f"{label}:\n\n{body}"
+    return f"**{label}:**\n{body}"
 
 
 def _tactic_card(tactic: dict[str, Any]) -> str:
@@ -121,10 +124,10 @@ def _tactic_card(tactic: dict[str, Any]) -> str:
         _tactic_phase_card(index, phase)
         for index, phase in enumerate(tactic["phases"], start=1)
     )
-    overview = "\n".join(
+    overview = "\n\n".join(
         (
             f"**Tactic ID:** `{tactic.get('id', 'fixed_tactic')}`",
-            f"Tactic concept: {tactic['concept']}",
+            f"**Tactic concept:** {tactic['concept']}",
             _list("Global tactic rules", list(tactic["rules"])),
         )
     )
@@ -136,12 +139,12 @@ def _tactic_phase_card(index: int, phase: dict[str, Any]) -> str:
     content = "\n\n".join(
         (
             f"**Phase ID:** `{phase['id']}`",
-            _list("Phase selection criteria", list(phase["enter_when"])),
-            f"**Phase objective:** {phase['goal']}",
-            _list("Phase guidance", list(phase["guidance"])),
+            _list("Selection criteria", list(phase["enter_when"])),
+            f"**Objective:** {phase['goal']}",
+            _list("Guidance", list(phase["guidance"])),
         )
     )
-    return _section("phase_reference", content, index=str(index))
+    return f'<phase index="{index}">\n{_indent(content)}\n</phase>'
 
 
 def _action_card(entry: dict[str, Any]) -> str:
@@ -186,7 +189,9 @@ def _type_legend(entries: list[dict[str, Any]]) -> str:
         and param["required"]
         and param["name"] != "group_tags"
     }
-    lines: list[str] = ["Argument types and value formats:"]
+    lines: list[str] = [
+        "The following definitions explain each argument type and its accepted value formats:"
+    ]
     for type_name, (label, description) in TYPE_LEGEND.items():
         if type_name not in used_types:
             continue
@@ -200,14 +205,31 @@ def _type_legend(entries: list[dict[str, Any]]) -> str:
                     "  - All `proportion` values must sum to `1.0`.",
                 ]
             )
-    return _section("argument_types", "\n\n".join((lines[0], "\n".join(lines[1:]))))
+    return _section("argument_definitions", "\n\n".join((lines[0], "\n".join(lines[1:]))))
 
 
 def _available_actions(entries: list[dict[str, Any]]) -> str:
-    body = "\n".join(_action_card(entry) for entry in entries) or "[None]"
+    groups: dict[str, list[str]] = {
+        "Group Combat Behaviors": [],
+        "Individual Combat Behaviors": [],
+        "Macro Behaviors": [],
+    }
+    for entry in entries:
+        if entry["id"].startswith("combat.group."):
+            category = "Group Combat Behaviors"
+        elif entry["id"].startswith("macro."):
+            category = "Macro Behaviors"
+        else:
+            category = "Individual Combat Behaviors"
+        groups[category].append(_action_card(entry))
+    body = "\n\n".join(
+        f"**{category}:**\n" + "\n".join(actions)
+        for category, actions in groups.items()
+        if actions
+    ) or "[None]"
     instruction = (
-        "Each action below is currently available. "
-        "Use the exact action and argument names shown:"
+        "The following definitions describe the currently available actions, "
+        "their call signatures, and the types and meanings of their arguments:"
     )
     return _section("available_actions", f"{instruction}\n\n{body}")
 
@@ -221,12 +243,10 @@ def _observation_with_feedback(
     observation: str,
     previous_validation_feedback: list[dict[str, Any]] | None,
 ) -> str:
-    if not previous_validation_feedback:
-        return observation
-
     feedback = _section(
         "previous_validation_feedback",
-        json.dumps(previous_validation_feedback, ensure_ascii=False, indent=2),
+        "Validation errors from the previous decision. Use this feedback to correct the current output.\n\n"
+        + format_feedback(previous_validation_feedback or []),
     )
     action_history_end = "</action_history>"
     if action_history_end in observation:
@@ -244,33 +264,35 @@ def model_messages(
     action_entries: list[dict[str, Any]],
     previous_validation_feedback: list[dict[str, Any]] | None = None,
     *,
-    max_actions_per_decision: int = 6,
+    max_actions_per_decision: int = 8,
 ) -> list[dict[str, str]]:
-    output_contract = """<phase>
-PHASE_ID
-</phase>
-<actions>
-ActionName(argument=value,...)
-</actions>
+    output_contract = """Output constraints are as follows:
 
-Use one documented phase ID and return 0-{max_actions} currently available actions, one per line.
-Use exact action and argument names. Use bare names for enums and landmarks, `true`/`false` for booleans, `[...]` for lists, and `{key:value}` for objects."""
+1. Use one documented phase ID and return 0-{max_actions} currently available actions, one per line.
+2. Use only documented actions, arguments, and values, with exact action and argument names.
+3. Use bare names for enums and landmarks, `true`/`false` for booleans, `[...]` for lists, and `{key:value}` for objects.
+4. Strongly prefer group actions when controlling multiple units with the same intent. Use one group action instead of repeated single-unit actions whenever possible; reserve individual actions for unit-specific micro.
+5. Before issuing ongoing control, check the action history. Avoid repeating an action that is already active with the same intent and arguments; issue it again when its arguments need to change.
+6. Return only the Function DSL shown below, without explanations or additional text. Use actual line breaks, not escaped newline sequences.
+
+```text
+# phase
+PHASE_ID
+
+# actions
+ActionName(argument=value,...)
+```"""
     output_contract = output_contract.replace(
         "{max_actions}", str(max_actions_per_decision)
     )
     final_instruction = (
-        "Select the best-matching phase from the tactical reference, then compose "
-        "and return suitable actions using only the available actions and their "
-        "documented parameters."
+        "Return your decision for the current observation."
     )
     sections = [
         _tactic_card(tactic),
-        _section("output_contract", output_contract),
         _actions_reference(action_entries),
-        _section(
-            "observation",
-            _observation_with_feedback(observation, previous_validation_feedback),
-        ),
+        _observation_with_feedback(observation, previous_validation_feedback),
+        _section("output_contract", output_contract),
         final_instruction,
     ]
     user = "\n\n".join(sections)

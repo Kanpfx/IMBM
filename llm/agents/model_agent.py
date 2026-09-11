@@ -45,7 +45,7 @@ class ModelAgent:
         previous_validation_feedback: list[dict[str, Any]] | None = None,
         trace: Telemetry | None = None,
         iteration: int | None = None,
-        max_actions_per_decision: int = 6,
+        max_actions_per_decision: int = 8,
     ) -> ModelResult:
         messages = model_messages(
             observation,

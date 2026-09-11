@@ -21,7 +21,7 @@ TACTIC = {
 class FakeLLMClient:
     def __init__(
         self,
-        reply="<phase>opening</phase>\n<actions>\n</actions>",
+        reply="# phase\nopening\n\n# actions",
     ):
         self.reply = reply
         self.calls = []
@@ -38,8 +38,8 @@ class ModelAgentTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_model_returns_phase_and_actions_in_one_call(self):
         client = FakeLLMClient(
-            "<phase>opening</phase>\n"
-            "<actions>\nBuildWorkers(to_count=20)\n</actions>"
+            "# phase\nopening\n\n"
+            "# actions\nBuildWorkers(to_count=20)"
         )
         agent = ModelAgent(LLMConfig(), client)
 
@@ -51,7 +51,7 @@ class ModelAgentTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(client.calls), 1)
 
     async def test_invalid_dsl_is_feedback_without_a_model_retry(self):
-        client = FakeLLMClient("<phase>opening</phase>\n<actions>")
+        client = FakeLLMClient("# phase\nopening")
         agent = ModelAgent(LLMConfig(), client)
 
         result = await agent.run("# Observation", TACTIC, [])
@@ -64,8 +64,8 @@ class ModelAgentTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_invalid_phase_preserves_actions_and_records_feedback(self):
         client = FakeLLMClient(
-            "<phase>invented</phase>\n"
-            "<actions>\nBuildWorkers(to_count=20)\n</actions>"
+            "# phase\ninvented\n\n"
+            "# actions\nBuildWorkers(to_count=20)"
         )
         agent = ModelAgent(LLMConfig(), client)
 
@@ -77,8 +77,8 @@ class ModelAgentTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_phase_and_tags_are_case_insensitive(self):
         client = FakeLLMClient(
-            "<PHASE>OPEN_ING</PHASE>\n"
-            "<ACTIONS>\nbuild_workers(ToCount=20)\n</ACTIONS>"
+            "# PHASE\nOPEN_ING\n\n"
+            "# ACTIONS\nbuild_workers(ToCount=20)"
         )
         agent = ModelAgent(LLMConfig(), client)
 
@@ -90,9 +90,9 @@ class ModelAgentTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_bad_action_preserves_valid_siblings_and_records_feedback(self):
         client = FakeLLMClient(
-            "<phase>opening</phase>\n"
-            "<actions>\nBuildWorkers(to_count=20)\n"
-            "Unsafe(unit=lookup(1))\n</actions>"
+            "# phase\nopening\n\n"
+            "# actions\nBuildWorkers(to_count=20)\n"
+            "Unsafe(unit=lookup(1))"
         )
         agent = ModelAgent(LLMConfig(), client)
 

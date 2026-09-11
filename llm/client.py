@@ -6,12 +6,17 @@ import asyncio
 import json
 from typing import Any
 from urllib import request
+from urllib.parse import urlparse
 
 from config.llm import LLMConfig
 
 
 class LLMClientError(RuntimeError):
     pass
+
+
+def _is_official_deepseek_api(base_url: str) -> bool:
+    return urlparse(base_url).hostname == 'api.deepseek.com'
 
 
 class LLMClient:
@@ -48,6 +53,8 @@ class LLMClient:
             "temperature": self.config.temperature,
             "max_tokens": self.config.max_tokens,
         }
+        if _is_official_deepseek_api(self.config.base_url):
+            body['thinking'] = {'type': 'disabled'}
         payload = json.dumps(body).encode("utf-8")
         req = request.Request(
             url,

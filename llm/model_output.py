@@ -10,15 +10,22 @@ from typing import Any
 from game.actions.errors import OutputFormatError
 
 
-def _tag_content(text: str, tag: str) -> str:
+def _heading_content(text: str, heading: str) -> tuple[str, int]:
     pattern = re.compile(
-        rf"<\s*{tag}\s*>(.*?)<\s*/\s*{tag}\s*>",
-        re.IGNORECASE | re.DOTALL,
+        rf"^[ \t]*#[ \t]+{heading}[ \t]*$",
+        re.IGNORECASE | re.MULTILINE,
     )
-    matches = pattern.findall(text)
+    matches = list(pattern.finditer(text))
     if len(matches) != 1:
-        raise OutputFormatError.dsl_section(tag, len(matches))
-    return matches[0].strip()
+        raise OutputFormatError.dsl_section(heading, len(matches))
+    match = matches[0]
+    next_heading = re.search(
+        r"^[ \t]*#[ \t]+(?:phase|actions)[ \t]*$",
+        text[match.end() :],
+        re.IGNORECASE | re.MULTILINE,
+    )
+    end = match.end() + next_heading.start() if next_heading else len(text)
+    return text[match.end() : end].strip(), match.start()
 
 
 def _dsl_value(node: ast.AST) -> Any:
@@ -93,9 +100,26 @@ def _parse_dsl_action(source: str) -> dict[str, Any]:
 
 
 def parse_model_payload(text: str) -> dict[str, Any]:
-    """Parse the tagged model DSL while retaining valid sibling actions."""
-    candidate = text.strip().lstrip("\ufeff")
-    phase = _tag_content(candidate, "phase")
+    """Parse the headed model DSL while retaining valid sibling actions."""
+    candidate = text.strip().lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
+    if "\n" not in candidate and "\\n" in candidate:
+        raise OutputFormatError(
+            "escaped line breaks",
+            "use actual line breaks between DSL sections and actions, not literal backslash-n sequences",
+        )
+    lines = candidate.splitlines()
+    if (
+        len(lines) >= 2
+        and lines[0].strip().startswith("```")
+        and lines[-1].strip() == "```"
+    ):
+        candidate = "\n".join(lines[1:-1]).strip()
+    phase, phase_position = _heading_content(candidate, "phase")
+    actions_source, actions_position = _heading_content(candidate, "actions")
+    if phase_position > actions_position:
+        raise OutputFormatError(
+            "invalid DSL output", "'# phase' must precede '# actions'"
+        )
     if len(phase) >= 2 and phase[0] == phase[-1] and phase[0] in {"'", '"', "`"}:
         phase = phase[1:-1].strip()
 
@@ -103,7 +127,7 @@ def parse_model_payload(text: str) -> dict[str, Any]:
     errors: list[dict[str, Any]] = []
     action_lines = [
         line.strip()
-        for line in _tag_content(candidate, "actions").splitlines()
+        for line in actions_source.splitlines()
         if line.strip()
     ]
     for index, original in enumerate(action_lines):

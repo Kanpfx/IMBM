@@ -5,6 +5,8 @@
     "Keep Battlecruisers as the core army and Marines as support, developing toward roughly 80% Battlecruisers and 20% Marines.",
     "Prioritize Battlecruiser tech and sustained Battlecruiser production over nonessential spending.",
     "Preserve Battlecruisers and avoid unnecessary losses or unfavorable trades.",
+    "When observations indicate a large-scale attack on our bases or economy, redirect part of the army to defend the threatened area, prioritizing nearby available units and using group actions where possible.",
+    "Once the threat is cleared, counterattack with the defending force when favorable while continuing essential production and development.",
     "After the first Battlecruiser enters production, expand one base at a time; do not exceed four total bases, 90 workers, or four Starports with Tech Labs."
   ],
   "phases": [
@@ -12,7 +14,7 @@
       "id": "opening_tech",
       "enter_when": [
         "The Fusion Core and Starport Tech Lab are not both ready.",
-        "This usually occurs within approximately 0-4 minutes; time is only a weak reference."
+        "Typically within 0-4 minutes; timing is only a rough guide."
       ],
       "goal": "Complete the tech path required for the first Battlecruiser as quickly as possible.",
       "guidance": [
@@ -45,7 +47,7 @@
       "id": "first_bc_transition",
       "enter_when": [
         "The first Battlecruiser is in production, but no Battlecruiser is ready yet.",
-        "This usually occurs around approximately 4-6 minutes; time is only a weak reference."
+        "Typically around 4-6 minutes; timing is only a rough guide."
       ],
       "goal": "Use the first Battlecruiser's production window to begin economic and production growth without disrupting Battlecruiser production.",
       "guidance": [
@@ -61,7 +63,7 @@
       "id": "bc_pressure",
       "enter_when": [
         "At least one Battlecruiser is ready.",
-        "This usually occurs after approximately 5-6 minutes; time is only a weak reference."
+        "Typically after about 5-6 minutes; timing is only a rough guide."
       ],
       "goal": "Apply continuous Battlecruiser-led pressure while scaling economy, production, and army strength.",
       "guidance": [

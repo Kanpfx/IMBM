@@ -73,12 +73,12 @@ class PersistentActionRegistry:
         adapter: AresActionAdapter,
         context: EntityContext,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-        """Re-register live actions and return (completed, failed) actions."""
-        completed: list[dict[str, Any]] = []
+        """Re-register live actions and return (expired, failed) actions."""
+        expired: list[dict[str, Any]] = []
         failed: list[dict[str, Any]] = []
         for key, item in list(self._items.items()):
-            if iteration >= item.expires_iteration:
-                completed.append(item.action)
+            if iteration > item.expires_iteration:
+                expired.append(item.action)
                 self._items.pop(key)
                 continue
             try:
@@ -86,4 +86,4 @@ class PersistentActionRegistry:
             except (TypeError, ValueError):
                 failed.append(item.action)
                 self._items.pop(key)
-        return completed, failed
+        return expired, failed

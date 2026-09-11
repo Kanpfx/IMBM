@@ -206,7 +206,55 @@
 
     const $ = id => document.getElementById(id);
     const text = (node, value) => { node.textContent = value; return node; };
-    const formatJson = value => JSON.stringify(value ?? {}, null, 2);
+    function formatValue(value) {
+      if (typeof value === "string") {
+        const reserved = /^(?:true|false|null|none)$/i.test(value) || ["False", "None", "True", "and", "as", "assert", "async", "await", "break", "class", "continue", "def", "del", "elif", "else", "except", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "nonlocal", "not", "or", "pass", "raise", "return", "try", "while", "with", "yield"].includes(value);
+        return /^[A-Za-z_][A-Za-z0-9_]*$/.test(value) && !reserved ? value : JSON.stringify(value);
+      }
+      if (value == null) return "null";
+      if (Array.isArray(value)) return `[${value.map(formatValue).join(", ")}]`;
+      if (typeof value === "object") return `{${Object.entries(value).map(([key, item]) => `${formatValue(key)}: ${formatValue(item)}`).join(", ")}}`;
+      return String(value);
+    }
+
+    function formatAction(action) {
+      if (!action || typeof action !== "object") return String(action ?? "[None]");
+      const args = action.args && typeof action.args === "object" ? action.args : {};
+      return `${action.id || "UnknownAction"}(${Object.entries(args).map(([key, value]) => `${key}=${formatValue(value)}`).join(", ")})`;
+    }
+
+    function formatFeedback(feedback) {
+      return feedback.map((item, index) => {
+        const submitted = Object.hasOwn(item, "action") ? formatAction(item.action) : (item.submitted_action ?? item.submitted_output ?? item.submitted_phase);
+        const submittedLines = String(submitted ?? "[None]").split(/\r\n|\r|\n/);
+        const lines = submittedLines.length <= 1
+          ? [`${index + 1}. Action: ${submittedLines[0] || "[None]"}`]
+          : [`${index + 1}. Action: `, ...submittedLines.map(line => `     ${line}`)];
+        lines.push(`   Error: ${item.error || "Unknown error"}`);
+        return lines.join("\n");
+      }).join("\n\n") || "[None]";
+    }
+
+    function formatFields(value) {
+      if (value == null) return "[None]";
+      if (typeof value !== "object") return String(value);
+      if (Array.isArray(value)) {
+        if (!value.length) return "[None]";
+        if (value.every(item => item && typeof item === "object" && "kind" in item && "error" in item)) return formatFeedback(value);
+        return value.map((item, index) => {
+          const rendered = item && typeof item === "object" && "id" in item ? formatAction(item) : formatFields(item);
+          return `${index + 1}. ${rendered.replace(/\n/g, "\n   ")}`;
+        }).join("\n");
+      }
+      if ("id" in value && "args" in value) return formatAction(value);
+      return Object.entries(value).map(([key, item]) => {
+        const label = key.replace(/_/g, " ");
+        const rendered = formatFields(item);
+        return rendered.includes("\n") || (item && typeof item === "object")
+          ? `${label}:\n${rendered.split("\n").map(line => `  ${line}`).join("\n")}`
+          : `${label}: ${rendered}`;
+      }).join("\n");
+    }
     const noData = message => Object.assign(document.createElement("p"), { className: "empty", textContent: message });
 
     function parseJsonl(content, filename) {
@@ -260,7 +308,7 @@
       $("raw-inputs").classList.remove("hidden");
       $("metadata-details").classList.remove("hidden");
       $("console-details").classList.remove("hidden");
-      $("metadata-panel").textContent = formatJson(state.metadata);
+      $("metadata-panel").textContent = formatFields(state.metadata);
       $("console-panel").textContent = state.console || "该对局没有控制台输出。";
       renderSummary();
       renderCurrent();
@@ -329,15 +377,18 @@
       const nodes = [];
       rows.forEach(row => {
         nodes.push(line("阶段", String(row.phase || "unassigned")));
-        nodes.push(line("结果", row.valid ? "输出有效" : `存在错误：${row.error || "见验证反馈"}`));
+        nodes.push(line("结果", row.valid ? "输出有效" : `存在Error: ${row.error || "见验证反馈"}`));
         if (row.latency_ms != null) nodes.push(line("模型耗时", `${row.latency_ms} ms`));
         if (row.previous_validation_feedback?.length) {
-          nodes.push(line("上一轮反馈", ""), pre(formatJson(row.previous_validation_feedback)));
+          nodes.push(line("上一轮反馈", ""), pre(formatFields(row.previous_validation_feedback)));
         }
         if (row.validation_feedback?.length) {
-          nodes.push(line("本轮输出反馈", ""), pre(formatJson(row.validation_feedback)));
+          nodes.push(line("本轮输出反馈", ""), pre(formatFields(row.validation_feedback)));
         }
-        nodes.push(pre(formatJson({ phase: row.phase || "unassigned", actions: row.actions || [] })));
+        if (typeof row.reply === "string") {
+          nodes.push(line("原始输出", ""), pre(row.reply || "[None]"));
+        }
+        nodes.push(line("解析后的动作", ""), pre(formatFields({ phase: row.phase || "unassigned", actions: row.actions || [] })));
       });
       replacePanel("model-panel", nodes);
     }
@@ -347,7 +398,7 @@
       const nodes = [
         line("阶段", String(decision.phase || "unassigned")),
         line("决策耗时", decision.latency_ms == null ? "未知" : `${decision.latency_ms} ms`),
-        pre(formatJson({
+        pre(formatFields({
           actions: decision.actions || [],
           deferred_actions: decision.deferred_actions || [],
           validation_feedback: decision.validation_feedback || [],
@@ -362,21 +413,21 @@
       const nodes = rows.map(row => {
         const section = document.createElement("div"); section.className = "event-row";
         const name = document.createElement("strong"); text(name, String(row.event || "event"));
-        section.append(name, pre(formatJson(row)));
+        section.append(name, pre(formatFields(row)));
         return section;
       });
       replacePanel("event-panel", nodes);
     }
 
     function formatRequest(request) {
-      if (!Array.isArray(request)) return formatJson(request);
+      if (!Array.isArray(request)) return formatFields(request);
       return request.map((message, index) => {
         const role = String(message?.role || "unknown").toUpperCase();
-        const content = typeof message?.content === "string" ? message.content : formatJson(message?.content);
+        const content = typeof message?.content === "string" ? message.content : formatFields(message?.content);
         const extra = message && typeof message === "object"
           ? Object.fromEntries(Object.entries(message).filter(([key]) => key !== "role" && key !== "content"))
           : {};
-        const extraText = Object.keys(extra).length ? `\n\n[其他字段]\n${formatJson(extra)}` : "";
+        const extraText = Object.keys(extra).length ? `\n\n[其他字段]\n${formatFields(extra)}` : "";
         return `===== MESSAGE ${index + 1} · ${role} =====\n${content}${extraText}`;
       }).join("\n\n");
     }

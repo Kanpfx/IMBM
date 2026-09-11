@@ -8,11 +8,11 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class GameConfig:
     # The foreground model owns every non-automatic decision.
-    # A decision is deliberately awaited every thirty python-sc2 ``on_step``
+    # A decision is deliberately awaited every sixty python-sc2 ``on_step``
     # iterations.
     # This is not SC2's ``state.game_loop`` counter.
-    model_interval_iterations: int = 30
-    max_actions_per_decision: int = 6
+    model_interval_iterations: int = 60
+    max_actions_per_decision: int = 8
     max_action_units: int = 12
     max_action_targets: int = 8
     max_point_nudge_tiles: float = 2.0
@@ -20,4 +20,4 @@ class GameConfig:
     resource_queue_mineral_tolerance: int = 120
     resource_queue_vespene_tolerance: int = 60
     # Keep short-lived combat behaviors active for the complete model cycle.
-    persistent_action_iterations: int = 30
+    persistent_action_iterations: int = 60

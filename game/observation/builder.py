@@ -50,23 +50,6 @@ IMPORTANT_UNIT_NAMES = {
     "SIEGETANK",
 }
 COMPACT_UNIT_NAMES = {"SCV", "MARINE", "MULE"}
-LAST_KNOWN_UNIT_NAMES = IMPORTANT_UNIT_NAMES | {
-    "BANSHEE",
-    "BROODLORD",
-    "CARRIER",
-    "COLOSSUS",
-    "DARKTEMPLAR",
-    "DISRUPTOR",
-    "HIGHTEMPLAR",
-    "INFESTOR",
-    "LURKERMP",
-    "MOTHERSHIP",
-    "MUTALISK",
-    "TEMPEST",
-    "ULTRALISK",
-    "VIPER",
-    "VOIDRAY",
-}
 IMPORTANT_STRUCTURE_NAMES = {
     "COMMANDCENTER",
     "ORBITALCOMMAND",
@@ -134,7 +117,7 @@ class ObservationBuilder:
     def record_registered_actions(
         self, actions: list[dict[str, Any]], time: str = "--:--"
     ) -> None:
-        self._record_actions(actions, time, "completed", replace_statuses={"queued"})
+        self._record_actions(actions, time, "complete", replace_statuses={"queued"})
 
     def record_deferred_actions(
         self, actions: list[dict[str, Any]], time: str = "--:--"
@@ -146,11 +129,6 @@ class ObservationBuilder:
     ) -> None:
         self._record_actions(actions, time, "active")
 
-    def record_completed_actions(
-        self, actions: list[dict[str, Any]], time: str = "--:--"
-    ) -> None:
-        self._record_actions(actions, time, "completed", replace_statuses={"active"})
-
     def record_failed_actions(
         self, actions: list[dict[str, Any]], time: str = "--:--"
     ) -> None:
@@ -161,7 +139,9 @@ class ObservationBuilder:
     def record_expired_actions(
         self, actions: list[dict[str, Any]], time: str = "--:--"
     ) -> None:
-        self._record_actions(actions, time, "expired", replace_statuses={"queued"})
+        self._record_actions(
+            actions, time, "expired", replace_statuses={"active", "queued"}
+        )
 
     def _record_actions(
         self,
@@ -214,6 +194,11 @@ class ObservationBuilder:
         enemy_structures = [
             unit for unit in bot.enemy_structures if getattr(unit, "is_visible", True)
         ]
+        remembered_structures = [
+            unit
+            for unit in bot.enemy_structures
+            if not getattr(unit, "is_visible", True)
+        ]
         own_counts = _count(own_units)
         structure_counts = _count(structures)
         pending = self._pending_counts(bot)
@@ -245,13 +230,16 @@ class ObservationBuilder:
             "own_structure_blocks": own_structure_blocks,
             "enemy_unit_blocks": enemy_unit_blocks,
             "enemy_structure_blocks": enemy_structure_blocks,
-            "last_known_enemy_blocks": self._last_known_enemy_blocks(
+            "remembered_enemy_unit_blocks": self._remembered_enemy_unit_blocks(
                 remembered_enemies, bot
+            ),
+            "remembered_enemy_structure_blocks": (
+                self._remembered_enemy_structure_blocks(remembered_structures, bot)
             ),
             "production_and_technology": self.technology_builder.build(
                 bot, structures, pending
             ),
-            "action_history": self._action_history_blocks(),
+            "action_history": self._action_history_text(),
             "recent_changes": self._recent_changes(facts),
         }
         self._previous_facts = facts
@@ -264,7 +252,9 @@ class ObservationBuilder:
         for entity in list(bot.units) + list(bot.structures):
             context.own_entities[self.ids.alias(entity.tag)] = entity
         for entity in list(bot.enemy_units) + list(bot.enemy_structures):
-            if getattr(entity, "is_visible", True):
+            if getattr(entity, "is_visible", True) and not getattr(
+                entity, "is_memory", False
+            ):
                 context.enemy_entities[self.ids.alias(entity.tag)] = entity
         return context
 
@@ -325,7 +315,7 @@ class ObservationBuilder:
 
     def _unit_detail(self, unit: Any, bot: Any) -> str:
         lines = self._health_lines(unit)
-        lines.append(f"Position: {self._position_label(unit, bot)}.")
+        lines.append(f"Position: {self._position_label(unit, bot)}")
         energy = self._energy_line(unit)
         if energy:
             lines.append(energy)
@@ -339,22 +329,22 @@ class ObservationBuilder:
         abilities = getattr(unit, "abilities", None)
         if abilities is None:
             return [
-                "Tactical Jump: availability unknown.",
-                "Yamato Cannon: availability unknown.",
+                "Tactical Jump: [Unknown]",
+                "Yamato Cannon: [Unknown]",
             ]
         names = {getattr(ability, "name", str(ability)) for ability in abilities}
         return [
-            "Tactical Jump: ready."
+            "Tactical Jump: ready"
             if "EFFECT_TACTICALJUMP" in names
-            else "Tactical Jump: unavailable.",
-            "Yamato Cannon: ready."
+            else "Tactical Jump: unavailable",
+            "Yamato Cannon: ready"
             if "YAMATO_YAMATOGUN" in names
-            else "Yamato Cannon: unavailable.",
+            else "Yamato Cannon: unavailable",
         ]
 
     def _structure_detail(self, structure: Any, bot: Any) -> str:
         lines = self._health_lines(structure)
-        lines.append(f"Position: {self._position_label(structure, bot)}.")
+        lines.append(f"Position: {self._position_label(structure, bot)}")
         energy = self._energy_line(structure)
         if energy:
             lines.append(energy)
@@ -371,7 +361,7 @@ class ObservationBuilder:
         if health_max <= 0:
             return []
         return [
-            f"Health: {int(health)}/{int(health_max)} ({int((health / health_max) * 100)}%)."
+            f"Health: {int(health)}/{int(health_max)} ({int((health / health_max) * 100)}%)"
         ]
 
     @staticmethod
@@ -390,7 +380,7 @@ class ObservationBuilder:
             percentage = getattr(unit, "health_percentage", None)
             if isinstance(percentage, (int, float)):
                 values.append(f"{int(percentage * 100)}%")
-        return f"Health: [{', '.join(values)}]." if values else ""
+        return f"Health: [{', '.join(values)}]" if values else ""
 
     @staticmethod
     def _energy_line(unit: Any) -> str:
@@ -402,7 +392,7 @@ class ObservationBuilder:
             return ""
         if energy_max <= 0:
             return ""
-        return f"Energy: {int(energy)}/{int(energy_max)}."
+        return f"Energy: {int(energy)}/{int(energy_max)}"
 
     def _position_label(self, unit: Any, bot: Any) -> str:
         position = getattr(unit, "position", None)
@@ -446,13 +436,13 @@ class ObservationBuilder:
             name = _type_name(unit)
             state = role_labels.get(unit.tag, self._own_unit_state(unit))
             if name in COMPACT_UNIT_NAMES:
-                detail = f"Location: {self._area_label(unit, bot)}."
+                detail = f"Location: {self._area_label(unit, bot)}"
             elif name in IMPORTANT_UNIT_NAMES or counts[name] <= 2:
                 detail = self._unit_detail(unit, bot)
             else:
                 # Combat units remain compact, but their group must still have
                 # enough spatial context for the model to select the right group.
-                detail = f"Location: {self._area_label(unit, bot)}."
+                detail = f"Location: {self._area_label(unit, bot)}"
             grouped[(name, state, detail)].append(unit)
         return self._group_blocks(grouped, context.own_entities)
 
@@ -473,24 +463,45 @@ class ObservationBuilder:
             grouped[(name, state, detail)].append(unit)
         return self._group_blocks(grouped, context.enemy_entities)
 
-    def _last_known_enemy_blocks(self, units: list[Any], bot: Any) -> list[str]:
-        """Keep enemy memory brief and clearly separate from current vision."""
-        grouped: dict[tuple[str, str, int], int] = defaultdict(int)
+    def _remembered_enemy_unit_blocks(
+        self, units: list[Any], bot: Any
+    ) -> list[str]:
+        grouped: dict[tuple[str, str], list[Any]] = defaultdict(list)
         for unit in units:
-            name = _type_name(unit)
-            if name not in LAST_KNOWN_UNIT_NAMES:
-                continue
-            try:
-                age = max(0, int(float(getattr(unit, "age", 0.0))))
-            except (AttributeError, TypeError, ValueError):
-                age = 0
-            grouped[(name, self._area_label(unit, bot), age)] += 1
-        lines = [
-            f"{count} {self._display_name(name, plural=count > 1)} last seen "
-            f"{location}, {age}s ago."
-            for (name, location, age), count in grouped.items()
-        ]
-        return lines[:3]
+            grouped[(_type_name(unit), self._area_label(unit, bot))].append(unit)
+
+        blocks: dict[tuple[str, str, str], list[Any]] = {}
+        for (name, location), members in grouped.items():
+            ages: list[int] = []
+            for unit in members:
+                try:
+                    ages.append(max(0, int(float(getattr(unit, "age", 0.0)))))
+                except (AttributeError, TypeError, ValueError):
+                    ages.append(0)
+            youngest, oldest = min(ages), max(ages)
+            age = str(youngest) if youngest == oldest else f"{youngest}-{oldest}"
+            blocks[
+                (
+                    name,
+                    f"last seen {age}s ago",
+                    f"Location: {location}",
+                )
+            ] = members
+        return self._group_blocks(blocks, None)
+
+    def _remembered_enemy_structure_blocks(
+        self, structures: list[Any], bot: Any
+    ) -> list[str]:
+        grouped: dict[tuple[str, str, str], list[Any]] = defaultdict(list)
+        for structure in structures:
+            grouped[
+                (
+                    _type_name(structure),
+                    "last known",
+                    f"Last known position: {self._position_label(structure, bot)}",
+                )
+            ].append(structure)
+        return self._group_blocks(grouped, None)
 
     def _structure_blocks(
         self, structures: list[Any], context: EntityContext, bot: Any, *, own: bool
@@ -502,7 +513,7 @@ class ObservationBuilder:
             state = self._structure_state(structure)
             detail = ""
             if name in COMPACT_STRUCTURE_NAMES:
-                detail = f"Location: {self._area_label(structure, bot)}."
+                detail = f"Location: {self._area_label(structure, bot)}"
             elif name in IMPORTANT_STRUCTURE_NAMES or counts[name] == 1:
                 detail = self._structure_detail(structure, bot)
             grouped[(name, state, detail)].append(structure)
@@ -512,7 +523,7 @@ class ObservationBuilder:
     def _group_blocks(
         self,
         grouped: dict[tuple[str, str, str], list[Any]],
-        entity_map: dict[str, Any],
+        entity_map: dict[str, Any] | None,
     ) -> list[str]:
         priority = {
             "BATTLECRUISER": 0,
@@ -521,23 +532,28 @@ class ObservationBuilder:
         blocks: list[tuple[tuple[int, str, str], str]] = []
         for (name, state, extra), members in grouped.items():
             members.sort(key=lambda unit: getattr(unit, "tag", 0))
-            aliases = []
-            for unit in members:
-                alias = self.ids.alias(unit.tag)
-                aliases.append(alias)
-                entity_map[alias] = unit
+            if entity_map is None:
+                observation_ids = f"[{','.join('*' for _ in members)}]"
+            else:
+                aliases = []
+                for unit in members:
+                    alias = self.ids.alias(unit.tag)
+                    aliases.append(alias)
+                    entity_map[alias] = unit
+                observation_ids = f"[{','.join(aliases)}]"
             is_compact = name in COMPACT_UNIT_NAMES or name in COMPACT_STRUCTURE_NAMES
             label = self._display_name(
                 name,
                 plural=len(members) > 1 and not is_compact,
             )
-            observation_ids = f"[{','.join(aliases)}]"
-            lines = [f"{observation_ids} {label}", f"Status: {state}."]
+            lines = [f"{observation_ids} {label}"]
+            if state:
+                lines.append(f"  Status: {state}")
             if name in COMPACT_STRUCTURE_NAMES:
                 if health := self._health_list(members):
-                    lines.append(health)
+                    lines.append(f"  {health}")
             if extra:
-                lines.extend(extra.splitlines())
+                lines.extend(f"  {line}" for line in extra.splitlines())
             blocks.append(((priority.get(name, 5), name, state), "\n".join(lines)))
         blocks.sort(key=lambda item: item[0])
         return [block for _, block in blocks]
@@ -744,11 +760,25 @@ class ObservationBuilder:
                 break
         return changes
 
-    def _action_history_blocks(self) -> list[str]:
-        return [
-            f"{item.time} {item.description} status: {item.status}"
-            for item in self._action_history
+    def _action_history_text(self) -> str:
+        guide = (
+            "Status guide:\n"
+            "- `active`: Ongoing control currently in effect.\n"
+            "- `complete`: Accepted one-time action submitted.\n"
+            "- `queued`: Waiting for resources.\n"
+            "- `failed`: Not accepted or not executed.\n"
+            "- `expired`: Queued or ongoing control no longer in effect."
+        )
+        if not self._action_history:
+            return f"{guide}\n\n[None]"
+        rows = [
+            "| Time | Action | Status |",
+            "| --- | --- | --- |",
         ]
+        for item in self._action_history:
+            action = item.description.replace("|", "&#124;")
+            rows.append(f"| {item.time} | `{action}` | `{item.status}` |")
+        return f"{guide}\n\n" + "\n".join(rows)
 
     @staticmethod
     def _safe_mediator(bot: Any, attribute: str) -> Any:

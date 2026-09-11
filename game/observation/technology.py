@@ -11,6 +11,12 @@ def _type_name(unit: Any) -> str:
 
 
 DISPLAY_NAMES = {
+    "SCV": "SCV",
+    "MULE": "MULE",
+    "SIEGETANK": "Siege Tank",
+    "SIEGETANKSIEGED": "Siege Tank",
+    "WIDOWMINE": "Widow Mine",
+    "WIDOWMINEBURROWED": "Widow Mine",
     "BARRACKSREACTOR": "Barracks Reactor",
     "BARRACKSTECHLAB": "Barracks Tech Lab",
     "COMMANDCENTER": "Command Center",
@@ -34,7 +40,7 @@ DISPLAY_NAMES = {
 def display_name(name: str, count: int = 1) -> str:
     value = DISPLAY_NAMES.get(name, name.replace("_", " ").title())
     if count != 1 and value not in {"Barracks"}:
-        value += "s"
+        value = {"Refinery": "Refineries"}.get(value, value + "s")
     return value
 
 

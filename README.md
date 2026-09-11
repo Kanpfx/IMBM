@@ -84,7 +84,7 @@ BattleCruiserRush 战术。
 
 ```powershell
 python run.py `
-  --map_name IncorporealAIE_v4 `
+  --map_name AutomatonLE `
   --difficulty VeryHard `
   --build_mode RandomBuild `
   --enemy_race Terran `
@@ -115,3 +115,12 @@ conda run -n StarWM python -m unittest discover -s tests -v
 - `scripts/日志查看器.html`：直接在浏览器中打开并选择 `logs/<时间戳>/` 目录，查看观测、模型、动作、事件、元数据和控制台日志。
 
 每局运行结果默认写入 `logs/<时间戳>/`。
+
+### 展示与记录格式
+
+模型提示词、游戏内消息和控制台中的动作统一显示为 `ActionName(argument=value)`。
+错误反馈使用“错误原因 + 提交内容”的分条文本；日志查看器也将结构化记录转换为可读字段和 DSL 动作。
+
+内部动作、反馈仍使用字典和列表，日志使用 JSON/JSONL。查看器只在读取文件时解码 JSON，
+直接显示字符串中的真实换行，不对反斜杠做全局替换。原始输入和回复保留原样；
+DSL 解析支持实际的 LF/CRLF 换行，字面量反斜杠换行会作为格式错误反馈。

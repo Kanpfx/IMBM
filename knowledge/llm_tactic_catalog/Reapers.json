@@ -15,7 +15,7 @@
       "id": "opening_setup",
       "enter_when": [
         "The initial two-Barracks, two-Refinery, first-Reaper, and Orbital Command setup is not complete.",
-        "This usually occurs within approximately 0-2 minutes; time is only a weak reference."
+        "Typically within 0-2 minutes; timing is only a rough guide."
       ],
       "goal": "Complete the initial Reaper setup quickly and prepare for the four-Barracks pressure.",
       "guidance": [

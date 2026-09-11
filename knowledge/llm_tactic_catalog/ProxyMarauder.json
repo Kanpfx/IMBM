@@ -2,7 +2,7 @@
   "id": "ProxyMarauder",
   "concept": "Establish two forward Barracks with Tech Labs, use early Marauders and Concussive Shells for sustained ground pressure, then transition into a compact Marine-Marauder-Medivac army if the proxy does not end the game.",
   "rules": [
-    "Select the phase whose criteria best match the current observed state, using time only as a weak reference.",
+    "Select the phase whose criteria best match the current observed state, using timing only as a rough guide.",
     "Keep Marauders as the only combat unit before the bio transition; do not add unrelated units, production, technology, expansion, or static defense that delays the proxy timing.",
     "Use one forward area in the direction of enemy_main for both Barracks, preferably outside immediate enemy vision when a usable location is available, and preserve nearby builders when practical.",
     "Group Marauders before engaging, kite ground units with Concussive Shells, and retreat from unfavorable fights instead of feeding reinforcements one at a time.",
@@ -13,7 +13,7 @@
       "id": "proxy_opening",
       "enter_when": [
         "Fewer than two Barracks exist or are under construction at the selected proxy location.",
-        "This usually occurs within approximately 0-2 minutes; time is only a weak reference."
+        "Typically within 0-2 minutes; timing is only a rough guide."
       ],
       "goal": "Start the fixed two-Barracks proxy while preserving the minimum economy needed for Marauder production.",
       "guidance": [

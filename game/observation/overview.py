@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
+from game.observation.technology import display_name as _display_name
+
 
 WORKER_TYPES = frozenset({"SCV", "DRONE", "PROBE", "MULE"})
 PRODUCTION_TYPES = ("BARRACKS", "FACTORY", "STARPORT")
@@ -12,27 +14,6 @@ PRODUCTION_TYPES = ("BARRACKS", "FACTORY", "STARPORT")
 
 def _type_name(unit: Any) -> str:
     return getattr(getattr(unit, "type_id", None), "name", "UNKNOWN")
-
-
-def _display_name(name: str, count: int = 1) -> str:
-    names = {
-        "BATTLECRUISER": "Battlecruiser",
-        "HELLIONTANK": "Hellbat",
-        "ORBITALCOMMAND": "Orbital Command",
-        "PLANETARYFORTRESS": "Planetary Fortress",
-        "REFINERY": "Refinery",
-        "SIEGETANK": "Siege Tank",
-        "SIEGETANKSIEGED": "Siege Tank",
-        "VIKINGFIGHTER": "Viking",
-    }
-    value = names.get(name, name.replace("_", " ").title())
-    if count != 1:
-        value = {
-            "Barracks": "Barracks",
-            "Refinery": "Refineries",
-            "SCV": "SCVs",
-        }.get(value, value + "s")
-    return value
 
 
 class OverviewBuilder:
@@ -70,7 +51,7 @@ class OverviewBuilder:
         width = getattr(map_size, "x", getattr(map_size, "width", None))
         height = getattr(map_size, "y", getattr(map_size, "height", None))
         if isinstance(width, (int, float)) and isinstance(height, (int, float)):
-            fields.append(f"Map size: {int(width)}*{int(height)}")
+            fields.append(f"Map size: {int(width)} x {int(height)}")
         return "\n".join(fields)
 
     def _resources(self, bot: Any, structures: list[Any]) -> str:
@@ -117,8 +98,8 @@ class OverviewBuilder:
         building = max(0, len(townhalls) - ready)
         idle = sum(bool(getattr(worker, "is_idle", False)) for worker in workers)
         lines = [
-            f"Economy: bases {ready} ready/{building} building "
-            f"(workers {len(workers)}, idle {idle})",
+            f"Economy: {ready} {'base' if ready == 1 else 'bases'} ready, {building} under construction; "
+            f"{len(workers)} workers, {idle} idle",
         ]
 
         saturation = self._saturation(bot, townhalls)
@@ -231,7 +212,7 @@ class OverviewBuilder:
             lines.append(
                 "Army activity: "
                 + ", ".join(
-                    f"{name} {activity[name]}"
+                    f"{activity[name]} {name}"
                     for name in ("attacking", "moving", "idle", "other")
                 )
             )
@@ -253,8 +234,8 @@ class OverviewBuilder:
             )
         )
         visible_enemy = (
-            f"Visible enemy: units {len(enemy_units)}, "
-            f"structures {len(enemy_structures)}"
+            f"Visible enemy: {len(enemy_units)} {'unit' if len(enemy_units) == 1 else 'units'}, "
+            f"{len(enemy_structures)} {'structure' if len(enemy_structures) == 1 else 'structures'}"
         )
         if enemy_composition:
             visible_enemy += f" ({enemy_composition})"

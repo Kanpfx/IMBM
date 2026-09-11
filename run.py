@@ -126,6 +126,7 @@ def main() -> None:
                         "build_mode": args.build_mode,
                         "own_race": args.own_race,
                         "enemy_race": args.enemy_race,
+                        "realtime": True,
                     },
                     log_directory=match_log_directory,
                 ),
@@ -139,7 +140,7 @@ def main() -> None:
             run_game(
                 maps.get(args.map_name),
                 [bot, opponent],
-                realtime=False,
+                realtime=True,
                 save_replay_as=str(match_log_directory / "replay.SC2Replay"),
             )
         finally:

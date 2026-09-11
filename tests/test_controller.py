@@ -51,7 +51,7 @@ class ControllerTests(unittest.IsolatedAsyncioTestCase):
             [
                 (header, True),
                 (
-                    "actions[0]=BuildStructure(base_location=main, "
+                    "Action 1: BuildStructure(base_location=main, "
                     "structure_id=BARRACKS)",
                     True,
                 ),
@@ -128,7 +128,7 @@ class ControllerTests(unittest.IsolatedAsyncioTestCase):
 
         class ObservationBuilder:
             def __init__(self):
-                self.completed = []
+                self.expired = []
 
             def collect_frame(self, _bot):
                 return None
@@ -136,8 +136,8 @@ class ControllerTests(unittest.IsolatedAsyncioTestCase):
             def build(self, _bot, iteration):
                 return observation(iteration)
 
-            def record_completed_actions(self, actions, game_time):
-                self.completed.append((actions, game_time))
+            def record_expired_actions(self, actions, game_time):
+                self.expired.append((actions, game_time))
 
         class ModelAgent:
             async def run(self, *_args, **_kwargs):
@@ -176,11 +176,11 @@ class ControllerTests(unittest.IsolatedAsyncioTestCase):
         controller._run_persistent_actions = lambda _bot, _iteration: None
         bot = type("Bot", (), {"time_formatted": "00:12"})()
 
-        await controller.run_iteration(bot, 30)
+        await controller.run_iteration(bot, 60)
 
         self.assertEqual(controller.automation.worker_target, 20)
         self.assertTrue(controller.automation.registered)
         self.assertEqual(
-            controller.observation_builder.completed,
+            controller.observation_builder.expired,
             [([previous_override], "00:12")],
         )

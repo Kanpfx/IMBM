@@ -116,8 +116,11 @@ class ObservationTests(unittest.TestCase):
         self.assertNotIn("<current_capabilities>", observation.text)
         self.assertNotIn("<available_technology_steps>", observation.text)
         self.assertIn("<visible_units>", observation.text)
+        self.assertIn("<visible_structures>", observation.text)
+        self.assertIn("<enemy_memory>", observation.text)
+        self.assertIn("<recently_seen_units>", observation.text)
         self.assertIn("<known_structures>", observation.text)
-        self.assertIn("<last_known_units>", observation.text)
+        self.assertNotIn("<last_known_units>", observation.text)
         self.assertIn("<state_changes>", observation.text)
         self.assertIn("<action_history>", observation.text)
         self.assertNotIn("<action_feedback>", observation.text)
@@ -127,7 +130,7 @@ class ObservationTests(unittest.TestCase):
             "Matchup: Terran (you) vs Protoss (enemy)",
             observation.text,
         )
-        self.assertIn("Map size: 128*128", observation.text)
+        self.assertIn("Map size: 128 x 128", observation.text)
         self.assertIn("Resources: 50 minerals, 0 vespene", observation.text)
         self.assertIn(
             "Income: 900 minerals/min, 300 vespene/min",
@@ -137,21 +140,21 @@ class ObservationTests(unittest.TestCase):
             "Supply: 12/15 (workers 2, army 1, free 3)",
             observation.text,
         )
-        self.assertIn("  Situation alerts:", observation.text)
+        self.assertIn("  Situational hints:", observation.text)
         self.assertIn(
-            "Economy: bases 1 ready/0 building (workers 2, idle 0)",
+            "Economy: 1 base ready, 0 under construction; 2 workers, 0 idle",
             observation.text,
         )
         self.assertIn("Saturation: main 2/16", observation.text)
         self.assertIn("Army: 1 supply (1 Marine)", observation.text)
         self.assertIn(
-            "Visible enemy: units 1, structures 0 (1 Stalker)",
+            "Visible enemy: 1 unit, 0 structures (1 Stalker)",
             observation.text,
         )
         self.assertIn(
             "[0,1] SCV\n"
-            "    Status: collecting resources automatically.\n"
-            "    Location: near our main.",
+            "      Status: collecting resources automatically\n"
+            "      Location: near our main",
             observation.text,
         )
         self.assertIn("[4] Stalker", observation.text)
@@ -179,11 +182,11 @@ class ObservationTests(unittest.TestCase):
         observation = ObservationBuilder(TagIdMapper()).build(bot, iteration=0)
 
         self.assertIn("[3] Battlecruiser", observation.text)
-        self.assertIn("Health: 440/550 (80%).", observation.text)
-        self.assertIn("Position: (10, 10), near our main.", observation.text)
-        self.assertIn("Energy: 125/200.", observation.text)
-        self.assertIn("Tactical Jump: ready.", observation.text)
-        self.assertIn("Yamato Cannon: ready.", observation.text)
+        self.assertIn("Health: 440/550 (80%)", observation.text)
+        self.assertIn("Position: (10, 10), near our main", observation.text)
+        self.assertIn("Energy: 125/200", observation.text)
+        self.assertIn("Tactical Jump: ready", observation.text)
+        self.assertIn("Yamato Cannon: ready", observation.text)
         self.assertIn("[5] Starport", observation.text)
 
     def test_history_is_included_on_the_next_observation(self):
@@ -200,12 +203,12 @@ class ObservationTests(unittest.TestCase):
         observation = builder.build(Bot(), iteration=10)
 
         self.assertIn(
-            "05:10 macro.build_structure(structure_id=SUPPLYDEPOT, "
-            "base_location=main) status: completed",
+            "| 05:10 | `macro.build_structure(structure_id=SUPPLYDEPOT, "
+            "base_location=main)` | `complete` |",
             observation.text,
         )
 
-    def test_queued_history_updates_in_place_when_completed_or_expired(self):
+    def test_queued_history_updates_in_place_when_complete_or_expired(self):
         builder = ObservationBuilder(TagIdMapper())
         finished = {
             "id": "BuildStructure",
@@ -223,13 +226,13 @@ class ObservationTests(unittest.TestCase):
         observation = builder.build(Bot(), iteration=10)
 
         self.assertIn(
-            "05:10 BuildStructure(structure_id=FACTORY, base_location=main) "
-            "status: completed",
+            "| 05:10 | `BuildStructure(structure_id=FACTORY, base_location=main)` "
+            "| `complete` |",
             observation.text,
         )
         self.assertIn(
-            "05:11 TechUp(desired_tech=STARPORT, base_location=main) "
-            "status: expired",
+            "| 05:11 | `TechUp(desired_tech=STARPORT, base_location=main)` "
+            "| `expired` |",
             observation.text,
         )
         self.assertEqual(
@@ -239,7 +242,7 @@ class ObservationTests(unittest.TestCase):
             1,
         )
 
-    def test_persistent_history_uses_active_completed_and_failed_states(self):
+    def test_persistent_history_uses_active_expired_and_failed_states(self):
         builder = ObservationBuilder(TagIdMapper())
         active = {
             "id": "KeepUnitSafe",
@@ -251,25 +254,21 @@ class ObservationTests(unittest.TestCase):
         }
         builder.record_active_actions([active], time="05:10")
         builder.record_active_actions([failed], time="05:11")
-        builder.record_completed_actions([active], time="05:20")
+        builder.record_expired_actions([active], time="05:20")
         builder.record_failed_actions([failed], time="05:20")
 
         observation = builder.build(Bot(), iteration=10)
 
+        self.assertIn("`active`: Ongoing control currently in effect", observation.text)
+        self.assertIn("| Time | Action | Status |", observation.text)
         self.assertIn(
-            "KeepUnitSafe(unit=1, grid=ground) status: completed", observation.text
-        )
-        self.assertIn(
-            "PathUnitToTarget(unit=2, grid=ground, target=main) status: failed",
+            '| 05:10 | `KeepUnitSafe(unit="1", grid=ground)` | `expired` |',
             observation.text,
         )
         self.assertIn(
-            "KeepUnitSafe(unit=1, grid=ground) status: completed\n"
-            "    05:11 PathUnitToTarget(unit=2, grid=ground, target=main) "
-            "status: failed",
+            '| 05:11 | `PathUnitToTarget(unit="2", grid=ground, target=main)` | `failed` |',
             observation.text,
         )
-        self.assertNotIn("status: active", observation.text)
 
     def test_compact_units_keep_their_semantic_locations(self):
         bot = Bot()
@@ -283,11 +282,11 @@ class ObservationTests(unittest.TestCase):
         observation = ObservationBuilder(TagIdMapper()).build(bot, iteration=0)
 
         self.assertIn(
-            "[2,3] Marine\n" "    Status: active.\n" "    Location: near our main.",
+            "[2,3] Marine\n" "      Status: active\n" "      Location: near our main",
             observation.text,
         )
         self.assertIn(
-            "[4] Marine\n" "    Status: active.\n" "    Location: near enemy main.",
+            "[4] Marine\n" "      Status: active\n" "      Location: near enemy main",
             observation.text,
         )
         self.assertIn("[6,7] MULE", observation.text)
@@ -307,10 +306,10 @@ class ObservationTests(unittest.TestCase):
         observation = ObservationBuilder(TagIdMapper()).build(bot, iteration=0)
 
         self.assertIn(
-            "[4] Stalker\n    Status: visible; near our main.", observation.text
+            "[4] Stalker\n      Status: visible; near our main", observation.text
         )
         self.assertIn(
-            "[5] Zealot\n    Status: visible; near enemy main.", observation.text
+            "[5] Zealot\n      Status: visible; near enemy main", observation.text
         )
         self.assertIn("Enemy ground units are close to our main.", observation.text)
 
@@ -320,45 +319,40 @@ class ObservationTests(unittest.TestCase):
 
         observation = ObservationBuilder(TagIdMapper()).build(bot, iteration=0)
 
-        self.assertEqual(observation.text.count("[None visible]"), 1)
-        self.assertIn("[None known]", observation.text)
+        self.assertEqual(observation.text.count("[None visible]"), 2)
 
-    def test_last_known_enemy_intelligence_is_brief(self):
+    def test_enemy_memory_uses_non_actionable_ids(self):
         bot = Bot()
         remembered = Unit(91, "DARKTEMPLAR")
-        remembered.is_visible = False
+        remembered.is_visible = True
         remembered.is_memory = True
         remembered.age = 7.8
-        bot.enemy_units.append(remembered)
+        remembered_second = Unit(93, "DARKTEMPLAR")
+        remembered_second.is_visible = True
+        remembered_second.is_memory = True
+        remembered_second.age = 12.2
+        snapshot = Unit(92, "BARRACKS")
+        snapshot.is_visible = False
+        bot.enemy_units.extend((remembered, remembered_second))
+        bot.enemy_structures.append(snapshot)
 
         observation = ObservationBuilder(TagIdMapper()).build(bot, iteration=0)
 
-        self.assertIn("<last_known_units>", observation.text)
         self.assertIn(
-            "1 Darktemplar last seen near our main, 7s ago.", observation.text
+            "<recently_seen_units>\n"
+            "      [*,*] Darktemplars\n"
+            "        Status: last seen 7-12s ago\n"
+            "        Location: near our main",
+            observation.text,
         )
-        self.assertNotIn("[91]", observation.text)
-
-    def test_unknown_last_known_enemy_is_ignored(self):
-        class UnknownMemoryUnit:
-            tag = 92
-            type_id = None
-            is_visible = False
-            is_memory = True
-            age = 4.0
-            position = Point(10, 10)
-
-            @property
-            def name(self):
-                raise KeyError(0)
-
-        bot = Bot()
-        bot.enemy_units.append(UnknownMemoryUnit())
-
-        observation = ObservationBuilder(TagIdMapper()).build(bot, iteration=0)
-
-        self.assertIn("<last_known_units>\n    [None]", observation.text)
-        self.assertNotIn("UNKNOWN", observation.text)
+        self.assertIn(
+            "<known_structures>\n"
+            "      [*] Barracks\n"
+            "        Status: last known\n"
+            "        Last known position: (10, 10), near our main",
+            observation.text,
+        )
+        self.assertEqual(len(observation.context.enemy_entities), 1)
 
     def test_compact_structures_group_by_status_and_location_with_health_list(self):
         bot = Bot()
@@ -383,23 +377,23 @@ class ObservationTests(unittest.TestCase):
 
         self.assertIn(
             "[4,5] Supply Depot\n"
-            "    Status: ready.\n"
-            "    Health: [400/400, 250/400].\n"
-            "    Location: near our main.",
+            "      Status: ready\n"
+            "      Health: [400/400, 250/400]\n"
+            "      Location: near our main",
             observation.text,
         )
         self.assertIn(
             "[6] Supply Depot\n"
-            "    Status: ready.\n"
-            "    Health: [400/400].\n"
-            "    Location: near enemy main.",
+            "      Status: ready\n"
+            "      Health: [400/400]\n"
+            "      Location: near enemy main",
             observation.text,
         )
         self.assertIn(
             "[7] Supply Depot\n"
-            "    Status: building (50%).\n"
-            "    Health: [200/400].\n"
-            "    Location: near our main.",
+            "      Status: building (50%)\n"
+            "      Health: [200/400]\n"
+            "      Location: near our main",
             observation.text,
         )
         self.assertNotIn("Supply Depots", observation.text)
@@ -416,13 +410,13 @@ class ObservationTests(unittest.TestCase):
         factory = Unit(700, "FACTORY", progress=0.25)
         bot.structures.append(factory)
         building = builder.build(bot, iteration=10)
-        self.assertIn("Status: building (25%).", building.text)
+        self.assertIn("Status: building (25%)", building.text)
         self.assertIn("Our Factory started building.", building.text)
         self.assertNotIn("Our Factory became ready.", building.text)
 
         factory.build_progress = 1.0
         ready = builder.build(bot, iteration=20)
-        self.assertIn("Status: ready.", ready.text)
+        self.assertIn("Status: ready", ready.text)
         self.assertIn("Our Factory became ready.", ready.text)
         self.assertNotIn("Our Factory completed.", ready.text)
 
@@ -526,57 +520,50 @@ class ObservationTests(unittest.TestCase):
 
         self.assertEqual(messages[0]["content"], MODEL_ROLE)
         self.assertNotIn("<task>", prompt)
-        self.assertIn("<observation>\n  # Round state", prompt)
+        self.assertIn("# Round state", prompt)
+        self.assertNotIn("<observation>", prompt)
+        self.assertNotIn("</observation>", prompt)
         self.assertIn("<tactical_reference>", prompt)
         self.assertIn("**Tactic ID:** `BattleCruiserRush`", prompt)
-        self.assertIn("Tactic concept: Build Battlecruisers.", prompt)
-        self.assertIn("Global tactic rules:", prompt)
+        self.assertIn("**Tactic concept:** Build Battlecruisers.", prompt)
+        self.assertIn("**Global tactic rules:**", prompt)
         self.assertIn(
-            '<phase_reference index="1">\n    **Phase ID:** `opening_tech`', prompt
+            '<phase index="1">\n    **Phase ID:** `opening_tech`', prompt
         )
         self.assertIn("**Phase ID:** `opening_tech`", prompt)
-        self.assertIn('<phase_reference index="2">', prompt)
+        self.assertIn('<phase index="2">', prompt)
         self.assertIn("**Phase ID:** `first_bc_preparation`", prompt)
-        self.assertIn("Phase selection criteria:", prompt)
-        self.assertIn("**Phase objective:** Start production.", prompt)
-        self.assertIn("Phase guidance:", prompt)
+        self.assertIn("**Selection criteria:**", prompt)
+        self.assertIn("**Objective:** Start production.", prompt)
+        self.assertIn("**Guidance:**", prompt)
+        self.assertIn("</phase>", prompt)
         self.assertIn("</tactical_reference>", prompt)
         self.assertNotIn("<decision_context>", prompt)
         self.assertIn("<actions_reference>", prompt)
-        self.assertIn("<argument_types>", prompt)
+        self.assertIn("<argument_definitions>", prompt)
         self.assertIn("<available_actions>", prompt)
         self.assertIn("- `BuildStructure(", prompt)
         self.assertIn("<output_contract>", prompt)
-        self.assertIn(
-            "<output_contract>\n  <phase>\n  PHASE_ID\n  </phase>\n  <actions>",
-            prompt,
-        )
+        self.assertIn("<output_contract>\n  Output constraints are as follows:", prompt)
+        self.assertIn("  ```text\n  # phase\n  PHASE_ID\n\n  # actions", prompt)
         self.assertIn("  ActionName(argument=value,...)", prompt)
-        self.assertIn("  </actions>\n", prompt)
+        self.assertIn("  ```\n</output_contract>", prompt)
         self.assertIn("Use bare names for enums and landmarks", prompt)
+        self.assertIn("Avoid repeating an action that is already active", prompt)
+        self.assertIn("Strongly prefer group actions", prompt)
         self.assertIn("return 0-4 currently available actions", prompt)
-        self.assertNotIn("return 0-6 currently available actions", prompt)
-        self.assertLess(
-            prompt.index("<tactical_reference>"),
-            prompt.index("<output_contract>"),
-        )
-        self.assertLess(
-            prompt.index("<output_contract>"),
-            prompt.index("<actions_reference>"),
-        )
-        self.assertLess(
-            prompt.index("<actions_reference>"),
-            prompt.index("<observation>"),
-        )
+        self.assertNotIn("return 0-8 currently available actions", prompt)
+        self.assertLess(prompt.index("<tactical_reference>"), prompt.index("<actions_reference>"))
+        self.assertLess(prompt.index("<actions_reference>"), prompt.index("# Round state"))
+        self.assertLess(prompt.index("# Round state"), prompt.index("<output_contract>"))
         self.assertTrue(
             prompt.endswith(
-                "Select the best-matching phase from the tactical reference, "
-                "then compose and return suitable actions using only the available "
-                "actions and their documented parameters."
+                "Return your decision for the current observation."
             )
         )
         self.assertNotIn('"actions": [', prompt)
-        self.assertNotIn("<previous_validation_feedback>", prompt)
+        self.assertIn("<previous_validation_feedback>", prompt)
+        self.assertIn("  [None]\n</previous_validation_feedback>", prompt)
         self.assertNotIn("Valid example:", prompt)
 
     def test_action_cards_use_short_names_and_required_params_only(self):
@@ -613,8 +600,8 @@ class ObservationTests(unittest.TestCase):
             ": Attack-move a unit toward a target.",
             prompt,
         )
-        self.assertIn("<argument_types>", prompt)
-        self.assertIn("Argument types and value formats", prompt)
+        self.assertIn("<argument_definitions>", prompt)
+        self.assertIn("The following definitions explain each argument type and its accepted value formats", prompt)
         self.assertIn("All `proportion` values must sum to `1.0`.", prompt)
         self.assertIn(
             "- `Unit`: One unit or structure ID from the current observation.",
@@ -664,7 +651,9 @@ class ObservationTests(unittest.TestCase):
 
         self.assertEqual(prompt.count("<previous_validation_feedback>"), 1)
         self.assertEqual(prompt.count("</previous_validation_feedback>"), 1)
-        self.assertIn('"kind": "action"', prompt)
+        self.assertIn("1. Action: BuildStructure()", prompt)
+        self.assertIn("BuildStructure()", prompt)
+        self.assertNotIn('"kind":', prompt)
         self.assertIn("missing structure_id", prompt)
         self.assertLess(
             prompt.index("</action_history>"),

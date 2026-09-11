@@ -14,7 +14,7 @@ from game.actions.adapter import AresActionAdapter
 from game.actions.deferred import DeferredActionQueue
 from game.actions.errors import ResourceError
 from game.actions.exposure import ActionExposure
-from game.actions.formatting import format_indexed_actions
+from game.actions.formatting import format_feedback, format_indexed_actions
 from game.actions.persistent import PersistentActionRegistry
 from game.actions.policy import ActionReview, PolicyValidator, ValidationIssue
 from game.control.automation import AutomationController
@@ -188,12 +188,12 @@ class LLMGameController:
 
     def _run_persistent_actions(self, bot: Any, iteration: int) -> None:
         context = self.observation_builder.execution_context(bot)
-        completed, failed = self.persistent_actions.run(
+        expired, failed = self.persistent_actions.run(
             bot, iteration, self.adapter, context
         )
         game_time = getattr(bot, "time_formatted", "--:--")
-        if completed:
-            self.observation_builder.record_completed_actions(completed, game_time)
+        if expired:
+            self.observation_builder.record_expired_actions(expired, game_time)
         if failed:
             self.observation_builder.record_failed_actions(failed, game_time)
             self.telemetry.event(
@@ -276,7 +276,7 @@ class LLMGameController:
             worker_override
         )
         if override_changed and previous_override is not None:
-            self.observation_builder.record_completed_actions(
+            self.observation_builder.record_expired_actions(
                 [previous_override], game_time
             )
         if direct_actions:
@@ -330,7 +330,7 @@ class LLMGameController:
     def _clear_worker_override(self, game_time: str) -> None:
         previous_override, changed = self.automation.replace_worker_override(None)
         if changed and previous_override is not None:
-            self.observation_builder.record_completed_actions(
+            self.observation_builder.record_expired_actions(
                 [previous_override], game_time
             )
 
@@ -368,6 +368,8 @@ class LLMGameController:
             f"  {line}" for line in format_indexed_actions(displayed_actions)
         )
         logger.info("{}\n{}\n", decision_header, action_lines)
+        if validation_feedback:
+            logger.warning("Validation feedback:\n{}", format_feedback(validation_feedback))
 
     def _review_model_actions(
         self,

@@ -13,10 +13,11 @@ from ares.behaviors.combat.individual import KeepUnitSafe
 from ares.consts import ALL_STRUCTURES, TOWNHALL_TYPES, UnitRole
 from cython_extensions import cy_closest_to, cy_distance_to_squared, cy_towards
 from loguru import logger
-from sc2.data import Race, Result
+from sc2.data import Race, Result, Status
 from sc2.ids.ability_id import AbilityId
 from sc2.ids.unit_typeid import UnitTypeId
 from sc2.position import Point2
+from sc2.protocol import ProtocolError
 from sc2.unit import Unit
 
 from game.bot.consts import UNIT_TYPE_TO_NUM_REPAIRERS
@@ -61,18 +62,40 @@ class WhyBot(AresBot):
         )
 
     async def on_step(self, iteration: int) -> None:
-        await super().on_step(iteration)
-        self._last_iteration = iteration
-        if self.supply_used < 1:
-            await self.client.leave()
+        try:
+            await super().on_step(iteration)
+            self._last_iteration = iteration
+            if self.supply_used < 1 and not self.realtime:
+                await self.client.leave()
+                return
 
-        if self.llm_controller is None:
-            raise RuntimeError("model controller was not initialized")
-        await self.llm_controller.run_iteration(self, iteration)
-        if not self.opening_chat_tag and self.time > 5.0:
-            await self.chat_send("Tag: LLM", team_only=True)
-            await self.chat_send(f"Tag: {self.race.name}", team_only=True)
-            self.opening_chat_tag = True
+            if self.llm_controller is None:
+                raise RuntimeError("model controller was not initialized")
+            await self.llm_controller.run_iteration(self, iteration)
+            if not self.opening_chat_tag and self.time > 5.0:
+                await self.chat_send("Tag: LLM", team_only=True)
+                await self.chat_send(f"Tag: {self.race.name}", team_only=True)
+                self.opening_chat_tag = True
+        except ProtocolError as exc:
+            if not self.realtime or not exc.is_game_over_error:
+                raise
+            await self.client.observation()
+
+    async def _after_step(self) -> int:
+        if self.realtime and (
+            self.client._status == Status.ended or self.client._game_result
+        ):
+            if not self.client._game_result:
+                await self.client.observation()
+            return 0
+        try:
+            return await super()._after_step()
+        except ProtocolError as exc:
+            if not self.realtime or not exc.is_game_over_error:
+                raise
+            # Fetch SC2's result; python-sc2 then calls on_end and saves the replay.
+            await self.client.observation()
+            return 0
 
     async def on_end(self, game_result: Result) -> None:
         if self.llm_controller is not None:
