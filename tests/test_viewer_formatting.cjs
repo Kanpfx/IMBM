@@ -41,14 +41,28 @@ assert.ok(context.formatFeedback([
 ]).includes("1. Action: Broken("));
 assert.throws(() => context.parseJsonl("{broken}", "model.jsonl"));
 
-// Check the actual model panel uses raw reply text and readable feedback.
+// Verify raw output and validation feedback have separate homes, including legacy logs.
 context.indexes = { model: new Map([[1, [{ reply, validation_feedback: feedback, actions: [action] }]]]) };
-context.line = (label, value) => `${label}: ${value}`;
+context.line = (label, value) => label + ": " + value;
 context.pre = value => value;
 let panel;
 context.replacePanel = (_id, children) => { panel = children; };
-vm.runInContext(source.slice(source.indexOf("    function renderModel("), source.indexOf("    function renderActions(")), context);
+context.fold = (label, content) => label + ": " + content;
+vm.runInContext(source.slice(source.indexOf("    function modelRecords("), source.indexOf("    const executionEvents")), context);
 context.renderModel(1);
 assert.ok(panel.includes(reply));
-assert.ok(panel.some(value => value.includes('     # phase\n     opening')));
-console.log("Viewer syntax, JSONL decoding, DSL formatting, feedback and raw reply checks passed.");
+assert.ok(!panel.some(value => value.includes("Error: Invalid output")));
+context.renderValidation(1);
+assert.ok(panel.some(value => value.includes("Error: Invalid output")));
+context.indexes.model.set(2, [
+  { stage: "request", request_body: { messages: [] } },
+  { stage: "response", reply, usage: { prompt_tokens: 123, completion_tokens: 45 }, latency_ms: 30 },
+  { stage: "parsed", phase: "opening", actions: [action], parse_report: { valid: true, errors: [] } },
+  { stage: "validated", validation_report: [{ parsed_index: 1, status: "passed" }] },
+]);
+context.renderModel(2);
+assert.ok(panel.includes(reply));
+assert.ok(panel.some(value => value.includes("45")));
+context.renderValidation(2);
+assert.ok(panel.some(value => value.includes("passed")));
+console.log("Viewer syntax, legacy/new records, raw output and separate validation panels passed.");

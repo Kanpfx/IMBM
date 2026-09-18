@@ -140,3 +140,40 @@ class LLMClientTests(unittest.TestCase):
             set(body),
             {"model", "messages", "temperature", "max_tokens"},
         )
+
+class TraceTests(unittest.IsolatedAsyncioTestCase):
+    async def test_retry_raw_response_usage_and_parse_reports_are_preserved(self):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import AsyncMock
+        from llm.telemetry import Telemetry
+
+        raw_reply = "  # phase\nopening\n# actions\nBuild Workers(to count=20)\nUnsafe(unit=lookup(1))\n "
+        payload = json.dumps({
+            "id": "response-1", "model": "test",
+            "choices": [{"message": {"content": raw_reply}, "finish_reason": "stop"}],
+            "usage": {"prompt_tokens": 123, "completion_tokens": 45},
+        })
+        class Response:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *_args): return False
+            def read(self): return payload.encode("utf-8")
+
+        with tempfile.TemporaryDirectory() as directory:
+            trace = Telemetry(directory=Path(directory))
+            client = LLMClient(LLMConfig(model="test", base_url="https://example.invalid", api_key="secret-key"))
+            with patch("llm.client.request.urlopen", side_effect=[TimeoutError("timed out"), Response()]), patch("llm.client.asyncio.sleep", new_callable=AsyncMock):
+                result = await ModelAgent(client.config, client).run("clean obs", TACTIC, [], trace=trace, iteration=7)
+            rows = [json.loads(line) for line in (trace.directory / "model.jsonl").read_text(encoding="utf-8").splitlines()]
+            events = [json.loads(line) for line in (trace.directory / "events.jsonl").read_text(encoding="utf-8").splitlines()]
+            self.assertEqual([row["stage"] for row in rows], ["request", "response", "parsed"])
+            self.assertEqual(rows[1]["reply"], raw_reply)
+            self.assertEqual(rows[1]["raw_response"], payload)
+            self.assertEqual(rows[1]["usage"]["completion_tokens"], 45)
+            self.assertEqual(rows[1]["attempt"], 2)
+            self.assertEqual(rows[2]["parse_report"]["sources"][0]["source_index"], 1)
+            self.assertEqual(len(result.validation_feedback), 1)
+            self.assertTrue(all(row["decision_id"] == "d7" for row in rows + events))
+            self.assertTrue(any(row["event"] == "transport_error" and row["retrying"] for row in events))
+            self.assertNotIn("secret-key", json.dumps(rows + events))

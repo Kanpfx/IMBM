@@ -18,6 +18,7 @@ class EntityContext:
     enemy_entities: dict[str, Any] = field(default_factory=dict)
     positions: dict[str, Any] = field(default_factory=dict)
     grids: dict[str, Any] = field(default_factory=dict)
+    known_own_aliases: set[str] = field(default_factory=set)
 
     @property
     def entities(self) -> dict[str, Any]:
@@ -60,9 +61,10 @@ class EntityContext:
         try:
             return source[canonical]
         except KeyError as exc:
-            raise ResolveError.invalid_value(
-                "unit", canonical, "a current observation unit ID"
-            ) from exc
+            reason = "unit disappeared" if canonical in self.known_own_aliases else (
+                "unit ownership mismatch" if canonical in self.entities else "unknown or unavailable unit ID"
+            )
+            raise ResolveError(reason, f"unit {canonical}", parameter="unit", actual=canonical) from exc
 
     def resolve_point(self, value: Any) -> Any:
         if isinstance(value, str):

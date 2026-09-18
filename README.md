@@ -134,3 +134,11 @@ conda run -n StarWM python -m unittest discover -s tests -v
 内部动作、反馈仍使用字典和列表，日志使用 JSON/JSONL。查看器只在读取文件时解码 JSON，
 直接显示字符串中的真实换行，不对反斜杠做全局替换。原始输入和回复保留原样；
 DSL 解析支持实际的 LF/CRLF 换行，字面量反斜杠换行会作为格式错误反馈。
+
+### Debug 日志
+
+保留现有 JSONL 文件：`model.jsonl` 按 request、response、parsed、validated 阶段记录，
+`accepted_actions.jsonl` 记录最终处理，`events.jsonl` 记录网络尝试和后续执行，`obs.jsonl` 保存原观测，
+`console.log` 保留控制台原文和异常堆栈。用 decision_id / attempt_id / action_id 关联决策、重试和指令。
+查看器分区展示原始 messages、原始输出、提取结果、校验报告、执行和系统事件；完整 API 响应默认折叠。
+tokens 使用服务端 usage，缺失时显示“未提供”；旧日志仍可读取，不补造元数据。

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Any
 
@@ -22,6 +22,8 @@ class ModelResult:
     reply: str
     previous_validation_feedback: list[dict[str, Any]]
     latency_ms: int
+    received_at: float = 0.0
+    parse_report: dict[str, Any] = field(default_factory=dict)
 
 
 def _symbol_key(value: Any) -> str:
@@ -58,21 +60,25 @@ class ModelAgent:
         started_at = perf_counter()
         response = ""
         try:
-            response = await self.llm_client.complete(messages)
+            if isinstance(self.llm_client, LLMClient):
+                response = await self.llm_client.complete(messages, trace=trace, iteration=iteration)
+            else:
+                if trace is not None:
+                    trace.model_conversation(stage="request", iteration=iteration, request=request_messages)
+                response = await self.llm_client.complete(messages)
+                if trace is not None:
+                    trace.model_conversation(stage="response", iteration=iteration, reply=response,
+                                             latency_ms=round((perf_counter() - started_at) * 1000))
         except Exception as exc:
             latency_ms = round((perf_counter() - started_at) * 1000)
             if trace is not None:
                 trace.model_conversation(
-                    iteration=iteration,
-                    request=request_messages,
-                    reply=response,
-                    previous_validation_feedback=(previous_validation_feedback or []),
-                    valid=False,
-                    error=str(exc),
-                    latency_ms=latency_ms,
+                    stage="request_failed", iteration=iteration,
+                    error_type=type(exc).__name__, error=str(exc), latency_ms=latency_ms,
                 )
             raise
 
+        received_at = perf_counter()
         feedback: list[dict[str, Any]] = []
         try:
             payload = parse_model_payload(response)
@@ -84,6 +90,10 @@ class ModelAgent:
                     "error": str(exc),
                 }
             )
+            report = {"errors": feedback, "sources": [], "valid": False}
+            if trace is not None:
+                trace.model_conversation(stage="parsed", iteration=iteration, phase=None,
+                                         actions=[], parse_report=report)
             return ModelResult(
                 None,
                 [],
@@ -91,7 +101,7 @@ class ModelAgent:
                 request_messages,
                 response,
                 list(previous_validation_feedback or []),
-                round((perf_counter() - started_at) * 1000),
+                round((received_at - started_at) * 1000), received_at, report,
             )
 
         feedback.extend(
@@ -121,6 +131,15 @@ class ModelAgent:
             )
 
         actions = payload["actions"]
+        report = {
+            "errors": feedback, "sources": payload.get("sources", []),
+            "valid": not feedback, "submitted_phase": submitted_phase,
+            "normalized_phase": phase,
+        }
+        if trace is not None:
+            trace.model_conversation(
+                stage="parsed", iteration=iteration, phase=phase, actions=actions, parse_report=report,
+            )
         return ModelResult(
             phase,
             actions,
@@ -128,7 +147,7 @@ class ModelAgent:
             request_messages,
             response,
             list(previous_validation_feedback or []),
-            round((perf_counter() - started_at) * 1000),
+            round((received_at - started_at) * 1000), received_at, report,
         )
 
     def _request_messages(self, messages: list[dict[str, str]]) -> list[dict[str, str]]:

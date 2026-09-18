@@ -55,9 +55,33 @@ class ActionSurface:
     entries: list[dict[str, Any]]
     action_ids: frozenset[str]
     parameter_domains: dict[str, dict[str, frozenset[str]]]
+    context: EntityContext | None = None
 
     def validate(self, entry: dict[str, Any], args: dict[str, Any]) -> None:
         action_id = entry["id"]
+        actor_param = entry["availability"]["param"]
+        if self.context is not None and actor_param in args:
+            value = args[actor_param]
+            actors = value if isinstance(value, list) else [value]
+            required_types = ActionExposure._availability_types(entry)
+            ability = ActionExposure._fixed_ability(entry)
+            for value in actors:
+                alias = self.context.canonical_entity_alias(value)
+                unit = self.context.resolve_entity(alias, own_only=True)
+                actual_type = getattr(getattr(unit, "type_id", None), "name", "UNKNOWN")
+                if (required_types and actual_type not in required_types) or (
+                    not required_types and getattr(unit, "is_structure", False)
+                ):
+                    expected = "/".join(sorted(required_types)) if required_types else "unit, not structure"
+                    raise ParameterError(
+                        "unit type mismatch", f"unit {alias}: {actual_type}; expected {expected}",
+                        parameter=actor_param, actual=alias,
+                    )
+                if ability and not ActionExposure._ability_ready(unit, ability):
+                    raise ParameterError(
+                        "ability currently unavailable", f"unit {alias}: {ability}",
+                        parameter=actor_param, actual=alias,
+                    )
         if action_id not in self.action_ids:
             raise ActionSurfaceError(
                 "action unavailable",
@@ -83,7 +107,7 @@ class ActionSurface:
                 raise ParameterError.invalid_value(
                     name,
                     invalid,
-                    f"one or more currently available values from {sorted(allowed)}",
+                    "a currently available value; see the current observation",
                 )
 
 
@@ -139,6 +163,7 @@ class ActionExposure:
             prompt_entries,
             frozenset(entry["id"] for entry in prompt_entries),
             domains,
+            context,
         )
 
     @staticmethod
@@ -224,7 +249,7 @@ class ActionExposure:
             actor_types,
             units_only=not actor_types,
         )
-        if len(actors) < 2:
+        if not actors:
             return None
         domains: dict[str, frozenset[str]] = {"group": frozenset(actors)}
         if not self._add_target_domains(entry, context, domains):
@@ -257,7 +282,7 @@ class ActionExposure:
     ) -> bool:
         enemies = frozenset(context.enemy_entities)
         enemy_params = ENEMY_PARAMS_BY_ACTION.get(entry["id"], ())
-        if enemy_params and not enemies:
+        if enemy_params and not enemies and entry["id"] != "combat.group.keep_group_safe":
             return False
         for name in enemy_params:
             domains[name] = enemies

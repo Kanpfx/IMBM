@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from time import perf_counter
+from uuid import uuid4
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -74,6 +77,7 @@ class LLMGameController:
         self._next_model_time = 0.0
         self._feedback: list[dict[str, Any]] = []
         self._closed = False
+        self._action_origins: dict[str, dict[str, Any]] = {}
 
     @property
     def active(self) -> bool:
@@ -143,7 +147,7 @@ class LLMGameController:
         try:
             result = task.result()
         except Exception as exc:
-            self._record_failure(bot, iteration, "Model request", str(exc))
+            self._record_failure(bot, iteration, "Model request", str(exc), stage="system")
             return
 
         # Resolve aliases and availability against this frame, not the request frame.
@@ -160,35 +164,71 @@ class LLMGameController:
                 "action",
                 feedback.get("submitted_action", feedback.get("submitted_output", "Model output")),
             )
-            self._record_failure(bot, iteration, submitted, feedback["error"])
+            self._record_failure(
+                bot, iteration, submitted, feedback["error"],
+                stage="validation" if feedback.get("kind") == "action" else "parse",
+            )
+        notices = [
+            {"kind": "action_notice", "action_index": item.index + 1, "action": item.action, "error": item.reason}
+            for item in review.notices
+        ]
+        validation_feedback.extend(notices)
+        self._feedback.extend(notices)
+        rejected = {issue.index: issue for issue in review.issues}
+        normalized = iter(review.actions)
+        report = []
+        for index, submitted in enumerate(result.actions):
+            issue = rejected.get(index)
+            accepted = None if issue else next(normalized)
+            report.append({
+                "parsed_index": index + 1,
+                "status": "rejected" if issue else "passed",
+                "reason": issue.text() if issue else None,
+                **({"before": submitted, "after": accepted}
+                   if accepted != submitted and not any(item.index == index for item in review.notices) else {}),
+            })
         self.telemetry.model_conversation(
-            iteration=self._request_iteration,
+            stage="validated", iteration=self._request_iteration,
             applied_iteration=iteration,
             observation_age_seconds=round(float(bot.time) - self._request_time, 2),
-            request=result.request,
-            reply=result.reply,
-            previous_validation_feedback=result.previous_validation_feedback,
-            valid=not validation_feedback,
-            phase=result.phase or "unassigned",
-            actions=result.actions,
-            validation_feedback=validation_feedback,
-            latency_ms=result.latency_ms,
+            response_to_apply_ms=round((perf_counter() - result.received_at) * 1000) if result.received_at else None,
+            valid=not review.issues, validation_report=report, normalizations=review.normalizations,
+            validated_actions=review.actions, notices=notices,
         )
         if review.normalizations:
-            self.telemetry.event(
+            self._event(
                 "model_actions_normalized", iteration=iteration, notes=review.normalizations
             )
         feedback_start = len(self._feedback)
         states = self._dispatch_actions(bot, iteration, review, context)
+        source_indices = {
+            self._action_key(action): item["parsed_index"]
+            for action, item in zip(review.actions, (row for row in report if row["status"] == "passed"))
+        }
+        for state in states:
+            state["parsed_index"] = source_indices.get(self._action_key(state["action"]))
         validation_feedback.extend(self._feedback[feedback_start:])
         self._sync_active(bot)
         await self._publish_decision(bot, iteration, result, states, validation_feedback)
 
     def _dispatch_actions(
-        self, bot: Any, iteration: int, review: ActionReview, context: Any
+        self, bot: Any, iteration: int, review: ActionReview, context: Any,
+        *, from_queue: bool = False,
     ) -> list[dict[str, Any]]:
         states = []
         for action in review.actions:
+            key = self._action_key(action)
+            retained = (
+                from_queue or action in self.deferred_actions.actions
+                or action in self.persistent_actions.actions
+                or action == self.automation.worker_action
+            )
+            if not retained or key not in self._action_origins:
+                self._action_origins[key] = {
+                    "decision_id": f"d{self._request_iteration}",
+                    "request_iteration": self._request_iteration,
+                    "action_id": uuid4().hex,
+                }
             try:
                 action_id = self.catalog.get(action["id"])["id"]
                 if action_id == "macro.build_workers":
@@ -218,7 +258,7 @@ class LLMGameController:
                     if resource_status == "blocked":
                         reason = "resource shortfall exceeds queue tolerance; not submitted"
                         self._feedback.append({"kind": "action", "action": action, "error": reason})
-                        self.telemetry.event(
+                        self._event(
                             "action_not_submitted", iteration=iteration, action=action, reason=reason
                         )
                         continue
@@ -239,7 +279,23 @@ class LLMGameController:
             except (KeyError, TypeError, ValueError) as exc:
                 self._record_failure(bot, iteration, action, str(exc))
                 states.append({"action": action, "status": "failed", "reason": str(exc)})
+        for item in states:
+            item.update(self._action_origins.get(self._action_key(item["action"]), {}))
         return states
+
+    @staticmethod
+    def _action_key(action: Any) -> str:
+        return json.dumps(action, sort_keys=True, separators=(",", ":"), default=str)
+
+    def _event(self, name: str, **fields: Any) -> None:
+        origin = self._action_origins.get(self._action_key(fields.get("action")), {})
+        metadata = {
+            "request_iteration": self._request_iteration,
+            "decision_id": f"d{self._request_iteration}",
+            **origin,
+            **fields,
+        }
+        self.telemetry.event(name, **metadata)
 
     def _queue_action(self, bot: Any, iteration: int, action: dict[str, Any]) -> None:
         if not self.deferred_actions.enqueue(action, iteration):
@@ -247,7 +303,7 @@ class LLMGameController:
         self.observation_builder.action_history.record(
             action, bot.time_formatted, "queued", "waiting for resources"
         )
-        self.telemetry.event(
+        self._event(
             "action_queued", iteration=iteration, action=action,
             status="queued", reason="waiting for resources",
         )
@@ -258,7 +314,7 @@ class LLMGameController:
             self.observation_builder.action_history.forget_queued(action)
             reason = "resource wait ended without submission; reconsider against current state"
             self._feedback.append({"kind": "action", "action": action, "error": reason})
-            self.telemetry.event(
+            self._event(
                 "action_wait_ended", iteration=iteration, action=action, reason=reason
             )
         for action in ready:
@@ -268,7 +324,7 @@ class LLMGameController:
                         action, bot.time_formatted, "accepted",
                         "matching construction already in progress; no additional order submitted",
                     )
-                    self.telemetry.event(
+                    self._event(
                         "action_wait_ended", iteration=iteration, action=action,
                         reason="matching construction already in progress",
                     )
@@ -279,7 +335,7 @@ class LLMGameController:
                     for issue in review.issues:
                         self._record_failure(bot, iteration, action, issue.text())
                     continue
-                self._dispatch_actions(bot, iteration, review, context)
+                self._dispatch_actions(bot, iteration, review, context, from_queue=True)
             except (KeyError, TypeError, ValueError) as exc:
                 self._record_failure(bot, iteration, action, str(exc))
 
@@ -297,10 +353,12 @@ class LLMGameController:
         self, bot: Any, iteration: int, action: dict[str, Any],
         behaviors: list[Any], persistent: bool,
     ) -> None:
+        origin = dict(self._action_origins.get(self._action_key(action), {}))
+
         def failed(reason: str) -> None:
             if persistent:
                 self.persistent_actions.discard(action)
-            self._record_failure(bot, iteration, action, reason)
+            self._record_failure(bot, iteration, action, reason, **origin)
             self._sync_active(bot)
 
         def executed(result: bool) -> None:
@@ -312,9 +370,9 @@ class LLMGameController:
                 else "Ares started no new work; check prerequisites, pending work and target counts before retrying"
             )
             self.observation_builder.action_history.annotate(action, reason)
-            self.telemetry.event(
+            self._event(
                 "action_execution", iteration=iteration, action=action,
-                status="accepted", started=bool(result), reason=reason,
+                status="accepted", started=bool(result), reason=reason, **origin,
             )
             if not result:
                 self._feedback.append({"kind": "action", "action": action, "error": reason})
@@ -331,16 +389,16 @@ class LLMGameController:
         self.observation_builder.sync_active_actions(actions, bot.time_formatted)
 
     def _record_failure(
-        self, bot: Any, iteration: int, action: Any, reason: str
+        self, bot: Any, iteration: int, action: Any, reason: str, **metadata: Any
     ) -> None:
         self.observation_builder.record_failed_actions(
             [action], bot.time_formatted, reason
         )
         feedback = {"kind": "action", "action": action, "error": reason}
         self._feedback.append(feedback)
-        self.telemetry.event(
-            "action_failed", iteration=iteration, request_iteration=self._request_iteration,
-            action=action, status="failed", reason=reason,
+        self._event(
+            "action_failed", iteration=iteration,
+            action=action, status="failed", reason=reason, **metadata,
         )
 
     async def _publish_decision(

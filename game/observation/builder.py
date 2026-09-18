@@ -99,6 +99,7 @@ class ObservationBuilder:
 
     def __init__(self, ids: TagIdMapper):
         self.ids = ids
+        self._known_own_aliases: set[str] = set()
         self.overview_builder = OverviewBuilder()
         self.hint_builder = SituationHintBuilder()
         self.technology_builder = ProductionTechnologyBuilder()
@@ -203,6 +204,8 @@ class ObservationBuilder:
                 entity, "is_memory", False
             ):
                 context.enemy_entities[self.ids.alias(entity.tag)] = entity
+        self._known_own_aliases.update(context.own_entities)
+        context.known_own_aliases = set(self._known_own_aliases)
         return context
 
     def _add_execution_context(self, bot: Any, context: EntityContext) -> None:

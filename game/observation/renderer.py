@@ -5,24 +5,25 @@ from __future__ import annotations
 from typing import Any
 
 
-def _indent(content: str) -> str:
-    """Indent non-empty lines by one XML nesting level."""
-    return "\n".join(f"  {line}" if line else "" for line in content.splitlines())
-
-
 def _tag(name: str, content: str | list[str]) -> str:
     """Wrap one observation domain in a stable XML-like semantic tag."""
     if isinstance(content, list):
         body = "\n\n".join(content) if content else "[None]"
     else:
         body = content or "[None]"
-    return f"<{name}>\n{_indent(body)}\n</{name}>"
+    body = "\n".join(line if line.lstrip().startswith("- ") else line.lstrip() for line in body.splitlines())
+    return f"<{name}>\n\n{body}\n\n</{name}>"
 
 
 def _section(name: str, content: str | list[str], *, empty: str = "[None]") -> str:
     if isinstance(content, list):
         content = "\n\n".join(content) if content else empty
     return _tag(name, content or empty)
+
+
+def _heading(title: str, blocks: list[str]) -> str:
+    body = "\n\n".join(blocks) if blocks else "[None]"
+    return f"**{title}**\n\n{body}"
 
 
 def observation_text(data: dict[str, Any]) -> str:
@@ -34,9 +35,9 @@ def observation_text(data: dict[str, Any]) -> str:
         for item in items
     ]
     situation_alerts = (
-        "Situational hints:\n" + "\n".join(alert_lines)
+        "**Situational hints**\n\n" + "\n".join(alert_lines)
         if alert_lines
-        else "Situational hints: [None]"
+        else "**Situational hints**\n\n[None]"
     )
     overview = "\n\n".join(
         (
@@ -72,12 +73,12 @@ def observation_text(data: dict[str, Any]) -> str:
                 "Previously seen enemy units and structures, with last-seen times and states. IDs are omitted because they cannot be selected. Current states are unknown. Last known building coordinates can be used as point targets; buildings may have moved or been destroyed.\n\n"
                 + "\n\n".join(
                     (
-                        _section(
-                            "recently_seen_units",
+                        _heading(
+                            "Recently seen units",
                             data["remembered_enemy_unit_blocks"],
                         ),
-                        _section(
-                            "known_structures",
+                        _heading(
+                            "Known structures",
                             data["remembered_enemy_structure_blocks"],
                         ),
                     )

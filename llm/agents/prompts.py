@@ -11,21 +11,24 @@ from game.actions.persistent import PERSISTENT_ACTION_IDS
 MODEL_ROLE = """You are a StarCraft II control model responsible for making tactical decisions and issuing executable actions.
 Your task is to identify the tactical phase that best matches the current game observation, then issue concrete actions appropriate for that phase.
 Use only phase IDs, actions, arguments, and values explicitly documented in the current message. Follow the specified action format exactly.
-Return only the tagged Function DSL defined in the output contract, with one action call per line. Do not include explanations, reasoning, chain-of-thought, or any additional text."""
+Return only the Function DSL specified in the output contract. Do not include explanations, reasoning, chain-of-thought, or any additional text."""
 
 
-GLOBAL_RULES = """Apply these rules in order:
-1. Automation continuously maintains mineral and vespene gas harvesting, SCV assignment (three SCVs per Refinery once the SCV count reaches 13), supply provision, MULE call-downs, SCV repairs, lowering Supply Depots, and scouting for proxy Bunkers. Leave routine Supply Depot construction to automation; request one manually only for a specific placement need.
-2. SCV production defaults to a target of 20 SCVs until you set BuildWorkers(to_count=...). An accepted SCV count target remains active until you change it.
-3. You control the target SCV count, army composition, production capacity, tech progression, expansion bases, and army objectives. Automation executes those choices and never chooses a new tactic.
-4. Each macro controller type has one current target. New parameters replace its previous target, including placement preferences.
-5. Continuous macro controllers and combat behaviors remain active until a new instruction replaces the same control matter or their referenced entities become invalid. Omitting an active instruction keeps it active.
-6. A new task for a unit replaces its previous task. When a new task targets part of a group, unaffected group members keep their existing task.
-7. Prefer one group action when multiple units share the same intent. Use individual actions only for unit-specific control.
-8. Avoid repeating an active instruction with exactly the same arguments. Submit a replacement only when its intent or parameters change. Do not repeat a one-time construction request while matching construction is pending. After it finishes, request another only when an additional structure is needed.
-9. Action statuses are accepted, active, queued, and failed. Accepted means a one-time action was submitted, not completed; active means ongoing control; queued means waiting for resources and automatically retried, so do not repeat it; failed means invalid instructions or execution errors. Ares starting no new work is not itself failure; inspect the observation and execution feedback before retrying.
-10. Temporary resource shortages do not stop an active production controller. One-time construction actions may queue when short by at most 120 minerals and 60 vespene gas. Resource waits are bounded; an ended wait is returned for reconsideration, not reported as an execution failure. Larger shortages are returned without submission. TechUp delegates the next prerequisite step to Ares and does not require the final unit cost upfront.
-11. The game continues while you decide. Each reply is checked against the latest state before application, and a failed request does not clear existing controls.
+GLOBAL_RULES = """Use these rules when choosing actions:
+
+- Automation handles harvesting, SCV assignment (three SCVs per Refinery from 13 SCVs), routine supply, MULEs, repairs, Supply Depot lowering, proxy Bunker scouting, and periodic map scans when minerals are at least 1500. You still choose army search and attack targets. Request Supply Depots manually only for specific placement needs.
+- SCV production defaults to 20. A new BuildWorkers target replaces the previous target and remains effective until changed.
+- You choose SCV targets, army composition, production capacity, tech progression, expansions, and army objectives. Automation executes these choices without selecting a new tactic.
+- Each macro controller type has one target. New parameters replace its previous target, including placement preferences.
+- Continuous macro and combat instructions remain active until replaced or their referenced entities become invalid. Omission keeps them active.
+- A new unit task replaces its previous task. When replacing part of a group, unaffected members keep their tasks.
+- Prefer one group action for units sharing an intent; use individual actions for unit-specific control.
+- Do not repeat unchanged active instructions or construction already pending. Request another structure after completion only when an additional one is needed.
+- During cleanup, actively clear remaining known enemy structures; when none are known, assign map searches and attack newly found enemies until the game ends.
+- If units have reached a target and cleared nearby enemies, choose a new target or search area. If repeated actions make no progress, reconsider the target or prerequisites instead of issuing the same ineffective command.
+- Check action history and execution feedback: accepted means submitted, not completed; active means ongoing; queued means automatically retried; failed means an invalid instruction or execution error. Ares starting no new work alone is not failure.
+- Resource shortages do not stop active production. One-time construction may queue within a shortfall of 120 minerals and 60 vespene gas. Larger shortages and ended waits return for reconsideration, not execution failure. TechUp delegates prerequisite steps to Ares without requiring the final unit cost upfront.
+- The game continues during inference. Replies are checked against the latest state; request failures preserve existing controls.
 """
 
 TYPE_LEGEND = {
@@ -51,7 +54,7 @@ TYPE_LEGEND = {
         "Landmark (`main`, `natural`, `enemy_main`) or `{x:number,y:number}`.",
     ),
     "unit_ref": ("Unit", "One unit or structure ID from the current observation."),
-    "unit_refs": ("Units", "Non-empty list of `Unit` values defined above."),
+    "unit_refs": ("Units", "List of `Unit` values; non-empty unless the action explicitly allows []."),
     "unit_or_upgrade_id": (
         "Tech",
         "SC2 UnitTypeId or UpgradeId identifier for a unit, structure, add-on, or upgrade.",
@@ -73,6 +76,7 @@ ACTION_DESCRIPTION_OVERRIDES = {
     "DropCargo": "Unload cargo from a transport.",
     "GhostSnipe": "Use a Ghost to cast Snipe (EFFECT_GHOSTSNIPE) on a nearby valid enemy target.",
     "MedivacHeal": "Use a Medivac to cast Heal on nearby allied biological units.",
+    "KeepGroupSafe": "Keep a group safe using the influence grid; close_enemy may be [] when no enemies are visible.",
     "KeepUnitSafe": "Move a unit away from danger using an influence grid.",
     "RavenAutoTurret": "Use a Raven to deploy an Auto-Turret near visible enemies.",
     "ReaperGrenade": "Use a Reaper to throw a KD8 Charge at visible enemies.",
@@ -115,10 +119,6 @@ ACTION_PARAMETER_NOTES = {
 }
 
 
-def _indent(content: str) -> str:
-    return "\n".join(f"  {line}" if line else "" for line in content.splitlines())
-
-
 def _section(tag: str, content: str, **attributes: str) -> str:
     """Use XML only for major semantic sections, not every nested field."""
     attrs = "".join(
@@ -126,12 +126,12 @@ def _section(tag: str, content: str, **attributes: str) -> str:
         for key, value in attributes.items()
     )
     body = content.strip() or "[None]"
-    return f"<{tag}{attrs}>\n{_indent(body)}\n</{tag}>"
+    return f"<{tag}{attrs}>\n\n{body}\n\n</{tag}>"
 
 
 def _list(label: str, items: list[str], *, empty: str = "[None]") -> str:
     body = "\n".join(f"- {item}" for item in items) or empty
-    return f"**{label}:**\n{body}"
+    return f"**{label}**\n\n{body}"
 
 
 def _tactic_card(tactic: dict[str, Any]) -> str:
@@ -159,7 +159,7 @@ def _tactic_phase_card(index: int, phase: dict[str, Any]) -> str:
             _list("Guidance", list(phase["guidance"])),
         )
     )
-    return f'<phase index="{index}">\n{_indent(content)}\n</phase>'
+    return f'<phase index="{index}">\n\n{content}\n\n</phase>'
 
 
 def _action_card(entry: dict[str, Any]) -> str:
@@ -207,7 +207,7 @@ def _type_legend(entries: list[dict[str, Any]]) -> str:
         and param["name"] != "group_tags"
     }
     lines: list[str] = [
-        "The following definitions explain each argument type and its accepted value formats:"
+        "Use these argument types and value formats:"
     ]
     for type_name, (label, description) in TYPE_LEGEND.items():
         if type_name not in used_types:
@@ -240,13 +240,12 @@ def _available_actions(entries: list[dict[str, Any]]) -> str:
             category = "Individual Combat Behaviors"
         groups[category].append(_action_card(entry))
     body = "\n\n".join(
-        f"**{category}:**\n" + "\n".join(actions)
+        f"**{category}**\n\n" + "\n".join(actions)
         for category, actions in groups.items()
         if actions
     ) or "[None]"
     instruction = (
-        "The following definitions describe the currently available actions, "
-        "their call signatures, and the types and meanings of their arguments:"
+        "Choose from these available actions and follow their argument definitions:"
     )
     return _section("available_actions", f"{instruction}\n\n{body}")
 
@@ -262,14 +261,14 @@ def _observation_with_feedback(
 ) -> str:
     feedback = _section(
         "previous_validation_feedback",
-        "Validation errors from the previous decision. Use this feedback to correct the current output.\n\n"
+        "Review previous validation and execution feedback before choosing actions.\n\n"
         + format_feedback(previous_validation_feedback or []),
     )
     action_history_end = "</action_history>"
     if action_history_end in observation:
         return observation.replace(
             action_history_end,
-            f"{action_history_end}\n\n{_indent(feedback)}",
+            f"{action_history_end}\n\n{feedback}",
             1,
         )
     return f"{observation.rstrip()}\n\n{feedback}"
@@ -283,12 +282,12 @@ def model_messages(
     *,
     max_actions_per_decision: int = 8,
 ) -> list[dict[str, str]]:
-    output_contract = """Output constraints are as follows:
+    output_contract = """Follow this output format:
 
-1. Use one documented phase ID and return 0-{max_actions} currently available actions, one per line.
-2. Use only documented actions, arguments, and values, with exact action and argument names.
-3. Use bare names for enums and landmarks, `true`/`false` for booleans, `[...]` for lists, and `{key:value}` for objects.
-4. Return only the Function DSL shown below, without explanations or additional text. Use actual line breaks, not escaped newline sequences.
+- Select one phase ID from the tactical reference and return 0-{max_actions} actions, one per line.
+- Use action names, argument names, and permitted values from the action reference.
+- Use bare names for enums and landmarks, `true`/`false` for booleans, `[...]` for lists, and `{key:value}` for objects.
+- Return only the DSL shown below, without explanations or additional text. Use actual line breaks, not escaped newline sequences.
 
 ```text
 # phase
@@ -300,16 +299,12 @@ ActionName(argument=value,...)
     output_contract = output_contract.replace(
         "{max_actions}", str(max_actions_per_decision)
     )
-    final_instruction = (
-        "Return your decision for the current observation."
-    )
     sections = [
         _section("global_rules", GLOBAL_RULES),
         _tactic_card(tactic),
         _actions_reference(action_entries),
         _observation_with_feedback(observation, previous_validation_feedback),
         _section("output_contract", output_contract),
-        final_instruction,
     ]
     user = "\n\n".join(sections)
     return [

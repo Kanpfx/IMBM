@@ -217,7 +217,7 @@ class WhyBot(AresBot):
 
             medic(AbilityId.EFFECT_REPAIR_SCV, injured)
 
-    def _mules(self) -> None:
+    def _mules(self, skip_tag: int | None = None) -> None:
         orbital_type = UnitTypeId.ORBITALCOMMAND
         structures_dict: dict[
             UnitTypeId, list[Unit]
@@ -225,7 +225,7 @@ class WhyBot(AresBot):
         for orbital in [
             structure
             for structure in structures_dict[orbital_type]
-            if structure.energy >= 50
+            if structure.energy >= 50 and structure.tag != skip_tag
         ]:
             nearby_minerals: list[Unit] = [
                 mineral

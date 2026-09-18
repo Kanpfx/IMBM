@@ -5,7 +5,9 @@ from __future__ import annotations
 import asyncio
 import json
 from typing import Any
+from time import perf_counter
 from urllib import request
+from urllib.error import HTTPError
 from urllib.parse import urlparse
 
 from config.llm import LLMConfig
@@ -23,19 +25,43 @@ class LLMClient:
     def __init__(self, config: LLMConfig):
         self.config = config
 
-    async def complete(self, messages: list[dict[str, str]]) -> str:
+    async def complete(self, messages: list[dict[str, str]], *, trace=None, iteration=None) -> str:
         if not self.config.configured:
             raise LLMClientError("LLM_MODEL, LLM_BASE_URL and LLM_API_KEY are required")
+        messages = self.prepare_messages(messages)
+        started = perf_counter()
+        if trace is not None:
+            trace.model_conversation(
+                stage="request", iteration=iteration,
+                request_body=self._request_body(messages), endpoint=self.config.base_url,
+                timeout_s=self.config.timeout_s, max_retries=self.config.transport_retries,
+            )
         last_error: Exception | None = None
-        for attempt in range(self.config.transport_retries + 1):
+        for attempt in range(1, self.config.transport_retries + 2):
+            attempt_started = perf_counter()
+            if trace is not None:
+                trace.event("transport_attempt_started", iteration=iteration, attempt_id=f"d{iteration}:t{attempt}",
+                            attempt=attempt, stage="system", level="INFO")
             try:
                 return await asyncio.to_thread(
-                    self._complete_sync, self.prepare_messages(messages)
+                    self._complete_sync, messages, trace=trace, iteration=iteration,
+                    attempt=attempt, request_started=started,
                 )
             except (OSError, TimeoutError, ValueError) as exc:
                 last_error = exc
-                if attempt < self.config.transport_retries:
-                    await asyncio.sleep(0.5 * (attempt + 1))
+                retrying = attempt <= self.config.transport_retries
+                if trace is not None:
+                    trace.event(
+                        "transport_error", iteration=iteration, attempt_id=f"d{iteration}:t{attempt}",
+                        stage="system", level="WARNING" if retrying else "ERROR",
+                        attempt=attempt, error_type=type(exc).__name__, error=str(exc),
+                        http_status=getattr(exc, "code", None), retrying=retrying,
+                        latency_ms=round((perf_counter() - attempt_started) * 1000),
+                        total_latency_ms=round((perf_counter() - started) * 1000),
+                        response_body=exc.read().decode("utf-8", errors="replace") if isinstance(exc, HTTPError) else None,
+                    )
+                if retrying:
+                    await asyncio.sleep(0.5 * attempt)
         raise LLMClientError(f"LLM request failed: {last_error}")
 
     @staticmethod
@@ -43,28 +69,54 @@ class LLMClient:
         """Return the agent-authored messages without adding another system role."""
         return list(messages)
 
-    def _complete_sync(self, messages: list[dict[str, str]]) -> str:
-        url = self.config.base_url
-        if not url.endswith("/chat/completions"):
-            url += "/chat/completions"
-        body: dict[str, Any] = {
-            "model": self.config.model,
-            "messages": messages,
-            "temperature": self.config.temperature,
-            "max_tokens": self.config.max_tokens,
+    def _request_body(self, messages: list[dict[str, str]]) -> dict[str, Any]:
+        body = {
+            "model": self.config.model, "messages": messages,
+            "temperature": self.config.temperature, "max_tokens": self.config.max_tokens,
         }
         if _is_official_deepseek_api(self.config.base_url):
             body["thinking"] = {"type": "disabled"}
-        payload = json.dumps(body).encode("utf-8")
+        return body
+
+    def _complete_sync(
+        self, messages: list[dict[str, str]], *, trace=None, iteration=None,
+        attempt=1, request_started=None,
+    ) -> str:
+        started = perf_counter()
+        url = self.config.base_url
+        if not url.endswith("/chat/completions"):
+            url += "/chat/completions"
+        payload = json.dumps(self._request_body(messages)).encode("utf-8")
         req = request.Request(
-            url,
-            data=payload,
-            headers={
-                "Authorization": f"Bearer {self.config.api_key}",
-                "Content-Type": "application/json",
-            },
+            url, data=payload,
+            headers={"Authorization": f"Bearer {self.config.api_key}", "Content-Type": "application/json"},
             method="POST",
         )
         with request.urlopen(req, timeout=self.config.timeout_s) as response:
-            result = json.loads(response.read().decode("utf-8"))
-        return str(result["choices"][0]["message"]["content"]).strip()
+            raw = response.read().decode("utf-8")
+            http_status = getattr(response, "status", None)
+        elapsed = round((perf_counter() - started) * 1000)
+        metadata = {
+            "stage": "response", "iteration": iteration,
+            "attempt_id": f"d{iteration}:t{attempt}", "attempt": attempt,
+            "http_status": http_status, "latency_ms": elapsed,
+            "total_latency_ms": round((perf_counter() - (request_started or started)) * 1000),
+            "raw_response": raw,
+        }
+        try:
+            result = json.loads(raw)
+            choice = result["choices"][0]
+            content = choice["message"]["content"]
+            if not isinstance(content, str):
+                raise ValueError("LLM response content is not text")
+        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            if trace is not None:
+                trace.model_conversation(**metadata, error=str(exc))
+            raise ValueError(f"Invalid LLM response: {exc}") from exc
+        if trace is not None:
+            trace.model_conversation(
+                **metadata, reply=content, usage=result.get("usage"),
+                finish_reason=choice.get("finish_reason"), response_id=result.get("id"),
+                model=result.get("model"),
+            )
+        return content

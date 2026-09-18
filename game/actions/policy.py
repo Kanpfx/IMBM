@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from math import isclose
 from typing import Any
 
@@ -39,6 +39,7 @@ class ActionReview:
     actions: list[dict[str, Any]]
     issues: list[ValidationIssue]
     normalizations: list[str]
+    notices: list[ValidationIssue] = field(default_factory=list)
 
     @property
     def accepted(self) -> bool:
@@ -86,6 +87,7 @@ class PolicyValidator:
         valid: list[dict[str, Any]] = []
         issues: list[ValidationIssue] = []
         normalizations: list[str] = []
+        notices: list[ValidationIssue] = []
         seen_own: set[str] = set()
         for index, action in enumerate(actions):
             if index >= self.game_config.max_actions_per_decision:
@@ -119,6 +121,18 @@ class PolicyValidator:
                 normalized, notes = self._normalize_action(
                     entry, current_action, bot, context
                 )
+                group = normalized["args"].get("group")
+                if entry["availability"]["param"] == "group" and isinstance(group, list):
+                    remaining = []
+                    for value in group:
+                        alias = context.canonical_entity_alias(value)
+                        if alias in context.known_own_aliases and alias not in context.own_entities:
+                            notices.append(ValidationIssue(index, f"unit {alias}", "unit disappeared; removed from group"))
+                        else:
+                            remaining.append(alias)
+                    normalized["args"]["group"] = remaining
+                    if group and not remaining:
+                        raise ParameterError("empty group", "no surviving group members")
                 if surface is not None:
                     surface.validate(entry, normalized["args"])
                 self.adapter._validate_shape(normalized)
@@ -135,7 +149,7 @@ class PolicyValidator:
                 )
             except (KeyError, TypeError, InstructionError, ValueError) as exc:
                 issues.append(ValidationIssue(index, current_action, str(exc)))
-        return ActionReview(valid, issues, normalizations)
+        return ActionReview(valid, issues, normalizations, notices)
 
     @staticmethod
     def _symbol_key(value: str) -> str:
@@ -414,11 +428,15 @@ class PolicyValidator:
                 "structure_id", structure_name, "a valid structure type"
             ) from exc
         if structure_id not in STRUCTURE_TO_BUILDING_SIZE:
+            guidance = "a structure supported by BuildStructure"
+            if structure_name == "REFINERY":
+                guidance = "GasBuildingController for Refineries"
+            elif "TECHLAB" in structure_name or "REACTOR" in structure_name:
+                guidance = "TechUp with a concrete unit or technology target for add-ons; not BuildStructure"
             raise ParameterError.invalid_value(
                 "structure_id",
                 structure_name,
-                "a structure supported by BuildStructure; use "
-                "GasBuildingController for Refineries",
+                guidance,
             )
 
     def _validate_live_args(
@@ -454,6 +472,8 @@ class PolicyValidator:
                         raise ConflictError.unit_reused(value)
                     seen_own.add(value)
             elif type_name == "unit_refs":
+                if entry["id"] == "combat.group.keep_group_safe" and name == "close_enemy" and value == []:
+                    continue
                 if not isinstance(value, list) or not value:
                     raise ParameterError.format(
                         name, "a non-empty observation unit ID list"

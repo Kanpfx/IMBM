@@ -155,6 +155,7 @@ def parse_model_payload(text: str) -> dict[str, Any]:
 
     actions: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
+    sources: list[dict[str, Any]] = []
     action_lines = [
         line.strip()
         for line in actions_source.splitlines()
@@ -168,6 +169,7 @@ def parse_model_payload(text: str) -> dict[str, Any]:
             source = source[:-1].rstrip()
         try:
             actions.append(_parse_dsl_action(source))
+            sources.append({"source_index": index + 1, "parsed_index": len(actions), "source": original})
         except OutputFormatError as exc:
             errors.append(
                 {
@@ -176,4 +178,4 @@ def parse_model_payload(text: str) -> dict[str, Any]:
                     "error": str(exc),
                 }
             )
-    return {"phase": phase, "actions": actions, "errors": errors}
+    return {"phase": phase, "actions": actions, "errors": errors, "sources": sources}

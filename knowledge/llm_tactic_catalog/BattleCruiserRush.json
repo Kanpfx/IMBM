@@ -62,7 +62,7 @@
     {
       "id": "bc_pressure",
       "enter_when": [
-        "At least one Battlecruiser is ready.",
+        "At least one Battlecruiser is ready and the cleanup conditions are not yet met.",
         "Typically after about 5-6 minutes; timing is only a rough guide."
       ],
       "goal": "Apply continuous Battlecruiser-led pressure while scaling economy, production, and army strength.",
@@ -76,6 +76,17 @@
         "Prioritize significant enemy army concentrations when favorable; otherwise pressure known structures, the enemy starting area, and then likely expansions.",
         "Avoid concentrated anti-air and unsafe routes; use Tactical Jump for long-distance engagement or safe repositioning near the target.",
         "Retreat badly damaged Battlecruisers, especially below roughly 225 health, rather than losing them unnecessarily."
+      ]
+    },
+    {
+      "id": "cleanup",
+      "enter_when": [
+        "The enemy main base has been destroyed and at least 7 Battlecruisers are ready; preferably the enemy natural has also been destroyed."
+      ],
+      "goal": "Finish the game by searching the map and destroying remaining enemy forces and structures.",
+      "guidance": [
+        "Clear known enemy structures, then split available forces into small groups to search different expansions and unexplored areas, attacking remaining enemies as they are found.",
+        "Move on after clearing each area; regroup if strong resistance appears and withdraw only badly damaged units."
       ]
     }
   ]

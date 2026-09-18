@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
+from threading import Lock
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +29,8 @@ class Telemetry:
         else:
             self.directory = directory
             self.directory.mkdir(parents=True, exist_ok=True)
-        self._metadata = dict(metadata or {})
+        self._lock = Lock()
+        self._metadata = {"log_schema_version": 2, **(metadata or {})}
         self._write_json("metadata.json", self._metadata)
         for filename in (
             "obs.jsonl",
@@ -56,8 +58,13 @@ class Telemetry:
         self._write_json("metadata.json", self._metadata)
 
     def _append(self, filename: str, fields: dict[str, Any]) -> None:
-        with (self.directory / filename).open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(fields, ensure_ascii=False, default=str) + "\n")
+        fields = {"timestamp": datetime.now(timezone.utc).isoformat(), **fields}
+        request_iteration = fields.get("request_iteration", fields.get("iteration"))
+        if request_iteration is not None and request_iteration >= 0:
+            fields.setdefault("decision_id", f"d{request_iteration}")
+        with self._lock:
+            with (self.directory / filename).open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(fields, ensure_ascii=False, default=str) + "\n")
 
     def _write_json(self, filename: str, fields: dict[str, Any]) -> None:
         with (self.directory / filename).open("w", encoding="utf-8") as handle:

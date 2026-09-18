@@ -174,6 +174,40 @@ class AsyncControllerTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("`failed` | invalid target",
                       self.controller.observation_builder._action_history_text())
 
+    async def test_execution_error_keeps_originating_decision(self):
+        import json
+        self.controller._request_iteration = 7
+        action = {"id": "GasBuildingController", "args": {"to_count": 2}}
+        state = self.dispatch([action])[0]
+        self.controller._run_persistent_actions(self.bot, 10, self.context)
+        self.controller._request_iteration = 99
+        wrapper = self.wrappers()[0]
+        wrapper.behavior.execute.side_effect = ValueError("invalid target")
+        wrapper.execute(self.bot, {}, None)
+        rows = [json.loads(line) for line in (self.controller.telemetry.directory / "events.jsonl").read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(rows[-1]["decision_id"], "d7")
+        self.assertEqual(rows[-1]["iteration"], 10)
+        self.assertEqual(rows[-1]["action_id"], state["action_id"])
+
+    async def test_partial_group_notice_does_not_fail_survivors(self):
+        import json
+        from sc2.position import Point2
+        self.context = EntityContext(
+            own_entities={"1": SimpleNamespace(tag=1, type_id=SimpleNamespace(name="MARINE"))},
+            known_own_aliases={"1", "2"}, positions={"main": Point2((10, 10))},
+        )
+        await self.frame(1, 0)
+        self.reply = result([{"id": "AMoveGroup", "args": {"group": ["1", "2"], "target": "main"}}])
+        self.gate.set()
+        await asyncio.sleep(0)
+        await self.frame(2, 1)
+        self.assertEqual(len(self.wrappers()), 1)
+        self.assertEqual(self.controller._feedback[-1]["kind"], "action_notice")
+        self.assertEqual(self.controller._feedback[-1]["action"], "unit 2")
+        self.assertNotIn("| `failed` |", self.controller.observation_builder._action_history_text())
+        rows = [json.loads(line) for line in (self.controller.telemetry.directory / "accepted_actions.jsonl").read_text(encoding="utf-8").splitlines()]
+        self.assertEqual(rows[-1]["actions"][0]["args"]["group"], ["1"])
+
     async def test_invalid_new_task_does_not_remove_old_control(self):
         action = {"id": "GasBuildingController", "args": {"to_count": 2}}
         self.dispatch([action])

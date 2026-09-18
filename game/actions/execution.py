@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from loguru import logger
 from sc2.protocol import ProtocolError
 
 
@@ -28,6 +29,7 @@ class TrackedBehavior:
         except ProtocolError:
             raise
         except Exception as exc:
+            logger.exception("Ares behavior execution failed")
             self.on_failure(str(exc))
             return False
         self.on_result(result)

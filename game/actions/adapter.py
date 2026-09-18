@@ -84,7 +84,9 @@ class AresActionAdapter:
         for name, param in params.items():
             if name not in args:
                 raise ParameterError.missing(name)
-            if entry["id"] == "macro.tech_up" and name == "desired_tech":
+            if entry["id"] == "combat.group.keep_group_safe" and name == "close_enemy" and args[name] == []:
+                kwargs[name] = []
+            elif entry["id"] == "macro.tech_up" and name == "desired_tech":
                 kwargs[name] = self._resolve_tech_up_target(args[name])
             else:
                 kwargs[name] = self._resolve_value(

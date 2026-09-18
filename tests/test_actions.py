@@ -505,3 +505,65 @@ class FormattingTests(unittest.TestCase):
     def test_literal_line_breaks_get_specific_feedback(self):
         with self.assertRaisesRegex(OutputFormatError, "actual line breaks"):
             parse_model_payload(r"# phase\nopening\n# actions\nExample()")
+
+class PartialGroupValidationTests(unittest.TestCase):
+    def setUp(self):
+        from types import SimpleNamespace
+        from sc2.position import Point2
+        self.unit = SimpleNamespace(tag=1, type_id=SimpleNamespace(name="MARINE"), is_structure=False, abilities=[])
+        self.catalog = ActionCatalog.load()
+        self.policy = PolicyValidator(self.catalog, GameConfig())
+        self.context = EntityContext(
+            own_entities={"1": self.unit}, known_own_aliases={"1", "2"},
+            positions={"main": Point2((10, 10))}, grids={"ground": object()},
+        )
+
+    def surface(self, name):
+        from game.actions.exposure import ActionSurface
+        entry = self.catalog.get(name)
+        return ActionSurface([entry], frozenset([entry["id"]]), {}, self.context)
+
+    def test_disappeared_member_is_removed_but_unknown_id_is_rejected(self):
+        action = {"id": "AMoveGroup", "args": {"group": [1, 2], "target": "main"}}
+        review = self.policy.review(None, [action], self.context, self.surface("AMoveGroup"))
+        self.assertTrue(review.accepted, review.message)
+        self.assertEqual(review.actions[0]["args"]["group"], ["1"])
+        self.assertEqual(review.notices[0].action, "unit 2")
+        self.assertIn("disappeared", review.notices[0].reason)
+        self.assertIsNotNone(ActionExposure(self.catalog)._group(self.catalog.get("AMoveGroup"), self.context))
+        action["args"]["group"] = [1, 999]
+        review = self.policy.review(None, [action], self.context, self.surface("AMoveGroup"))
+        self.assertFalse(review.accepted)
+        self.assertIn("unknown or unavailable unit ID", review.message)
+        action["args"]["group"] = [2]
+        self.assertFalse(self.policy.review(None, [action], self.context, self.surface("AMoveGroup")).accepted)
+
+    def test_missing_wrong_type_and_unavailable_ability_have_distinct_reasons(self):
+        from types import SimpleNamespace
+        action = {"id": "TacticalJump", "args": {"unit": "2", "target": "main"}}
+        review = self.policy.review(None, [action], self.context, self.surface("TacticalJump"))
+        self.assertIn("unit disappeared", review.message)
+        action["args"]["unit"] = "1"
+        review = self.policy.review(None, [action], self.context, self.surface("TacticalJump"))
+        self.assertIn("unit type mismatch", review.message)
+        self.unit.type_id = SimpleNamespace(name="BATTLECRUISER")
+        review = self.policy.review(None, [action], self.context, self.surface("TacticalJump"))
+        self.assertIn("ability currently unavailable", review.message)
+        self.assertNotIn("available values from", review.message)
+
+    def test_empty_nearby_enemies_are_valid_for_keep_group_safe(self):
+        action = {"id": "KeepGroupSafe", "args": {"group": ["1"], "close_enemy": [], "grid": "ground"}}
+        entry = self.catalog.get("KeepGroupSafe")
+        self.assertIsNotNone(ActionExposure(self.catalog)._group(entry, self.context))
+        review = self.policy.review(None, [action], self.context, self.surface("KeepGroupSafe"))
+        self.assertTrue(review.accepted, review.message)
+        kwargs = self.policy.adapter._resolve_arguments(entry, review.actions[0]["args"], self.context)
+        self.assertEqual(kwargs["close_enemy"], [])
+        action["args"]["group"] = []
+        self.assertFalse(self.policy.review(None, [action], self.context, self.surface("KeepGroupSafe")).accepted)
+
+    def test_techlab_feedback_points_to_tech_up(self):
+        action = {"id": "BuildStructure", "args": {"structure_id": "TECHLAB", "base_location": "main"}}
+        review = self.policy.review(None, [action], self.context)
+        self.assertIn("TechUp", review.message)
+        self.assertNotIn("GasBuildingController", review.message)
